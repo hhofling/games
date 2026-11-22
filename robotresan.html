@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Robotresan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: banan till vänster, programmet och knapparna till höger. En kolumn på telefon. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --grass:#92d67d; --grass2:#86cc72; --water:#58b0ff; --line:#b3d4ec;
+  --go:#22a152; --accent:#ff7a3d; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:980px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:18px 24px}
+header{grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0; letter-spacing:.01em}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted); letter-spacing:0}
+.tools{display:flex; gap:8px}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.levels{grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px}
+.lvl{min-width:56px; min-height:56px; padding:4px 8px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-weight:700; font-size:1.15rem; line-height:1.1; box-shadow:0 3px 0 var(--shadow)}
+.lvl span{display:block; font-size:.78rem; color:var(--gold); letter-spacing:.08em; min-height:1em; -webkit-text-stroke:.5px var(--edge)}
+.lvl[aria-current="true"]{background:var(--accent); color:#2a1200}
+.lvl[aria-current="true"] span{color:#fff}
+
+.stage{min-width:0}
+.board-wrap{position:relative}
+.board{
+  position:relative; display:grid; width:100%; border:5px solid var(--edge); border-radius:20px; overflow:hidden;
+  container-type:inline-size; background:var(--grass); box-shadow:0 5px 0 var(--shadow);
+  grid-template-columns:repeat(var(--w),1fr); aspect-ratio:var(--w)/var(--h);
+}
+.cell{display:grid; place-items:center; font-size:calc(100cqw / var(--w) * .6); line-height:1; user-select:none}
+.cell.g0{background:var(--grass)} .cell.g1{background:var(--grass2)}
+.cell.water{background:var(--water)}
+.cell.bridge{background:var(--water); position:relative}
+.cell.bridge::before{content:""; position:absolute; inset:0 14%; border-radius:6px; border:3px solid #6b4220;
+  background:repeating-linear-gradient(0deg,#c58c4a 0 22%,#a9733a 22% 26%)}
+.cell.goal{background:#b9ec9f}
+.apple{transition:transform .25s, opacity .25s}
+.apple.gone{transform:scale(.2); opacity:0}
+.robot{
+  position:absolute; left:0; top:0; width:calc(100% / var(--w)); aspect-ratio:1;
+  transform:translate(calc(var(--x) * 100%), calc(var(--y) * 100%)); transition:transform .4s ease-in-out;
+  pointer-events:none;
+}
+.robot.snap{transition:none}
+.bot{width:100%; height:100%; display:block; transition:transform .35s ease-in-out}
+.robot.snap .bot{transition:none}
+.robot.bump .bot{animation:bump .4s}
+@keyframes bump{0%,100%{translate:0 0} 25%{translate:-9% 0} 75%{translate:9% 0}}
+
+.msg{margin:12px 2px 0; min-height:3.2em; font-weight:500; font-size:1.05rem}
+.msg.bad{color:#a8330a} .msg.good{color:#0f6b34}
+
+.panel{min-width:0; display:flex; flex-direction:column; gap:14px}
+.panel h2{font-size:1.1rem; margin:0 0 6px; font-weight:600; color:var(--muted)}
+.prog{
+  min-height:68px; padding:8px; display:flex; flex-wrap:wrap; gap:6px; align-content:flex-start;
+  background:var(--card); border:3px dashed var(--line); border-radius:16px;
+}
+.prog:empty::before{content:"Tryck på pilarna för att bygga ett program"; color:var(--muted); padding:8px 6px; font-size:1rem}
+.chip{width:46px; height:46px; display:grid; place-items:center; border-radius:12px; background:#e9f4fd; border:3px solid var(--edge)}
+.chip svg{width:26px; height:26px}
+.chip.on{background:var(--accent); border-color:#2a1200}
+.cmds{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
+.cmd{
+  min-height:86px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  border-radius:18px; border:3px solid var(--edge); background:var(--card); font-size:1.05rem; font-weight:600;
+  box-shadow:0 5px 0 var(--shadow);
+}
+.cmd svg{width:38px; height:38px}
+.cmd:active{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
+.actions{display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px}
+.run{min-height:64px; border-radius:18px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 5px 0 #0d5a2e}
+.run:active{transform:translateY(3px); box-shadow:0 2px 0 #0d5a2e}
+.run.stop{background:#d9442b; border-color:#7d1f0e; box-shadow:0 5px 0 #7d1f0e}
+.sec{min-height:64px; border-radius:18px; border:3px solid var(--edge); background:var(--card); font-size:1.05rem; font-weight:600; box-shadow:0 5px 0 var(--shadow)}
+button:disabled{opacity:.45; cursor:not-allowed}
+
+.win{position:absolute; inset:0; display:grid; place-items:center; padding:14px; background:rgba(18,50,74,.6); border-radius:20px}
+.win[hidden]{display:none}
+.win-card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:18px 20px; text-align:center; max-width:360px; width:100%}
+.win-card h2{margin:0; font-size:1.8rem}
+.stars{font-size:2.6rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:1.5px var(--edge); margin:4px 0}
+.stars i{font-style:normal; display:inline-block; animation:pop .5s both}
+.stars i:nth-child(2){animation-delay:.15s} .stars i:nth-child(3){animation-delay:.3s}
+.stars i.off{color:#e3edf5; animation:none}
+@keyframes pop{0%{transform:scale(0) rotate(-30deg)} 70%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1)}}
+.win-card p{margin:6px 0 12px; font-size:1.05rem}
+.win-btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.win-btns .go{background:var(--go); color:#fff; border-color:#0d5a2e}
+
+@media (max-width:760px){
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:1.6rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .robot,.bot,.apple{transition:none}
+  .robot.bump .bot,.stars i{animation:none}
+}
+</style>
+<style>body{margin:0}</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>Robotresan <small id="lvlname"></small></h1>
+    <div class="tools">
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+  <nav class="levels" id="levels" aria-label="Välj bana"></nav>
+
+  <section class="stage">
+    <div class="board-wrap">
+      <div class="board" id="board" role="img" aria-label="Spelplan"></div>
+      <div class="win" id="win" hidden>
+        <div class="win-card" role="dialog" aria-labelledby="wt">
+          <h2 id="wt">Bra jobbat!</h2>
+          <div class="stars" id="wstars"></div>
+          <p id="wtext"></p>
+          <div class="win-btns">
+            <button class="small-btn go" id="wnext" type="button">Nästa bana</button>
+            <button class="small-btn" id="wagain" type="button">Spela igen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </section>
+
+  <section class="panel">
+    <div>
+      <h2>Ditt program</h2>
+      <div class="prog" id="prog" aria-label="Program"></div>
+    </div>
+    <div class="cmds">
+      <button class="cmd" type="button" data-c="F"><span data-i="F"></span>Framåt</button>
+      <button class="cmd" type="button" data-c="L"><span data-i="L"></span>Vänster</button>
+      <button class="cmd" type="button" data-c="R"><span data-i="R"></span>Höger</button>
+    </div>
+    <div class="actions">
+      <button class="run" id="run" type="button">Kör</button>
+      <button class="sec" id="undo" type="button">Ångra</button>
+      <button class="sec" id="clear" type="button">Rensa</button>
+    </div>
+  </section>
+</div>
+
+<script>
+/*PURE-START*/
+const DIRN=[[0,-1],[1,0],[0,1],[-1,0]];
+const DIRCH={u:0,r:1,d:2,l:3};
+/* # sten, T träd, ~ vatten, = bro, a äpple, S start, G flagga */
+const LEVELS=[
+ {name:"Första steget",hint:"Tryck på Framåt några gånger och sedan på Kör. Ta äpplet på vägen!",dir:"r",rows:[
+  ".....",
+  "S..aG",
+  "....."]},
+ {name:"Sväng!",hint:"Roboten måste svänga för att komma till flaggan.",dir:"r",rows:[
+  "....G",
+  ".....",
+  "....a",
+  ".....",
+  "S...."]},
+ {name:"Stenmuren",hint:"Hitta vägen runt muren av sten.",dir:"r",rows:[
+  "..#.G",
+  "..#..",
+  "S.#.a",
+  "..#..",
+  "....."]},
+ {name:"Bron",hint:"Roboten kan inte gå på vatten. Ta bron!",dir:"r",rows:[
+  "S..~.G",
+  "...~..",
+  "...~.a",
+  "...=..",
+  "...~.."]},
+ {name:"Skogen",hint:"Mellan träd och stenar finns en väg. Hitta den!",dir:"r",rows:[
+  "S.T...",
+  "..T.#.",
+  "..T.a.",
+  "....#.",
+  "T#.T#.",
+  "..a..G"]},
+ {name:"Älven",hint:"Du behöver korsa vattnet på rätt ställe.",dir:"r",rows:[
+  "S.~....",
+  "..~.Ta.",
+  "..~.T..",
+  ".a=...T",
+  "..~.T..",
+  "..~.T..",
+  "....#.G"]},
+ {name:"Ormen",hint:"Följ den långa vägen. Det blir många kommandon!",dir:"r",rows:[
+  "S..a..",
+  "#####.",
+  "......",
+  ".#####",
+  "....aG"]},
+ {name:"Stora äventyret",hint:"Två äpplen och en lång väg. Kan du ta båda?",dir:"r",rows:[
+  "S..~...",
+  ".#.~.#.",
+  ".#.=.#a",
+  "a#.~.#.",
+  ".#...#.",
+  ".#.#.#.",
+  "...#..G"]}
+];
+const BLOCK=new Set(['stone','tree','water']);
+function parse(L){
+  const rows=L.rows,h=rows.length,w=rows[0].length,cells=[],apples=[];
+  let start=null,goal=null;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const ch=rows[y][x]; let t='grass';
+    if(ch==='#')t='stone'; else if(ch==='T')t='tree'; else if(ch==='~')t='water';
+    else if(ch==='=')t='bridge'; else if(ch==='G'){t='goal';goal={x,y}}
+    else if(ch==='S')start={x,y}; else if(ch==='a')apples.push({x,y});
+    cells.push(t);
+  }
+  return {w,h,cells,start,goal,apples,dir:DIRCH[L.dir||'r']};
+}
+function walkable(P,x,y){return x>=0&&y>=0&&x<P.w&&y<P.h&&!BLOCK.has(P.cells[y*P.w+x]);}
+function solvePar(P){
+  const full=(1<<P.apples.length)-1;
+  const ai=new Map(P.apples.map((a,i)=>[a.y*P.w+a.x,i]));
+  const key=(x,y,d,m)=>(((y*P.w+x)*4+d)*(full+1)+m);
+  const seen=new Set([key(P.start.x,P.start.y,P.dir,0)]);
+  const q=[[P.start.x,P.start.y,P.dir,0,0]];
+  for(let i=0;i<q.length;i++){
+    const [x,y,d,m,n]=q[i];
+    if(x===P.goal.x&&y===P.goal.y){ if(m===full)return n; continue; }
+    const nxt=[[x,y,(d+1)%4,m],[x,y,(d+3)%4,m]];
+    const nx=x+DIRN[d][0],ny=y+DIRN[d][1];
+    if(walkable(P,nx,ny)){const k=ai.get(ny*P.w+nx);nxt.push([nx,ny,d,k===undefined?m:m|(1<<k)]);}
+    for(const s of nxt){const kk=key(s[0],s[1],s[2],s[3]);if(!seen.has(kk)){seen.add(kk);q.push([s[0],s[1],s[2],s[3],n+1]);}}
+  }
+  return null;
+}
+/*PURE-END*/
+
+(function(){
+const $=id=>document.getElementById(id);
+const MAXLEN=40, STEP=520, KEY='robotresan-v1';
+const ICON={
+  F:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 11h5.5v10.5h5V11H20Z" fill="currentColor"/></svg>',
+  L:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 22v-7a4.5 4.5 0 0 0-4.5-4.5H10v5L2.5 8.5 10 2v5h4.5A8.5 8.5 0 0 1 23 15.500V22Z" fill="currentColor"/></svg>',
+  R:'<svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(24 0) scale(-1 1)"><path d="M19 22v-7a4.5 4.5 0 0 0-4.5-4.5H10v5L2.5 8.5 10 2v5h4.5A8.5 8.5 0 0 1 23 15.500V22Z" fill="currentColor"/></g></svg>'
+};
+const BOT='<svg class="bot" viewBox="0 0 100 100" aria-hidden="true"><rect x="22" y="26" width="56" height="56" rx="14" fill="#ff7a3d" stroke="#12324a" stroke-width="5"/><rect x="30" y="38" width="40" height="22" rx="8" fill="#fff" stroke="#12324a" stroke-width="3"/><circle cx="41" cy="49" r="4.500" fill="#12324a"/><circle cx="59" cy="49" r="4.500" fill="#12324a"/><rect x="34" y="68" width="32" height="6" rx="3" fill="#12324a" opacity=".25"/><path d="M50 5 64 26H36Z" fill="#ffd23f" stroke="#12324a" stroke-width="4" stroke-linejoin="round"/></svg>';
+
+let cur=0,P=null,prog=[],running=false,runId=0,sound=true;
+let rb={x:0,y:0,d:0,ang:0},got=new Set(),appleEl=[];
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+let ac=null;
+function tone(f,d,type,v){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';o.frequency.value=f;g.gain.value=v||.07;
+    o.connect(g);g.connect(ac.destination);o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+(d||.12));o.stop(ac.currentTime+(d||.12));
+  }catch(e){}
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function say(t,kind){const m=$('msg');m.textContent=t;m.className='msg'+(kind?' '+kind:'');}
+
+function buildLevelBar(){
+  const bar=$('levels');bar.innerHTML='';
+  LEVELS.forEach((L,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='lvl';
+    const s=saved[i]||0;
+    b.innerHTML=(i+1)+'<span>'+'★'.repeat(s)+'☆'.repeat(3-s)+'</span>';
+    b.setAttribute('aria-label','Bana '+(i+1)+', '+L.name+', '+s+' av 3 stjärnor');
+    if(i===cur)b.setAttribute('aria-current','true');
+    b.onclick=()=>{stopRun();loadLevel(i);};
+    bar.appendChild(b);
+  });
+}
+function snapRobot(fn){
+  const r=$('robot');r.classList.add('snap');fn();void r.offsetWidth;r.classList.remove('snap');
+}
+function paintRobot(){
+  const r=$('robot');
+  r.style.setProperty('--x',rb.x);r.style.setProperty('--y',rb.y);
+  r.querySelector('.bot').style.transform='rotate('+rb.ang+'deg)';
+}
+function resetRobot(){
+  rb={x:P.start.x,y:P.start.y,d:P.dir,ang:P.dir*90};
+  got=new Set();
+  appleEl.forEach(e=>e.classList.remove('gone'));
+  snapRobot(paintRobot);
+}
+function loadLevel(i){
+  cur=i;const L=LEVELS[i];P=parse(L);P.par=solvePar(P);
+  prog=[];$('win').hidden=true;
+  $('lvlname').textContent='Bana '+(i+1)+' av '+LEVELS.length+': '+L.name;
+  const b=$('board');b.innerHTML='';
+  b.style.setProperty('--w',P.w);b.style.setProperty('--h',P.h);
+  b.setAttribute('aria-label','Spelplan, '+P.w+' gånger '+P.h+' rutor');
+  appleEl=[];
+  const EM={stone:'🪨',tree:'🌲',water:'🌊',goal:'🏁'};
+  for(let y=0;y<P.h;y++)for(let x=0;x<P.w;x++){
+    const t=P.cells[y*P.w+x];const c=document.createElement('div');
+    c.className='cell '+((x+y)%2?'g1':'g0');
+    if(t!=='grass')c.className='cell '+t;
+    if(EM[t])c.textContent=EM[t];
+    const ai=P.apples.findIndex(a=>a.x===x&&a.y===y);
+    if(ai>=0){const s=document.createElement('span');s.className='apple';s.textContent='🍎';c.appendChild(s);appleEl[ai]=s;}
+    b.appendChild(c);
+  }
+  const r=document.createElement('div');r.className='robot';r.id='robot';r.innerHTML=BOT;b.appendChild(r);
+  resetRobot();renderProg();buildLevelBar();say(L.hint);setButtons();
+}
+function renderProg(active){
+  const p=$('prog');p.innerHTML='';
+  prog.forEach((c,i)=>{
+    const d=document.createElement('div');d.className='chip'+(i===active?' on':'');d.innerHTML=ICON[c];p.appendChild(d);
+  });
+}
+function setButtons(){
+  const run=$('run');
+  run.textContent=running?'Stopp':'Kör';run.classList.toggle('stop',running);
+  run.disabled=!running&&prog.length===0;
+  document.querySelectorAll('.cmd,#undo,#clear').forEach(b=>b.disabled=running);
+}
+function add(c){
+  if(running)return;
+  if(prog.length>=MAXLEN){say('Programmet är fullt. Ta bort något eller tryck på Kör.','bad');return;}
+  prog.push(c);tone({F:520,L:440,R:620}[c],.09);renderProg();setButtons();
+  if(prog.length===1)say('Bra! Fortsätt tills roboten når flaggan, tryck sedan på Kör.');
+}
+function stopRun(){runId++;running=false;renderProg();setButtons();if(P)resetRobot();}
+
+async function run(){
+  if(running){stopRun();say('Stoppad. Ändra programmet och prova igen.');return;}
+  if(!prog.length)return;
+  resetRobot();running=true;const my=++runId;setButtons();say('Roboten kör!');
+  await sleep(250);
+  const total=P.apples.length;
+  for(let i=0;i<prog.length;i++){
+    if(my!==runId)return;
+    renderProg(i);const c=prog[i];
+    if(c==='L'){rb.d=(rb.d+3)%4;rb.ang-=90;tone(440,.1);paintRobot();}
+    else if(c==='R'){rb.d=(rb.d+1)%4;rb.ang+=90;tone(620,.1);paintRobot();}
+    else{
+      const nx=rb.x+DIRN[rb.d][0],ny=rb.y+DIRN[rb.d][1];
+      if(!walkable(P,nx,ny)){
+        const r=$('robot');r.classList.add('bump');tone(150,.3,'square',.05);
+        await sleep(450);r.classList.remove('bump');
+        if(my!==runId)return;
+        running=false;renderProg();setButtons();
+        say('Hoppsan! Roboten krockade. Titta på programmet och ändra det.','bad');
+        await sleep(900);if(my!==runId)return;resetRobot();return;
+      }
+      rb.x=nx;rb.y=ny;tone(520,.08);paintRobot();
+      const k=P.apples.findIndex(a=>a.x===nx&&a.y===ny);
+      if(k>=0&&!got.has(k)){got.add(k);setTimeout(()=>{appleEl[k].classList.add('gone');tone(880,.15,'triangle');},300);}
+      if(nx===P.goal.x&&ny===P.goal.y){await sleep(STEP);if(my!==runId)return;win(total);return;}
+    }
+    await sleep(STEP);
+  }
+  if(my!==runId)return;
+  running=false;renderProg();setButtons();
+  say('Roboten stannade innan flaggan. Lägg till fler kommandon eller ändra något.','bad');
+  await sleep(900);if(my!==runId)return;resetRobot();
+}
+function win(total){
+  running=false;renderProg();setButtons();
+  const all=got.size===total;
+  const s=1+(all?1:0)+(all&&prog.length<=P.par?1:0);
+  if(s>(saved[cur]||0)){saved[cur]=s;persist();}
+  buildLevelBar();
+  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.25,'triangle',.08),i*130));
+  $('wstars').innerHTML=[0,1,2].map(i=>'<i class="'+(i<s?'':'off')+'">★</i>').join('');
+  let t='Du klarade banan med '+prog.length+' kommandon. ';
+  if(!all)t+='Du tog '+got.size+' av '+total+' äpplen. Kan du ta alla?';
+  else if(s<3)t+='Alla äpplen! Kan du klara det på '+P.par+' kommandon?';
+  else t+='Alla äpplen och så få kommandon som det går. Fantastiskt!';
+  const last=cur===LEVELS.length-1;
+  if(last&&s===3)t='Du klarade alla banor. Du är en riktig robotprogrammerare!';
+  $('wtext').textContent=t;
+  $('wnext').hidden=last;
+  $('win').hidden=false;
+  say('Roboten kom fram till flaggan!','good');
+  $('wnext').hidden?$('wagain').focus():$('wnext').focus();
+}
+
+document.querySelectorAll('.cmd').forEach(b=>{
+  b.querySelector('[data-i]').innerHTML=ICON[b.dataset.c];
+  b.onclick=()=>add(b.dataset.c);
+});
+$('run').onclick=run;
+$('undo').onclick=()=>{if(!running&&prog.length){prog.pop();renderProg();setButtons();}};
+$('clear').onclick=()=>{if(!running){prog=[];renderProg();setButtons();say(LEVELS[cur].hint);}};
+$('wnext').onclick=()=>loadLevel(Math.min(cur+1,LEVELS.length-1));
+$('wagain').onclick=()=>{prog=[];$('win').hidden=true;resetRobot();renderProg();setButtons();say(LEVELS[cur].hint);};
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';};
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=()=>{
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(LEVELS[cur].name+'. '+LEVELS[cur].hint);u.lang='sv-SE';u.rate=.9;
+    speechSynthesis.speak(u);
+  }catch(e){}
+};
+document.addEventListener('keydown',e=>{
+  if(!$('win').hidden)return;
+  if(e.key==='ArrowUp'){add('F');e.preventDefault();}
+  else if(e.key==='ArrowLeft'){add('L');e.preventDefault();}
+  else if(e.key==='ArrowRight'){add('R');e.preventDefault();}
+  else if(e.key==='Backspace'&&e.target.tagName!=='INPUT'){$('undo').click();e.preventDefault();}
+  else if(e.key==='Enter'&&e.target.tagName!=='BUTTON'){run();}
+});
+let first=0;
+for(let i=0;i<LEVELS.length;i++){if(!(saved[i]>0)){first=i;break;}first=i;}
+loadLevel(first);
+})();
+</script>
+
+</body>
+</html>

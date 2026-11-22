@@ -1,0 +1,507 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Masken</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: en smal kolumn, spelplanen i mitten, poäng ovanför, knappar under. */
+:root {
+  --bg: #e8eee4;
+  --panel: #f5f8f2;
+  --fg: #16231a;
+  --muted: #5b6d5f;
+  --line: #c9d5c4;
+  --board-a: #dbe5d1;
+  --board-b: #d2deC7;
+  --snake: #2f6b3f;
+  --snake-head: #1d4a2a;
+  --food: #c8452d;
+  --wall: #7a5f43;
+  --bomb: #262b28;
+  --accent: #2f6b3f;
+  --accent-fg: #f5f8f2;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101615; --panel: #182120; --fg: #e3ece2; --muted: #8fa393; --line: #2a3835;
+    --board-a: #1b2625; --board-b: #1f2b29; --snake: #86c971; --snake-head: #b7ec9f;
+    --food: #ff7a59; --accent: #86c971; --accent-fg: #0f1a12; --wall: #b48a5a; --bomb: #c9d3cc; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101615; --panel: #182120; --fg: #e3ece2; --muted: #8fa393; --line: #2a3835;
+  --board-a: #1b2625; --board-b: #1f2b29; --snake: #86c971; --snake-head: #b7ec9f;
+  --food: #ff7a59; --accent: #86c971; --accent-fg: #0f1a12; --wall: #b48a5a; --bomb: #c9d3cc; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body);
+  padding-block: 20px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; justify-content: center;
+}
+.app { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-family: var(--font-display); font-size: 2rem; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: 0.8125rem; margin: 0; }
+.stats { display: flex; gap: 10px; }
+.stat { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.stat span { display: block; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.stat b { font-family: var(--font-display); font-size: 1.375rem; font-variant-numeric: tabular-nums; }
+.stage { position: relative; }
+canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); touch-action: none; background: var(--board-a); }
+.overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; text-align: center; padding: 16px; border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+}
+.overlay h2 { font-family: var(--font-display); font-size: 1.5rem; margin: 0; }
+.overlay p { margin: 0; color: var(--muted); font-size: 0.875rem; }
+button {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px; padding: 10px 16px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+}
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.seg { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button { flex: 1; min-width: 0; border: 0; border-radius: 0; background: transparent; padding: 9px 8px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.seg button:focus-visible { outline-offset: -3px; }
+.msg { min-height: 1.25em; margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--food); }
+.info { margin: 0; }
+.scores { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.scores h2 { font-family: var(--font-display); font-size: 1rem; margin: 0 0 8px; }
+.scores ol { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.scores li { display: grid; grid-template-columns: 1.5rem 1fr auto; gap: 8px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.scores li .rank { color: var(--muted); }
+.scores li .nm { min-width: 0; overflow-wrap: anywhere; }
+.scores li .pts { font-weight: 600; }
+.scores li.empty { display: block; color: var(--muted); font-size: 0.875rem; }
+.nameForm { display: flex; gap: 8px; width: 100%; max-width: 280px; }
+.nameForm input { flex: 1; min-width: 0; font: inherit; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); }
+.nameForm input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row button { flex: 1; min-width: 0; }
+.pad { display: none; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 56px); gap: 8px; max-width: 240px; margin-inline: auto; width: 100%; }
+.pad button { padding: 0; font-size: 1.25rem; }
+.pad .up { grid-column: 2; grid-row: 1; }
+.pad .left { grid-column: 1; grid-row: 2; }
+.pad .down { grid-column: 2; grid-row: 2; }
+.pad .right { grid-column: 3; grid-row: 2; }
+@media (pointer: coarse) { .pad { display: grid; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Masken</h1>
+    <p class="hint">Piltangenter eller WASD. Mellanslag pausar.</p>
+  </header>
+  <div class="stats">
+    <div class="stat"><span>Poäng</span><b id="score">0</b></div>
+    <div class="stat"><span>Rekord</span><b id="best">0</b></div>
+    <div class="stat"><span>Längd</span><b id="len">3</b></div>
+  </div>
+  <p class="msg" id="msg" aria-live="polite"></p>
+  <div class="stage">
+    <canvas id="board" width="800" height="800" aria-label="Spelplan för masken"></canvas>
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle">Redo?</h2>
+      <p id="ovText">Ät äpplena och väx. Krocka inte med dig själv.</p>
+      <form class="nameForm" id="nameForm" hidden>
+        <input id="nameInput" type="text" maxlength="12" placeholder="Ditt namn" aria-label="Ditt namn" autocomplete="off">
+        <button class="primary" type="submit">Spara</button>
+      </form>
+      <button class="primary" id="startBtn" type="button">Starta</button>
+    </div>
+  </div>
+  <div class="seg" id="levels" role="group" aria-label="Svårighetsgrad">
+    <button type="button" data-level="easy" aria-pressed="false">Lätt</button>
+    <button type="button" data-level="medium" aria-pressed="true">Medel</button>
+    <button type="button" data-level="hard" aria-pressed="false">Svår</button>
+  </div>
+  <p class="hint info" id="levelInfo"></p>
+  <div class="row">
+    <button id="pauseBtn" type="button" disabled>Pausa</button>
+    <button id="wallBtn" type="button">Väggar: dödliga</button>
+  </div>
+  <div class="pad" aria-label="Styrknappar">
+    <button class="up" type="button" data-dir="up" aria-label="Upp">▲</button>
+    <button class="left" type="button" data-dir="left" aria-label="Vänster">◀</button>
+    <button class="down" type="button" data-dir="down" aria-label="Ner">▼</button>
+    <button class="right" type="button" data-dir="right" aria-label="Höger">▶</button>
+  </div>
+  <section class="scores" aria-labelledby="scoresTitle">
+    <h2 id="scoresTitle">Topplista</h2>
+    <ol id="scoresList"></ol>
+    <p class="hint">Topplistan sparas i den här webbläsaren.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  var N = 20;
+  var canvas = document.getElementById('board');
+  var ctx = canvas.getContext('2d');
+  var S = canvas.width / N;
+  var el = function (id) { return document.getElementById(id); };
+  var scoreEl = el('score'), bestEl = el('best'), lenEl = el('len');
+  var overlay = el('overlay'), ovTitle = el('ovTitle'), ovText = el('ovText');
+  var startBtn = el('startBtn'), pauseBtn = el('pauseBtn'), wallBtn = el('wallBtn');
+  var msgEl = el('msg'), levelInfo = el('levelInfo'), nameForm = el('nameForm'), nameInput = el('nameInput');
+  var scoresTitle = el('scoresTitle'), scoresList = el('scoresList');
+
+  var DIRS = { up: {x:0,y:-1}, down: {x:0,y:1}, left: {x:-1,y:0}, right: {x:1,y:0} };
+  var LEVELS = {
+    easy:   { base: 280, min: 180, accel: 2, points: 10 },
+    medium: { base: 140, min: 65,  accel: 4, points: 15 },
+    hard:   { base: 100, min: 45,  accel: 5, points: 25 }
+  };
+  var level = 'medium';
+  var LEVEL_NAMES = { easy: 'Lätt', medium: 'Medel', hard: 'Svår' };
+  var LEVEL_INFO = {
+    easy: 'Mycket lugnt tempo.',
+    medium: 'Normalt tempo som ökar.',
+    hard: 'Snabbt tempo. Bomber kostar 20 poäng och 2 längd. Bruna väggar dödar och försvinner när du äter nästa äpple.'
+  };
+  var BOMB_LEN = 2, BOMB_POINTS = 20, MAX_SCORES = 5, scoreLevel = 'medium', msgTimer = null;
+  var walls = [], bombs = [];
+  var snake, dir, queue, food, score, apples, best = 0, state = 'idle', timer = null, deadly = true;
+
+  try {
+    var savedLevel = localStorage.getItem('masken-level');
+    if (savedLevel && LEVELS[savedLevel]) level = savedLevel;
+  } catch (e) {}
+
+  function loadBest() {
+    best = 0;
+    try { best = parseInt(localStorage.getItem('masken-best-' + level), 10) || 0; } catch (e) {}
+    bestEl.textContent = best;
+    renderScores();
+  }
+  loadBest();
+
+  var levelBtns = document.querySelectorAll('#levels button');
+  function markLevel() {
+    levelBtns.forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-level') === level ? 'true' : 'false');
+    });
+    levelInfo.textContent = LEVEL_INFO[level];
+  }
+  markLevel();
+  levelBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (state === 'running' || state === 'paused') return;
+      level = b.getAttribute('data-level');
+      try { localStorage.setItem('masken-level', level); } catch (e) {}
+      markLevel(); loadBest();
+    });
+  });
+
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  function reset() {
+    snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+    dir = DIRS.right; queue = []; score = 0; apples = 0;
+    walls = []; bombs = []; food = null;
+    placeFood(); updateStats(); draw();
+  }
+
+  function placeFood() {
+    var free = [];
+    for (var x = 0; x < N; x++) for (var y = 0; y < N; y++) {
+      if (!occupied(x, y)) free.push({x:x,y:y});
+    }
+    food = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  }
+
+  function same(a, b) { return a.x === b.x && a.y === b.y; }
+
+  function occupied(x, y) {
+    var p = { x: x, y: y };
+    return snake.some(function (s) { return same(s, p); }) ||
+      walls.some(function (w) { return same(w, p); }) ||
+      bombs.some(function (b) { return same(b, p); }) ||
+      (food && same(food, p));
+  }
+
+  function headDist(c) { return Math.abs(c.x - snake[0].x) + Math.abs(c.y - snake[0].y); }
+
+  function placeBomb() {
+    var cells = [];
+    for (var x = 0; x < N; x++) for (var y = 0; y < N; y++) {
+      if (!occupied(x, y) && headDist({x:x,y:y}) >= 4) cells.push({x:x,y:y});
+    }
+    if (cells.length) bombs.push(cells[Math.floor(Math.random() * cells.length)]);
+  }
+
+  function placeWall() {
+    for (var t = 0; t < 60; t++) {
+      var len = 3 + Math.floor(Math.random() * 2);
+      var horiz = Math.random() < 0.5;
+      var sx = Math.floor(Math.random() * N), sy = Math.floor(Math.random() * N);
+      var cells = [], ok = true;
+      for (var k = 0; k < len; k++) {
+        var c = { x: sx + (horiz ? k : 0), y: sy + (horiz ? 0 : k) };
+        if (c.x >= N || c.y >= N || occupied(c.x, c.y) || headDist(c) < 5) { ok = false; break; }
+        cells.push(c);
+      }
+      if (ok) { walls = cells; return; }
+    }
+  }
+
+  function spawnHazards() {
+    if (level !== 'hard') return;
+    if (bombs.length < 2 && Math.random() < 0.5) placeBomb();
+    if (Math.random() < 0.75) placeWall();
+  }
+
+  function say(t) {
+    msgEl.textContent = t; clearTimeout(msgTimer);
+    if (t) msgTimer = setTimeout(function () { msgEl.textContent = ''; }, 2200);
+  }
+
+  function loadScores(lv) {
+    try {
+      var a = JSON.parse(localStorage.getItem('masken-scores-' + lv));
+      if (Array.isArray(a)) {
+        return a.filter(function (r) { return r && typeof r.score === 'number' && typeof r.name === 'string'; }).slice(0, MAX_SCORES);
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  function saveScores(lv, list) {
+    try { localStorage.setItem('masken-scores-' + lv, JSON.stringify(list)); } catch (e) {}
+  }
+
+  function renderScores() {
+    scoresTitle.textContent = 'Topplista · ' + LEVEL_NAMES[level];
+    scoresList.textContent = '';
+    var list = loadScores(level);
+    if (!list.length) {
+      var li = document.createElement('li'); li.className = 'empty';
+      li.textContent = 'Inga resultat ännu. Bli först!'; scoresList.appendChild(li); return;
+    }
+    list.forEach(function (r, i) {
+      var li = document.createElement('li');
+      var a = document.createElement('span'); a.className = 'rank'; a.textContent = (i + 1) + '.';
+      var b = document.createElement('span'); b.className = 'nm'; b.textContent = r.name;
+      var c = document.createElement('span'); c.className = 'pts'; c.textContent = r.score;
+      li.appendChild(a); li.appendChild(b); li.appendChild(c); scoresList.appendChild(li);
+    });
+  }
+
+  nameForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = nameInput.value.trim().slice(0, 12) || 'Anonym';
+    var list = loadScores(scoreLevel);
+    list.push({ name: name, score: score });
+    list.sort(function (a, b) { return b.score - a.score; });
+    saveScores(scoreLevel, list.slice(0, MAX_SCORES));
+    nameForm.hidden = true; ovText.textContent = 'Sparat i topplistan.';
+    renderScores(); startBtn.focus({ preventScroll: true });
+  });
+
+  function updateStats() {
+    scoreEl.textContent = score; lenEl.textContent = snake.length; bestEl.textContent = best;
+  }
+
+  function speed() { var L = LEVELS[level]; return Math.max(L.min, L.base - apples * L.accel); }
+
+  function showOverlay(title, text, btn) {
+    ovTitle.textContent = title; ovText.textContent = text; startBtn.textContent = btn;
+    overlay.hidden = false; startBtn.focus({ preventScroll: true });
+  }
+
+  function start() {
+    reset(); state = 'running'; overlay.hidden = true; nameForm.hidden = true; say('');
+    pauseBtn.disabled = false; pauseBtn.textContent = 'Pausa'; wallBtn.disabled = true;
+    levelBtns.forEach(function (b) { b.disabled = true; });
+    clearTimeout(timer); timer = setTimeout(tick, speed());
+  }
+
+  function togglePause() {
+    if (state === 'running') {
+      state = 'paused'; clearTimeout(timer); pauseBtn.textContent = 'Fortsätt';
+      showOverlay('Pausad', 'Tryck mellanslag eller Fortsätt.', 'Fortsätt');
+    } else if (state === 'paused') {
+      state = 'running'; overlay.hidden = true; pauseBtn.textContent = 'Pausa';
+      timer = setTimeout(tick, speed());
+    }
+  }
+
+  function gameOver(won) {
+    state = 'over'; clearTimeout(timer);
+    pauseBtn.disabled = true; wallBtn.disabled = false;
+    levelBtns.forEach(function (b) { b.disabled = false; });
+    if (score > best) {
+      best = score; bestEl.textContent = best;
+      try { localStorage.setItem('masken-best-' + level, String(best)); } catch (e) {}
+    }
+    draw();
+    scoreLevel = level;
+    var top = loadScores(level);
+    var qualifies = score > 0 && (top.length < MAX_SCORES || score > top[MAX_SCORES - 1].score);
+    showOverlay(won ? 'Du vann!' : 'Game over',
+      'Poäng: ' + score + ' · Längd: ' + snake.length, 'Spela igen');
+    if (qualifies) {
+      ovText.textContent = 'Poäng: ' + score + ' · Längd: ' + snake.length + '. Skriv ditt namn till topplistan.';
+      nameForm.hidden = false; nameInput.value = ''; nameInput.focus({ preventScroll: true });
+    }
+  }
+
+  function step() {
+    if (queue.length) dir = queue.shift();
+    var h = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (deadly) {
+      if (h.x < 0 || h.y < 0 || h.x >= N || h.y >= N) return gameOver(false);
+    } else {
+      h.x = (h.x + N) % N; h.y = (h.y + N) % N;
+    }
+    if (walls.some(function (w) { return same(w, h); })) return gameOver(false);
+    var grow = food && h.x === food.x && h.y === food.y;
+    var body = grow ? snake : snake.slice(0, -1);
+    if (body.some(function (s) { return s.x === h.x && s.y === h.y; })) return gameOver(false);
+    var bombIdx = -1;
+    for (var bi = 0; bi < bombs.length; bi++) if (same(bombs[bi], h)) bombIdx = bi;
+    snake.unshift(h);
+    if (grow) {
+      apples++; score += LEVELS[level].points;
+      walls = [];
+      placeFood();
+      if (!food) { updateStats(); return gameOver(true); }
+      spawnHazards();
+    } else {
+      snake.pop();
+    }
+    if (bombIdx >= 0) {
+      bombs.splice(bombIdx, 1);
+      var lost = Math.max(0, Math.min(BOMB_LEN, snake.length - 2));
+      snake.length -= lost;
+      var lostPts = Math.min(BOMB_POINTS, score); score -= lostPts;
+      say('Bomb! −' + lostPts + ' poäng, −' + lost + ' längd');
+    }
+    updateStats();
+  }
+
+  function tick() {
+    if (state !== 'running') return;
+    step();
+    if (state === 'running') { draw(); timer = setTimeout(tick, speed()); }
+  }
+
+  function rr(x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  function draw() {
+    var a = css('--board-a'), b = css('--board-b'), sc = css('--snake'), hc = css('--snake-head'), fc = css('--food');
+    for (var x = 0; x < N; x++) for (var y = 0; y < N; y++) {
+      ctx.fillStyle = (x + y) % 2 ? a : b; ctx.fillRect(x * S, y * S, S, S);
+    }
+    if (food) {
+      ctx.fillStyle = fc; ctx.beginPath();
+      ctx.arc(food.x * S + S / 2, food.y * S + S / 2 + 2, S * 0.36, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = sc; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath();
+      ctx.moveTo(food.x * S + S / 2, food.y * S + S * 0.2);
+      ctx.lineTo(food.x * S + S * 0.62, food.y * S + S * 0.08); ctx.stroke();
+    }
+    var wc = css('--wall'), bc = css('--bomb'), bgc = css('--bg');
+    walls.forEach(function (w) {
+      ctx.fillStyle = wc; rr(w.x * S + 2, w.y * S + 2, S - 4, S - 4, 6); ctx.fill();
+      ctx.strokeStyle = bgc; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath();
+      ctx.moveTo(w.x * S + 11, w.y * S + S - 11); ctx.lineTo(w.x * S + S - 11, w.y * S + 11); ctx.stroke();
+    });
+    bombs.forEach(function (b) {
+      var bx = b.x * S + S / 2, by = b.y * S + S / 2 + 3;
+      ctx.fillStyle = bc; ctx.beginPath(); ctx.arc(bx, by, S * 0.33, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = bc; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath();
+      ctx.moveTo(bx + 6, by - S * 0.3); ctx.lineTo(bx + 11, by - S * 0.46); ctx.stroke();
+      ctx.fillStyle = fc; ctx.beginPath(); ctx.arc(bx + 12, by - S * 0.5, 4, 0, Math.PI * 2); ctx.fill();
+    });
+    var pad = 3;
+    for (var i = snake.length - 1; i >= 0; i--) {
+      var s = snake[i];
+      ctx.fillStyle = i === 0 ? hc : sc;
+      rr(s.x * S + pad, s.y * S + pad, S - pad * 2, S - pad * 2, i === 0 ? 12 : 9); ctx.fill();
+    }
+    // ögon
+    var hd = snake[0], cx = hd.x * S + S / 2, cy = hd.y * S + S / 2;
+    var px = -dir.y, py = dir.x, fx = dir.x * S * 0.14, fy = dir.y * S * 0.14;
+    ctx.fillStyle = css('--bg');
+    [-1, 1].forEach(function (k) {
+      ctx.beginPath(); ctx.arc(cx + fx + px * k * S * 0.18, cy + fy + py * k * S * 0.18, 4.5, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  function turn(name) {
+    var d = DIRS[name]; if (!d) return;
+    if (state === 'idle' || state === 'over') { return; }
+    if (state === 'paused') return;
+    var last = queue.length ? queue[queue.length - 1] : dir;
+    if (d.x === -last.x && d.y === -last.y) return;
+    if (d.x === last.x && d.y === last.y) return;
+    if (queue.length < 2) queue.push(d);
+  }
+
+  var keyMap = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', w:'up', s:'down', a:'left', d:'right', W:'up', S:'down', A:'left', D:'right' };
+  document.addEventListener('keydown', function (e) {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    if (e.key === ' ' || e.code === 'Space') {
+      if (document.activeElement && document.activeElement.tagName === 'BUTTON') return;
+      e.preventDefault();
+      if (state === 'running' || state === 'paused') togglePause(); else start();
+      return;
+    }
+    var n = keyMap[e.key];
+    if (n) {
+      e.preventDefault();
+      if (state === 'idle' || state === 'over') { start(); }
+      turn(n);
+    }
+  });
+
+  startBtn.addEventListener('click', function () {
+    if (state === 'paused') togglePause(); else start();
+  });
+  pauseBtn.addEventListener('click', togglePause);
+  wallBtn.addEventListener('click', function () {
+    if (state === 'running' || state === 'paused') return;
+    deadly = !deadly;
+    wallBtn.textContent = 'Väggar: ' + (deadly ? 'dödliga' : 'genomgående');
+  });
+  document.querySelectorAll('.pad button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (state === 'idle' || state === 'over') start();
+      turn(b.getAttribute('data-dir'));
+    });
+  });
+
+  var t0 = null;
+  canvas.addEventListener('touchstart', function (e) {
+    var t = e.changedTouches[0]; t0 = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  canvas.addEventListener('touchend', function (e) {
+    if (!t0) return;
+    var t = e.changedTouches[0], dx = t.clientX - t0.x, dy = t.clientY - t0.y; t0 = null;
+    if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
+    var n = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    turn(n);
+  }, { passive: true });
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  reset();
+})();
+</script>
+
+</body></html>

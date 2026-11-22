@@ -1,0 +1,1118 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Pluggis</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700&display=swap">
+<style>
+/* Layout: one narrow column on graph paper. Home, user form, quiz and results swap in place; the big problem and the answer buttons are the focus. */
+:root {
+  --bg: #eef4fb;
+  --grid: #d5e2f2;
+  --paper: #ffffff;
+  --ink: #1b2a4a;
+  --muted: #5a6b8c;
+  --accent: #2f6df6;
+  --on-accent: #ffffff;
+  --hi: #ffd84d;
+  --on-hi: #1b2a4a;
+  --good: #14884f;
+  --bad: #cf3b57;
+  --shadow: #1b2a4a;
+  --font-display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101c30;
+    --grid: #1a2c47;
+    --paper: #182742;
+    --ink: #e8f0fc;
+    --muted: #9db0cf;
+    --accent: #6b9bff;
+    --on-accent: #0c1830;
+    --hi: #ffd84d;
+    --on-hi: #1b2a4a;
+    --good: #4fd18b;
+    --bad: #ff7b93;
+    --shadow: #060d19;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101c30;
+  --grid: #1a2c47;
+  --paper: #182742;
+  --ink: #e8f0fc;
+  --muted: #9db0cf;
+  --accent: #6b9bff;
+  --on-accent: #0c1830;
+  --hi: #ffd84d;
+  --on-hi: #1b2a4a;
+  --good: #4fd18b;
+  --bad: #ff7b93;
+  --shadow: #060d19;
+  color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+html, body { height: auto; }
+body {
+  margin: 0;
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--ink);
+  font: 500 17px/1.45 var(--font-body);
+  min-height: 100vh;
+}
+.app { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; outline: none; }
+.col { display: flex; flex-direction: column; gap: 16px; }
+h1, h2, .display { font-family: var(--font-display); font-weight: 600; margin: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { font-size: 2rem; letter-spacing: .01em; }
+.who { font: 600 1.05rem var(--font-display); color: var(--muted); }
+
+.sheet {
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 5px 5px 0 var(--shadow);
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 18px;
+  min-width: 0;
+}
+.lead { margin: 0; color: var(--muted); }
+.label { font: 600 .8rem var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; display: block; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip {
+  border: 2px solid var(--ink); background: var(--paper); border-radius: 12px;
+  padding: .5rem .95rem; font: 600 1.05rem var(--font-display);
+  min-height: 44px;
+}
+.chip[aria-pressed="true"] { background: var(--hi); color: var(--on-hi); box-shadow: 3px 3px 0 var(--shadow); }
+.chip .sym { display: inline-block; min-width: 1.1em; margin-right: .35em; font-weight: 700; }
+.linkbtn { border: 0; background: none; padding: .5rem 0; color: var(--muted); text-decoration: underline; font-weight: 700; min-height: 44px; text-align: left; }
+
+.primary {
+  border: 2px solid var(--ink); background: var(--accent); color: var(--on-accent);
+  border-radius: 14px; padding: .8rem 1.2rem; font: 600 1.3rem var(--font-display);
+  box-shadow: 4px 4px 0 var(--shadow); min-height: 54px;
+}
+.primary:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
+.secondary {
+  border: 2px solid var(--ink); background: var(--paper); border-radius: 14px;
+  padding: .7rem 1.1rem; font: 600 1.1rem var(--font-display); min-height: 48px;
+}
+.secondary.danger { border-color: var(--bad); color: var(--bad); }
+.best { margin: 0; font-size: .95rem; color: var(--muted); min-height: 1.4em; }
+.notice { margin: 0; padding: .5rem .8rem; border: 2px dashed var(--bad); border-radius: 10px; color: var(--bad); font-weight: 700; font-size: .95rem; }
+
+/* user form */
+.field {
+  width: 100%; box-sizing: border-box; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+  border-radius: 12px; padding: .7rem .9rem; font: 600 1.4rem var(--font-display);
+}
+.symgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 10px; }
+.symbtn { border: 2px solid var(--ink); background: var(--paper); border-radius: 12px; min-height: 56px; font-size: 1.9rem; line-height: 1; }
+.symbtn[aria-pressed="true"] { background: var(--hi); box-shadow: 3px 3px 0 var(--shadow); }
+.formerr { color: var(--bad); font-weight: 700; min-height: 1.4em; margin: 0; }
+
+/* quiz */
+.quizbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
+.quit { border: 0; background: none; padding: .4rem .2rem; color: var(--muted); text-decoration: underline; font-weight: 700; min-height: 44px; }
+.meta { text-align: center; font: 600 1rem var(--font-display); }
+.side { text-align: right; min-width: 4.5rem; font: 600 1rem var(--font-display); font-variant-numeric: tabular-nums; }
+.side .streak { color: var(--muted); font-size: .9rem; min-height: 1.2em; }
+.progress { height: 12px; border: 2px solid var(--ink); border-radius: 99px; background: var(--paper); overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+.problem { text-align: center; font-family: var(--font-display); font-weight: 600; font-size: clamp(2rem, 10vw, 3.4rem); line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink); background: var(--accent); }
+.dot.b { background: var(--hi); }
+.dot.off { background: transparent; border-style: dashed; opacity: .55; }
+.dots .gap { width: 16px; }
+.answer {
+  align-self: center; min-width: 6ch; text-align: center;
+  font-family: var(--font-display); font-weight: 700; font-size: clamp(2.2rem, 11vw, 3.4rem);
+  border-bottom: 5px solid var(--ink); padding: 0 .4em; min-height: 1.3em; font-variant-numeric: tabular-nums;
+}
+.answer.empty { color: var(--muted); }
+.answer.good { color: var(--good); border-color: var(--good); }
+.answer.bad { color: var(--bad); border-color: var(--bad); }
+.answer.shake { animation: shake .35s; }
+@keyframes shake { 20% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 80% { transform: translateX(-4px); } }
+.feedback { text-align: center; min-height: 3.1em; font: 600 1.15rem/1.35 var(--font-display); margin: 0; }
+.feedback.good { color: var(--good); }
+.feedback.bad { color: var(--bad); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.key {
+  border: 2px solid var(--ink); background: var(--paper); border-radius: 12px;
+  min-height: 58px; font: 600 1.7rem var(--font-display);
+}
+.key:active { background: var(--hi); color: var(--on-hi); }
+.key.go { background: var(--accent); color: var(--on-accent); }
+.key.go.next { font-size: 1.15rem; }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; }
+.choice {
+  position: relative; border: 2px solid var(--ink); background: var(--paper); border-radius: 14px; min-height: 92px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: .5rem;
+}
+.choice .cs { font: 700 2.6rem/1 var(--font-display); }
+.choice .cs.word { font-size: 1.8rem; }
+.choice .cap { font-size: .85rem; color: var(--muted); font-weight: 700; }
+.choice .kh { display: none; position: absolute; top: 6px; left: 10px; font: 600 .8rem var(--font-display); color: var(--muted); }
+@media (hover: hover) and (pointer: fine) { .choice .kh { display: block; } }
+.choice:active { background: var(--hi); color: var(--on-hi); }
+.choice:active .cap, .choice:active .kh { color: var(--on-hi); }
+.choice.good { outline: 4px solid var(--good); outline-offset: -4px; }
+.choice.bad { outline: 4px solid var(--bad); outline-offset: -4px; }
+
+/* tabs and reading */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--ink); border-radius: 14px; overflow: hidden; }
+.tab { border: 0; background: var(--paper); padding: .6rem .5rem; font: 600 1.25rem var(--font-display); min-height: 52px; }
+.tab + .tab { border-left: 2px solid var(--ink); }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+.ask { margin: 0; text-align: center; font: 600 1rem var(--font-display); color: var(--muted); }
+.passage { border: 2px solid var(--ink); border-radius: 12px; padding: .9rem 1rem; background: var(--bg); font-size: 1.15rem; line-height: 1.6; overflow-wrap: anywhere; }
+.problem.text { font-size: clamp(1.35rem, 6vw, 1.8rem); line-height: 1.35; }
+.problem.emoji { font-size: clamp(4rem, 22vw, 6rem); line-height: 1.1; }
+.problem.word { font-size: clamp(2.2rem, 11vw, 3.2rem); }
+.choices.words { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.choices.words .choice { min-height: 64px; }
+.choices.words .cs { font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; text-align: center; }
+.choices.list { grid-template-columns: 1fr; }
+.choices.list .choice { min-height: 58px; align-items: flex-start; padding: .6rem .9rem; text-align: left; }
+.choices.list .cs { font: 600 1.15rem/1.3 var(--font-display); overflow-wrap: anywhere; text-align: left; }
+.choices.list .kh { top: 50%; transform: translateY(-50%); left: auto; right: 10px; }
+
+/* results */
+.stars { text-align: center; font-size: 3rem; letter-spacing: .15em; color: var(--hi); -webkit-text-stroke: 2px var(--ink); }
+.stars .off { color: transparent; }
+.scoreline { text-align: center; font: 600 1.5rem var(--font-display); margin: 0; }
+.timeline { text-align: center; font: 600 1.1rem var(--font-display); margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+.missed { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.missed li { border: 2px solid var(--ink); border-radius: 10px; padding: .3rem .7rem; font: 600 1.05rem var(--font-display); font-variant-numeric: tabular-nums; background: var(--paper); }
+.missed s { color: var(--bad); margin-left: .4em; font-weight: 500; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.actions > * { flex: 1 1 auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .answer.shake { animation: none; }
+  .progress > div { transition: none; }
+}
+</style>
+
+<main class="app" id="app" tabindex="-1">
+  <div class="topline">
+    <h1 class="brand">Pluggis</h1>
+    <div class="who" id="who"></div>
+  </div>
+
+  <!-- Hem -->
+  <section class="sheet" id="home" hidden>
+    <div class="tabs" role="tablist" aria-label="Ämne">
+      <button class="tab" id="tab-math" type="button" role="tab" aria-selected="true">Matte</button>
+      <button class="tab" id="tab-read" type="button" role="tab" aria-selected="false">Läsning</button>
+    </div>
+    <div>
+      <p class="label" id="t-who">Vem tränar?</p>
+      <div class="chips" id="players" role="group" aria-labelledby="t-who"></div>
+      <button class="linkbtn" id="editPlayer" type="button">Ändra användare</button>
+    </div>
+    <div>
+      <p class="label" id="t-topics">Träna på</p>
+      <div class="chips" id="topics" role="group" aria-labelledby="t-topics"></div>
+    </div>
+    <div>
+      <p class="label" id="t-level">Nivå</p>
+      <div class="chips" id="lvls" role="group" aria-labelledby="t-level"></div>
+      <p class="lead" id="lvlHint" style="font-size:.95rem;margin-top:10px"></p>
+    </div>
+    <div class="chips"><button class="chip" id="timedBtn" type="button" aria-pressed="false"></button></div>
+    <p class="best" id="best"></p>
+    <p class="notice" id="notice" hidden>Den här webbläsaren kan inte spara resultat. Du kan räkna ändå, men resultaten försvinner när sidan stängs.</p>
+    <button class="primary" id="start" type="button">Starta</button>
+  </section>
+
+  <!-- Användare -->
+  <section class="sheet" id="form" hidden>
+    <h2 class="display" id="formTitle" style="font-size:1.6rem"></h2>
+    <div>
+      <label class="label" for="pname">Vad heter du?</label>
+      <input class="field" id="pname" type="text" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false">
+    </div>
+    <div>
+      <p class="label" id="t-sym">Välj en symbol</p>
+      <div class="symgrid" id="symgrid" role="group" aria-labelledby="t-sym"></div>
+    </div>
+    <p class="formerr" id="formerr" role="alert"></p>
+    <div class="actions">
+      <button class="primary" id="saveP" type="button">Spara</button>
+      <button class="secondary" id="cancelP" type="button">Avbryt</button>
+      <button class="secondary danger" id="delP" type="button" hidden>Ta bort</button>
+    </div>
+  </section>
+
+  <!-- Quiz -->
+  <section class="col" id="game" hidden>
+    <div class="quizbar">
+      <button class="quit" id="quit" type="button">Avsluta</button>
+      <div class="meta" id="meta"></div>
+      <div class="side"><div id="clock"></div><div class="streak" id="streak"></div></div>
+    </div>
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" id="bar"><div id="barfill"></div></div>
+    <div class="sheet">
+      <p class="ask" id="ask" hidden></p>
+      <div class="passage" id="passage" hidden></div>
+      <div class="problem" id="problem"></div>
+      <div class="dots" id="dots" aria-hidden="true" hidden></div>
+      <div class="answer empty" id="answer" aria-live="polite">?</div>
+      <p class="feedback" id="feedback" aria-live="polite"></p>
+      <div class="keypad" id="keypad"></div>
+      <div class="choices" id="choices" hidden></div>
+      <button class="primary" id="nextBtn" type="button" hidden>Nästa</button>
+    </div>
+  </section>
+
+  <!-- Resultat -->
+  <section class="sheet" id="results" hidden>
+    <h2 class="display" id="r-title" style="text-align:center;font-size:1.8rem"></h2>
+    <div class="stars" id="stars" aria-hidden="true"></div>
+    <p class="scoreline" id="scoreline"></p>
+    <p class="timeline" id="r-time"></p>
+    <p class="best" id="r-best" style="text-align:center"></p>
+    <div id="missedWrap">
+      <p class="label" id="t-missed">Träna på dessa</p>
+      <ul class="missed" id="missed"></ul>
+    </div>
+    <div class="actions">
+      <button class="primary" id="again" type="button">Spela igen</button>
+      <button class="secondary" id="practiceMissed" type="button">Träna på de missade</button>
+      <button class="secondary" id="toHome" type="button">Hem</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var TOTAL = 10, MAXP = 8;
+
+  /* GEN-START */
+  var SYM = { add: "+", sub: "−", mul: "×", div: "÷" };
+  function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function pick(a) { return a[rnd(0, a.length - 1)]; }
+
+  function genArith(op, l) {
+    var a, b, ans, r;
+    if (op === "add") {
+      r = { easy: [1, 5], medium: [1, 10], hard: [10, 60] }[l];
+      a = rnd(r[0], r[1]); b = rnd(r[0], r[1]); ans = a + b;
+    } else if (op === "sub") {
+      r = { easy: [1, 10], medium: [5, 20], hard: [10, 100] }[l];
+      a = rnd(r[0], r[1]); b = rnd(Math.min(r[0], a), a); ans = a - b;
+    } else if (op === "mul") {
+      r = { easy: [[1, 5], [1, 10]], medium: [[2, 9], [2, 9]], hard: [[6, 12], [6, 15]] }[l];
+      a = rnd(r[0][0], r[0][1]); b = rnd(r[1][0], r[1][1]);
+      if (l === "easy") a = pick([2, 5, 10]);
+      if (Math.random() < 0.5) { var tmp = a; a = b; b = tmp; }
+      ans = a * b;
+    } else {
+      r = { easy: [[2, 5], [2, 10]], medium: [[2, 9], [2, 9]], hard: [[6, 12], [6, 15]] }[l];
+      var x = rnd(r[0][0], r[0][1]), y = rnd(r[1][0], r[1][1]);
+      if (l === "easy") x = pick([2, 5, 10]);
+      a = x * y; b = Math.random() < 0.5 ? x : y; ans = a / b;
+    }
+    var txt = a + " " + SYM[op] + " " + b;
+    return {
+      type: "num", topic: op, prompt: txt + " =", ans: ans, ansText: String(ans),
+      review: txt + " = " + ans, key: op + a + "_" + b,
+      dots: (l === "easy" && (op === "add" || op === "sub")) ? { op: op, a: a, b: b } : null
+    };
+  }
+
+  function cmpSide(l) {
+    var a, b, v, k;
+    if (l === "easy") { v = rnd(0, 10); return { t: String(v), v: v }; }
+    if (l === "medium") {
+      k = rnd(0, 2);
+      if (k === 0) { v = rnd(5, 30); return { t: String(v), v: v }; }
+      if (k === 1) { a = rnd(1, 15); b = rnd(1, 15); return { t: a + " + " + b, v: a + b }; }
+      a = rnd(10, 30); b = rnd(1, 9); return { t: a + " − " + b, v: a - b };
+    }
+    k = rnd(0, 3);
+    if (k === 0) { v = rnd(50, 300); return { t: String(v), v: v }; }
+    if (k === 1) { a = rnd(10, 150); b = rnd(10, 150); return { t: a + " + " + b, v: a + b }; }
+    if (k === 2) { a = rnd(60, 200); b = rnd(10, 59); return { t: a + " − " + b, v: a - b }; }
+    a = rnd(2, 12); b = rnd(2, 12); return { t: a + " × " + b, v: a * b };
+  }
+  function cmpEqual(v, l) {
+    if (l === "easy" || v < 2) return { t: String(v), v: v };
+    var x = rnd(1, v - 1);
+    return { t: x + " + " + (v - x), v: v };
+  }
+  function genCmp(l) {
+    var L = cmpSide(l), R;
+    if (Math.random() < 0.15) R = cmpEqual(L.v, l); else R = cmpSide(l);
+    if (l !== "easy" && R.t === L.t) R = cmpSide(l);
+    var s = L.v < R.v ? "<" : (L.v > R.v ? ">" : "=");
+    var full = L.t + " " + s + " " + R.t;
+    return {
+      type: "choice", layout: "sym", topic: "cmp", prompt: L.t + " ? " + R.t, ans: s, ansText: full, review: full,
+      key: "cmp" + L.t + "_" + R.t,
+      choices: [
+        { v: "<", label: "<", cap: "mindre än" },
+        { v: ">", label: ">", cap: "större än" },
+        { v: "=", label: "=", cap: "lika med" }
+      ]
+    };
+  }
+
+  function genMiss(l) {
+    var forms = l === "easy" ? ["a+", "+b"] : (l === "medium" ? ["a+", "+b", "a-", "-b"] : ["a+", "+b", "a-", "-b", "a*", "*b"]);
+    var f = pick(forms), a, x, c, prompt, rev, ans;
+    if (f === "a+" || f === "+b") {
+      if (l === "easy") {
+        if (Math.random() < 0.5) { x = rnd(1, 9); a = 10 - x; c = 10; }
+        else { c = rnd(3, 10); x = rnd(1, c - 1); a = c - x; }
+      } else if (l === "medium") { x = rnd(1, 19); a = rnd(1, 20 - x); c = a + x; }
+      else { x = rnd(10, 80); a = rnd(10, 100 - x); c = a + x; }
+      ans = x;
+      if (f === "a+") { prompt = a + " + ? = " + c; rev = a + " + " + x + " = " + c; }
+      else { prompt = "? + " + a + " = " + c; rev = x + " + " + a + " = " + c; }
+    } else if (f === "a-" || f === "-b") {
+      if (l === "medium") { a = rnd(5, 20); x = rnd(1, a - 1); }
+      else { a = rnd(20, 100); x = rnd(10, a - 1); }
+      c = a - x;
+      rev = a + " − " + x + " = " + c;
+      if (f === "a-") { prompt = a + " − ? = " + c; ans = x; }
+      else { prompt = "? − " + x + " = " + c; ans = a; }
+    } else {
+      a = rnd(2, 12); x = rnd(2, 12); c = a * x; ans = x;
+      if (f === "a*") { prompt = a + " × ? = " + c; rev = a + " × " + x + " = " + c; }
+      else { prompt = "? × " + a + " = " + c; rev = x + " × " + a + " = " + c; }
+    }
+    return { type: "num", topic: "miss", prompt: prompt, ans: ans, ansText: String(ans), review: rev, key: "miss" + prompt };
+  }
+
+  function genSeq(l) {
+    var n, step, start, dir = 1, i, seq = [];
+    if (l === "easy") { n = 3; step = pick([1, 1, 1, 2, 5, 10]); start = rnd(0, step === 1 ? 10 : 8); }
+    else if (l === "medium") {
+      n = 4; step = pick([2, 3, 4, 5, 10]); start = rnd(0, 20);
+      if (Math.random() < 0.25) { dir = -1; start = rnd(step * 5, 60); }
+    } else {
+      n = 4; step = rnd(2, 12); start = rnd(0, 60);
+      if (Math.random() < 0.35) { dir = -1; start = rnd(step * 5, 100); }
+    }
+    for (i = 0; i <= n; i++) seq.push(start + dir * step * i);
+    var shown = seq.slice(0, n);
+    return {
+      type: "num", topic: "seq", prompt: shown.join(", ") + ", ?", ans: seq[n], ansText: String(seq[n]),
+      review: seq.join(", "), key: "seq" + shown.join("_")
+    };
+  }
+
+  function genEO(l) {
+    var n = l === "easy" ? rnd(1, 20) : (l === "medium" ? rnd(10, 99) : rnd(100, 999));
+    var even = n % 2 === 0;
+    return {
+      type: "choice", layout: "sym", topic: "eo", prompt: "Är " + n + " jämnt eller udda?",
+      ans: even ? "even" : "odd", ansText: even ? "Jämnt" : "Udda",
+      review: n + " är " + (even ? "jämnt" : "udda"), key: "eo" + n,
+      choices: [{ v: "even", label: "Jämnt", cap: "" }, { v: "odd", label: "Udda", cap: "" }]
+    };
+  }
+
+  function genDH(l) {
+    var half = Math.random() < 0.5, n, ans, prompt;
+    if (half) {
+      n = l === "easy" ? 2 * rnd(1, 5) : (l === "medium" ? 2 * rnd(1, 20) : 2 * rnd(10, 100));
+      ans = n / 2; prompt = "Hälften av " + n + " =";
+    } else {
+      n = l === "easy" ? rnd(1, 10) : (l === "medium" ? rnd(5, 50) : rnd(25, 250));
+      ans = n * 2; prompt = "Dubbelt av " + n + " =";
+    }
+    return { type: "num", topic: "dh", prompt: prompt, ans: ans, ansText: String(ans), review: prompt + " " + ans, key: "dh" + (half ? "h" : "d") + n };
+  }
+
+  /* ---- läsning och ord ---- */
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = rnd(0, i), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  var DECKS = {};
+  function draw(id, n) {
+    var d = DECKS[id];
+    if (!d || !d.length) { d = []; for (var i = 0; i < n; i++) d.push(i); d = shuffle(d); }
+    var v = d.pop(); DECKS[id] = d; return v;
+  }
+  function mcq(topic, o) {
+    return {
+      type: "choice", topic: topic, ask: o.ask || "", prompt: o.prompt || "", passage: o.passage || "", size: o.size || "",
+      layout: o.layout || "words", ans: o.correct, ansText: o.correct, review: o.review, key: o.key,
+      choices: shuffle([o.correct].concat(o.wrong)).map(function (t) { return { v: t, label: t, cap: "" }; })
+    };
+  }
+
+  var PICS = {
+    easy: [["🐶","hund"],["🐱","katt"],["🐮","ko"],["🐷","gris"],["🐴","häst"],["🐟","fisk"],["🐦","fågel"],["🐸","groda"],["🐭","mus"],["🐻","björn"],["🍎","äpple"],["🍌","banan"],["🍞","bröd"],["🚗","bil"],["🚲","cykel"],["⚽","boll"],["🌙","måne"],["⭐","stjärna"],["🏠","hus"],["🌳","träd"],["🌸","blomma"],["🚌","buss"],["📖","bok"],["🎂","tårta"]],
+    medium: [["🦊","räv"],["🐺","varg"],["🐢","sköldpadda"],["🐝","bi"],["🦋","fjäril"],["🐌","snigel"],["🕷️","spindel"],["🐘","elefant"],["🦒","giraff"],["🦁","lejon"],["🐯","tiger"],["🐒","apa"],["🐧","pingvin"],["🦉","uggla"],["🍓","jordgubbe"],["🍒","körsbär"],["🍋","citron"],["🥕","morot"],["🍄","svamp"],["🎈","ballong"],["🎁","present"],["☂️","paraply"],["👑","krona"],["🚁","helikopter"]],
+    hard: [["🦔","igelkott"],["🦘","känguru"],["🦓","zebra"],["🦚","påfågel"],["🦈","haj"],["🐙","bläckfisk"],["🦀","krabba"],["🐬","delfin"],["🐳","val"],["🦅","örn"],["🦢","svan"],["🧭","kompass"],["🔭","teleskop"],["🔬","mikroskop"],["🌋","vulkan"],["🏰","slott"],["⚓","ankare"],["🎻","fiol"],["🎺","trumpet"],["🛶","kanot"],["🚜","traktor"],["🚒","brandbil"],["🧲","magnet"],["🌈","regnbåge"],["⛄","snögubbe"]]
+  };
+
+  var RHYME = {
+    easy: [["hus","mus","lus"],["katt","hatt","natt","satt"],["bil","pil","mil"],["sol","stol","kol"],["boll","troll","noll"],["säng","äng","gäng","spräng"],["fisk","disk","frisk","risk"],["tåg","våg","låg","såg"],["ko","sko","bo","ro","tro"],["snö","sjö","ö","dö","frö"],["hand","sand","land","strand"],["gris","is","ris","vis"],["sax","lax","vax"],["dag","mag","lag","slag"]],
+    medium: [["bord","ord","jord","mord"],["trumma","summa","dumma","stumma"],["bära","lära","kära","nära"],["leka","steka","bleka","smeka"],["baka","kaka","raka","maka"],["rida","glida","vida","sida"],["dröm","ström","glöm"],["sjuk","bruk","duk"],["glad","bad","stad","rad"],["spel","hel","del","fel"],["kök","rök","lök"],["kista","lista"]],
+    hard: [["tänka","sänka","skänka","stänka"],["station","nation","lektion","portion"],["tala","svala","skala","mala"],["vinna","finna","minna","brinna","rinna"],["plastisk","elastisk","fantastisk"],["ringa","springa","svinga","klinga"],["blomma","komma","tomma"],["regel","segel","kegel"],["stjärna","gärna"]]
+  };
+
+  var SYN = {
+    easy: [
+      ["fin","vacker",["snabb","kall"]], ["kul","rolig",["trött","sur"]], ["glad","lycklig",["arg","sjuk"]],
+      ["snäll","vänlig",["arg","hård"]], ["trött","sömnig",["stark","het"]], ["titta","se",["äta","hoppa"]],
+      ["fort","snabbt",["tyst","sent"]], ["sur","arg",["söt","glad"]], ["hoppa","skutta",["sova","skriva"]],
+      ["springa","rusa",["krypa","sitta"]], ["prata","snacka",["lyssna","tiga"]], ["skratta","fnissa",["gråta","sjunga"]]
+    ],
+    medium: [
+      ["modig","djärv",["rädd","lat"]], ["stor","enorm",["pytteliten","mjuk"]], ["klok","smart",["dum","tyst"]],
+      ["kasta","slänga",["fånga","hålla"]], ["gräla","bråka",["prata","lyssna"]], ["fundera","tänka",["sova","springa"]],
+      ["enkel","lätt",["svår","tung"]], ["svår","knepig",["enkel","kort"]], ["börja","starta",["sluta","stanna"]],
+      ["vänta","dröja",["springa","skynda"]], ["rymma","fly",["stanna","komma"]], ["gå","vandra",["simma","flyga"]]
+    ],
+    hard: [
+      ["skicklig","duktig",["lat","trött","ensam"]], ["hemlig","dold",["öppen","stor","nära"]], ["oro","bekymmer",["glädje","lugn","kvällen"]],
+      ["gripa","fånga",["släppa","kasta","tappa"]], ["undersöka","granska",["glömma","gömma","städa"]], ["trogen","lojal",["falsk","ensam","ung"]],
+      ["klaga","gnälla",["skratta","tacka","hälsa"]], ["begåvad","talangfull",["vanlig","trött","rädd"]], ["gigantisk","jättelik",["pytteliten","tunn","svag"]],
+      ["ledsen","bedrövad",["förtjust","nöjd","arg"]], ["rädd","förskräckt",["lugn","glad","nöjd"]], ["samtal","konversation",["tystnad","brev","sång"]],
+      ["mod","tapperhet",["feghet","ilska","glädje"]]
+    ]
+  };
+
+  var ANT = {
+    easy: [
+      ["stor","liten",["rund","snäll"]], ["het","kall",["blöt","röd"]], ["glad","ledsen",["stark","rund"]],
+      ["dag","natt",["hus","regn"]], ["upp","ner",["ute","snabbt"]], ["ja","nej",["hej","tack"]],
+      ["tung","lätt",["hård","stor"]], ["snabb","långsam",["tyst","varm"]], ["ren","smutsig",["fin","blank"]],
+      ["öppen","stängd",["hel","fin"]], ["full","tom",["rund","röd"]], ["ung","gammal",["svag","lång"]], ["hård","mjuk",["tung","kall"]]
+    ],
+    medium: [
+      ["modig","rädd",["klok","lugn"]], ["stark","svag",["tung","lång"]], ["rik","fattig",["glad","stor"]],
+      ["tyst","högljudd",["mörk","snäll"]], ["snäll","elak",["fin","glad"]], ["bred","smal",["lång","hög"]],
+      ["tjock","tunn",["stor","hård"]], ["mörk","ljus",["svart","kall"]], ["grund","djup",["våt","kall"]],
+      ["köpa","sälja",["byta","hyra"]], ["börja","sluta",["gå","leka"]], ["vinna","förlora",["spela","tävla"]],
+      ["glömma","minnas",["tänka","sova"]], ["hitta","tappa",["leta","fånga"]]
+    ],
+    hard: [
+      ["generös","snål",["rik","glad","ärlig"]], ["tapper","feg",["stark","vänlig","trött"]], ["sällsynt","vanlig",["dyr","gammal","fin"]],
+      ["fördel","nackdel",["vinst","lön","gåva"]], ["seger","nederlag",["match","pris","spel"]], ["sanning","lögn",["fråga","hemlighet","saga"]],
+      ["tillåta","förbjuda",["be","lova","glömma"]], ["öka","minska",["fylla","samla","bygga"]], ["samla","sprida",["spara","hitta","räkna"]],
+      ["fred","krig",["lugn","vila","stad"]], ["ankomst","avresa",["resa","väg","bil"]], ["nödvändig","onödig",["viktig","stor","svår"]],
+      ["utsida","insida",["sida","tak","vägg"]], ["frivillig","tvungen",["glad","snäll","ensam"]]
+    ]
+  };
+
+  var SPELL = {
+    easy: [
+      ["hund",["hunn","hont","hundd"]], ["katt",["kat","kaat","katte"]], ["mjölk",["mjölck","mjölkk","mjolk"]],
+      ["skola",["skula","skolla","skoola"]], ["glad",["glaad","gladd","glat"]], ["bok",["boc","bokk","book"]],
+      ["sol",["soll","sool","såll"]], ["fisk",["fisck","fissk","fiskk"]], ["stol",["stool","stoll","stohl"]],
+      ["säng",["seng","sängg","sänng"]]
+    ],
+    medium: [
+      ["kjol",["tjol","kjoll","sjol"]], ["tjuv",["kjuv","tjuf","sjuv"]], ["skjorta",["sjorta","skjora","skjorda"]],
+      ["giraff",["jiraff","giraf","girraff"]], ["choklad",["sjoklad","choclad","tjoklad"]], ["fjäril",["fjäryl","fjärill","fjeril"]],
+      ["cykel",["sykel","cyckel","cykell"]], ["nyckel",["nykel","nyckell","nyckkel"]], ["stjärna",["sjärna","stjerna","stärna"]],
+      ["kyckling",["kykling","tjyckling","kyckkling"]]
+    ],
+    hard: [
+      ["människa",["mänska","menniska","människä"]], ["sjukhus",["sjukhuss","sjuckhus","chukhus"]], ["restaurang",["restaurant","restorang","resturang"]],
+      ["bibliotek",["biblioteck","bibbliotek","bibljotek"]], ["chaufför",["sjaufför","schaufför","chauför"]], ["kunskap",["kunnskap","kunskab","kunskapp"]],
+      ["äventyr",["äfventyr","eventyr","äventyyr"]], ["information",["informasjon","informassion","informatión"]], ["ingenjör",["ingeniör","injenjör","ingenör"]],
+      ["sjuttio",["sjutio","syttio","sjuttijo"]]
+    ]
+  };
+
+  var GAP = {
+    easy: [
+      ["Jag borstar tänderna med en ___.","tandborste",["tallrik","cykel"]], ["På natten sover jag i min ___.","säng",["bil","skog"]],
+      ["Solen ___ på himlen.","skiner",["skriver","skäller"]], ["Fågeln flyger med sina ___.","vingar",["hjul","tassar"]],
+      ["När det regnar tar jag på mig ___.","regnkläder",["badbyxor","sandaler"]], ["Kon ger oss ___.","mjölk",["ägg","ull"]],
+      ["Vi åker ___ till skolan.","buss",["moln","måne"]], ["När jag är trött ___ jag.","gäspar",["hoppar","simmar"]],
+      ["Jag tvättar händerna med ___ och vatten.","tvål",["gaffel","kudde"]], ["Vi äter soppa med en ___.","sked",["saks","borste"]],
+      ["Hon har en röd ___ på huvudet.","mössa",["sko","strumpa"]], ["På vintern är det kallt och det ___.","snöar",["blommar","bränner"]]
+    ],
+    medium: [
+      ["Igår ___ vi på bio.","var",["är","vara"]], ["Nu ___ det ute.","regnar",["regnade","regnat"]], ["Två ___ springer över gatan.","katter",["katt","kattar"]],
+      ["Jag har ___ en bok.","läst",["läste","läsa"]], ["Hon ___ en teckning igår.","ritade",["ritar","rita"]], ["Det finns många ___ i skogen.","träd",["trädet","träden"]],
+      ["Jag ___ en kaka just nu.","äter",["åt","ätit"]], ["Den ___ hunden skäller högt.","stora",["stor","stort"]], ["Det är ___ kallt ute idag.","mycket",["många","flera"]],
+      ["Barnen ___ i parken igår.","lekte",["leker","leka"]], ["Hon har ett ___ hus.","stort",["stor","stora"]], ["I morgon ___ jag åka till farmor.","ska",["gick","åkte"]]
+    ],
+    hard: [
+      ["Läkaren ___ patienten noggrant.","undersökte",["undersökning","undersöka"]], ["Vi blev ___ när vi fick höra den glada nyheten.","förtjusta",["förskräckta","förbittrade"]],
+      ["Det var en stor ___ att vinna matchen.","bedrift",["bedrägeri","bekymmer"]], ["Vi måste ___ miljön genom att sortera sopor.","skydda",["skada","störa"]],
+      ["Hon är mycket ___ och hjälper alltid andra.","hjälpsam",["hjälplös","hjälpt"]], ["Experimentet ___ att vatten fryser vid noll grader.","visade",["visning","visare"]],
+      ["Vi ___ våra pengar så att vi kan köpa en cykel.","sparar",["slösar","tappar"]], ["Hennes svar var mycket ___, så alla förstod.","tydligt",["tydlig","tydliga"]],
+      ["Efter regnet syntes en ___ på himlen.","regnbåge",["åska","orkan"]], ["Vi åkte till ___ för att få vård.","sjukhuset",["biblioteket","bageriet"]],
+      ["Eftersom det var halt ___ bilen på vägen.","slirade",["sprang","simmade"]]
+    ]
+  };
+
+  var READ = {
+    easy: [
+      ["Lisa har en röd boll. Hon leker med den i parken.","Vad har Lisa?","En röd boll",["En blå cykel","En gul hund"]],
+      ["Kalle bor i ett gult hus. Huset ligger vid en sjö.","Var ligger huset?","Vid en sjö",["I skogen","Vid ett berg"]],
+      ["Katten sover på soffan. Den har en mjuk, grå päls.","Vilken färg har katten?","Grå",["Svart","Vit"]],
+      ["Det är kallt ute. Maja tar på sig mössa och vantar.","Vad tar Maja på sig?","Mössa och vantar",["Badbyxor och keps","Sandaler och solglasögon"]],
+      ["Pappa bakar en kaka. Den luktar gott och är full av choklad.","Vad är det i kakan?","Choklad",["Ost","Fisk"]],
+      ["Hunden heter Sixten. Han gillar att springa efter pinnar.","Vad gillar Sixten?","Att springa efter pinnar",["Att simma i havet","Att sova hela dagen"]],
+      ["Ellen cyklar till skolan. Det tar fem minuter.","Hur åker Ellen till skolan?","Med cykel",["Med buss","Med tåg"]],
+      ["Solen skiner och himlen är blå. Barnen badar i sjön.","Var badar barnen?","I sjön",["I poolen","I havet"]],
+      ["Anton har ont i magen. Han ligger i sängen och vilar.","Var ligger Anton?","I sängen",["På golvet","I soffan"]],
+      ["Fågeln bygger ett bo i trädet. Den använder pinnar och gräs.","Vad bygger fågeln?","Ett bo",["Ett hus","En bro"]]
+    ],
+    medium: [
+      ["Sara skulle ha kalas på lördagen. Hon blev sjuk och fick feber, så kalaset flyttades till nästa helg. Hennes kompisar skickade kort.","Varför flyttades kalaset?","Sara blev sjuk",["Det regnade","Tårtan var slut"]],
+      ["Ville ska plantera solrosor. Han gräver små hål i jorden och lägger ett frö i varje. Sedan vattnar han noga.","Vad gör Ville först?","Gräver små hål",["Vattnar fröna","Plockar blommor"]],
+      ["Igelkotten sover hela vintern. Den gömmer sig i en hög med löv. När våren kommer vaknar den och letar efter mat.","När vaknar igelkotten?","På våren",["På sommaren","På hösten"]],
+      ["Bussen var sen i morse. Therese stod vid hållplatsen i tjugo minuter och frös. Till slut kom bussen, och hon kom för sent till skolan.","Varför kom Therese för sent?","Bussen var sen",["Hon sov för länge","Hon glömde ryggsäcken"]],
+      ["Familjen Berg åker på picknick. De tar med smörgåsar, saft och en filt. Vid sjön lägger de ut filten på gräset.","Vad lägger de ut på gräset?","En filt",["En matta","Ett tält"]],
+      ["Biet flyger från blomma till blomma. Det samlar nektar som blir honung i kupan. På så sätt hjälper det också blommorna att få frön.","Vad blir nektar till i kupan?","Honung",["Saft","Mjöl"]],
+      ["Oskar tränar fotboll två gånger i veckan, på tisdagar och torsdagar. Idag är det onsdag.","Vilken dag har Oskar nästa träning?","Torsdag",["Tisdag","Fredag"]],
+      ["Mormor stickar en halsduk till Emil. Den är lång och randig i grönt och gult. Emil ska få den i julklapp.","Vilka färger har halsduken?","Grön och gul",["Röd och blå","Svart och vit"]],
+      ["Det blåste kraftigt i natt. På morgonen låg grenar och löv över hela gården. Pappa fick hämta kratta och säckar.","Vad hade hänt under natten?","Det hade blåst",["Det hade snöat","Det hade åskat"]],
+      ["Jonna har sparat pengar i en burk. Efter tre månader hade hon 150 kronor. Då köpte hon ett pussel.","Hur länge sparade Jonna?","Tre månader",["Tre veckor","Ett år"]],
+      ["Familjen Ek har en hund och två katter. Hunden heter Bamse. Katterna heter Pelle och Molly.","Hur många djur har familjen Ek?","Tre",["Två","Fyra"]],
+      ["Det är fredag och Elias ska sova hos sin kompis. Han packar tandborste, pyjamas och sin nalle. Sedan åker han dit med pappa.","Vem åker Elias med?","Pappa",["Mamma","Kompisen"]]
+    ],
+    hard: [
+      ["Det var sent på kvällen när Alva hörde ett konstigt ljud utanför fönstret. Hon smög fram och kikade ut genom gardinen. På verandan satt en liten igelkott och åt av kattens mat. Alva log och gick tillbaka till sängen.","Hur kände sig Alva när hon såg igelkotten?","Glad",["Rädd","Arg"]],
+      ["Fiskaren drog upp nätet tidigt på morgonen. Det var tungt, och han hoppades på en stor fångst. Men i nätet låg bara tång och en gammal stövel. Han suckade djupt och kastade ut nätet igen.","Hur kände sig fiskaren troligen?","Besviken",["Förtjust","Nyfiken"]],
+      ["På skolans fest skulle klassen visa en teater. Ida hade en stor roll men glömde sina repliker. Hon blev röd i ansiktet. Då viskade hennes kompis Noor det första ordet, och Ida mindes resten.","Vad hjälpte Ida att komma ihåg texten?","Noor viskade första ordet",["Hon läste från ett papper","Läraren sa hela meningen"]],
+      ["Vulkaner finns där jordskorpan är tunn och het sten, så kallad magma, kan tränga upp. När en vulkan får utbrott kallas magman för lava. Lavan svalnar och blir hård sten. Så kan nya berg och öar växa fram.","Vad kallas magman när den kommit ut ur vulkanen?","Lava",["Aska","Berg"]],
+      ["Nils sparade i ett halvår för att köpa en cykel. När han äntligen hade tillräckligt med pengar var cykeln slutsåld. Han blev besviken, men affären lovade att beställa hem en ny. Två veckor senare ringde de.","Varför blev Nils besviken?","Cykeln var slutsåld",["Han hade för lite pengar","Cykeln var trasig"]],
+      ["Bävern bygger dammar av grenar, lera och sten. Dammen får vattnet att samlas i en liten sjö. Där bygger bävern sin hydda. Ingången till hyddan ligger under vattnet, så att rovdjur inte kommer in.","Var ligger ingången till bäverns hydda?","Under vattnet",["På taket","Bakom en sten"]],
+      ["Det var Lottas första dag på det nya dagiset. Hon höll hårt i mammas hand och ville inte släppa. Fröken visade henne leksakshörnan. Snart satt Lotta på golvet och byggde ett torn med klossar.","Hur förändrades Lottas humör under dagen?","Från orolig till nöjd",["Från nöjd till orolig","Från arg till trött"]],
+      ["Vargar jagar ofta i flock. De följer spår i snön och är mycket uthålliga. En varg kan springa i flera timmar utan att stanna. På så sätt tröttar de ut sitt byte.","Varför lyckas vargarna fånga sitt byte?","De är uthålliga",["De är mycket stora","De är osynliga"]],
+      ["Farmor har en trädgård full av äppelträd. I september är träden fulla av mogna äpplen. Då hjälps hela familjen åt att plocka. Av äpplena gör de äppelmos och saft som räcker hela vintern.","Vad gör familjen av äpplena?","Mos och saft",["Glass och godis","Bröd och ost"]],
+      ["Rasmus ville vinna loppet mer än något annat. Han tränade varje dag i flera månader. På tävlingsdagen var han nervös men gjorde sitt bästa. Han kom tvåa och var ändå stolt.","Vad visar att Rasmus var målmedveten?","Han tränade varje dag",["Han var nervös","Han kom tvåa"]],
+      ["Det var mörkt i skogen och Hedda hörde en kvist knäckas bakom sig. Hon stannade och höll andan. Sedan hoppade en hare ut ur snåren och sprang iväg. Hedda skrattade till.","Varför skrattade Hedda?","Hon blev lättad",["Haren var rolig","Hon hade hittat hem"]],
+      ["Hanna har tränat på att cykla utan stödhjul i flera dagar. Hon ramlade två gånger och slog knät. Men hon försökte igen, och till sist cyklade hon hela gatan. Pappa applåderade.","Vilket ord beskriver Hanna bäst?","Uthållig",["Lat","Blyg"]]
+    ]
+  };
+
+  function genPic(l) {
+    var pool = PICS[l], i = draw("pic" + l, pool.length), it = pool[i];
+    var others = shuffle(pool.filter(function (x, k) { return k !== i; })).slice(0, l === "easy" ? 2 : 3).map(function (x) { return x[1]; });
+    return mcq("pic", { ask: "Vilket ord passar bilden?", prompt: it[0], size: "emoji", correct: it[1], wrong: others, review: it[0] + " = " + it[1], key: "pic" + it[1] });
+  }
+  function genRhyme(l) {
+    var gs = RHYME[l], g = gs[draw("rh" + l, gs.length)], w = shuffle(g);
+    var other = [];
+    ["easy", "medium", "hard"].forEach(function (lv) { RHYME[lv].forEach(function (x) { if (x !== g) other.push(x); }); });
+    var wrong = shuffle(other).slice(0, l === "easy" ? 2 : 3).map(function (x) { return pick(x); });
+    return mcq("rhyme", { ask: "Vilket ord rimmar på…", prompt: w[0], size: "word", correct: w[1], wrong: wrong, review: w[0] + " rimmar på " + w[1], key: "rh" + w[0] + w[1] });
+  }
+  function genSyn(l) {
+    var b = SYN[l], it = b[draw("syn" + l, b.length)];
+    return mcq("syn", { ask: "Vilket ord betyder nästan samma sak som…", prompt: it[0], size: "word", correct: it[1], wrong: it[2], review: it[0] + " = " + it[1], key: "syn" + it[0] });
+  }
+  function genAnt(l) {
+    var b = ANT[l], it = b[draw("ant" + l, b.length)];
+    return mcq("ant", { ask: "Vad är motsatsen till…", prompt: it[0], size: "word", correct: it[1], wrong: it[2], review: it[0] + " ↔ " + it[1], key: "ant" + it[0] });
+  }
+  function genSpell(l) {
+    var b = SPELL[l], it = b[draw("sp" + l, b.length)];
+    return mcq("spell", { ask: "Vilket ord är rätt stavat?", prompt: "", correct: it[0], wrong: it[1].slice(0, l === "easy" ? 2 : 3), review: it[0], key: "sp" + it[0] });
+  }
+  function genGap(l) {
+    var b = GAP[l], it = b[draw("gap" + l, b.length)];
+    return mcq("gap", { ask: "Vilket ord passar i luckan?", prompt: it[0], size: "text", correct: it[1], wrong: it[2], review: it[0].replace("___", it[1]), key: "gap" + it[0] });
+  }
+  function genRead(l) {
+    var b = READ[l], it = b[draw("rd" + l, b.length)];
+    return mcq("read", { ask: "Läs och svara", passage: it[0], prompt: it[1], size: "text", layout: "list", correct: it[2], wrong: it[3], review: it[1] + " – " + it[2], key: "rd" + it[0].slice(0, 40) });
+  }
+
+  var GEN = {
+    add: function (l) { return genArith("add", l); },
+    sub: function (l) { return genArith("sub", l); },
+    mul: function (l) { return genArith("mul", l); },
+    div: function (l) { return genArith("div", l); },
+    cmp: genCmp, miss: genMiss, seq: genSeq, eo: genEO, dh: genDH,
+    pic: genPic, rhyme: genRhyme, syn: genSyn, ant: genAnt, spell: genSpell, gap: genGap, read: genRead
+  };
+  /* GEN-END */
+
+  var TOPICS = [
+    { id: "add", sym: "+", name: "Plus" },
+    { id: "sub", sym: "−", name: "Minus" },
+    { id: "mul", sym: "×", name: "Gånger" },
+    { id: "div", sym: "÷", name: "Delat" },
+    { id: "cmp", sym: "<>", name: "Större/mindre" },
+    { id: "miss", sym: "?", name: "Saknat tal" },
+    { id: "seq", sym: "…", name: "Talföljd" },
+    { id: "eo", sym: "J/U", name: "Jämnt/udda" },
+    { id: "dh", sym: "½", name: "Dubbelt/hälften" },
+    { id: "pic", sym: "🐶", name: "Bild och ord", mode: "read" },
+    { id: "rhyme", sym: "♫", name: "Rim", mode: "read" },
+    { id: "syn", sym: "≈", name: "Synonymer", mode: "read" },
+    { id: "ant", sym: "⇄", name: "Motsatser", mode: "read" },
+    { id: "spell", sym: "Aa", name: "Stavning", mode: "read" },
+    { id: "gap", sym: "_", name: "Lucktext", mode: "read" },
+    { id: "read", sym: "📖", name: "Läsförståelse", mode: "read" }
+  ];
+  TOPICS.forEach(function (t) { if (!t.mode) t.mode = "math"; });
+  var LEVELS = [{ id: "easy", name: "Lätt" }, { id: "medium", name: "Medel" }, { id: "hard", name: "Svår" }];
+  var HINTS = {
+    easy: "Små tal upp till 10, med prickar som hjälp. Gånger och delat: 2:an, 5:an och 10:an.",
+    medium: "Tal upp till 20 i plus och minus. Gånger och delat: tabellerna 2–9.",
+    hard: "Större tal: tvåsiffriga plus och minus, tabellerna upp till 12."
+  };
+  var HINTS_READ = {
+    easy: "Vanliga ord med bilder, korta rim och texter på två meningar.",
+    medium: "Fler ord, lite svårare stavning och texter på tre till fyra meningar.",
+    hard: "Svårare ord och längre texter där man ibland måste läsa mellan raderna."
+  };
+  var PRAISE = ["Ja!", "Snyggt!", "Rätt!", "Bra jobbat!", "Du klarade det!"];
+  var SYMBOLS = ["🦊", "🐻", "🐼", "🐸", "🦁", "🐙", "🦄", "🚀", "⭐", "🐱", "🐶", "🦖"];
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- sparade användare ---------- */
+  var DB = { players: [], active: null };
+  var storageOk = true;
+  try {
+    localStorage.setItem("pluggis-test", "1");
+    localStorage.removeItem("pluggis-test");
+  } catch (e) { storageOk = false; }
+  try {
+    var raw = localStorage.getItem("pluggis-v1");
+    if (raw) {
+      var d = JSON.parse(raw);
+      if (d && Array.isArray(d.players)) DB = { players: d.players, active: d.active || null };
+    }
+  } catch (e) {}
+  function saveDB() { try { localStorage.setItem("pluggis-v1", JSON.stringify(DB)); } catch (e) {} }
+  function player() {
+    for (var i = 0; i < DB.players.length; i++) if (DB.players[i].id === DB.active) return DB.players[i];
+    return null;
+  }
+
+  var S = { mode: "math", sel: { math: ["add"], read: ["pic"] }, lvl: "easy", qs: [], i: 0, input: "", phase: "answering", correct: 0, streak: 0, missed: [], timer: null, tick: null, full: true, ms: 0, qStart: 0 };
+  var form = { mode: "new", id: null, sym: SYMBOLS[0], confirmDel: false };
+
+  function timed() { var p = player(); return !!(p && p.timed); }
+  function fmtClock(ms) { var s = Math.floor(ms / 1000), m = Math.floor(s / 60); s = s % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+  function fmtAvg(ms) { return (ms / 1000).toFixed(1).replace(".", ","); }
+  function sel() { return S.sel[S.mode]; }
+  function bestKey() { return sel().slice().sort().join("+") + "-" + S.lvl; }
+  function focusApp() { try { window.focus(); $("app").focus({ preventScroll: true }); } catch (e) {} }
+
+  function show(id) {
+    ["home", "form", "game", "results"].forEach(function (s) { $(s).hidden = s !== id; });
+    var p = player();
+    $("who").textContent = p && id !== "form" ? p.sym + " " + p.name : "";
+  }
+
+  /* ---------- hem ---------- */
+  function applyLast(p) {
+    S.mode = "math"; S.sel = { math: ["add"], read: ["pic"] }; S.lvl = "easy";
+    var l = p && p.last;
+    if (!l) return;
+    function clean(arr, mode) {
+      var ok = TOPICS.filter(function (t) { return t.mode === mode; }).map(function (t) { return t.id; });
+      var r = (Array.isArray(arr) ? arr : []).filter(function (x) { return ok.indexOf(x) >= 0; });
+      return r.length ? r : null;
+    }
+    var c;
+    if (l.sel) {
+      ["math", "read"].forEach(function (m) { c = clean(l.sel[m], m); if (c) S.sel[m] = c; });
+    } else if (l.topics) {
+      c = clean(l.topics, "math"); if (c) S.sel.math = c;
+    }
+    S.mode = l.mode === "read" ? "read" : "math";
+    S.lvl = ["easy", "medium", "hard"].indexOf(l.lvl) >= 0 ? l.lvl : "easy";
+  }
+
+  function chip(label, pressed, onclick, sym) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", String(pressed));
+    if (sym !== undefined) { var s = document.createElement("span"); s.className = "sym"; s.textContent = sym; b.appendChild(s); }
+    b.appendChild(document.createTextNode(label));
+    b.addEventListener("click", onclick);
+    return b;
+  }
+
+  function renderHome() {
+    var p = player();
+    ["math", "read"].forEach(function (m) { $("tab-" + m).setAttribute("aria-selected", String(S.mode === m)); });
+    var box = $("players"); box.innerHTML = "";
+    DB.players.forEach(function (q) {
+      box.appendChild(chip(q.name, q.id === DB.active, function () {
+        DB.active = q.id; saveDB(); applyLast(q); renderHome(); show("home");
+      }, q.sym));
+    });
+    if (DB.players.length < MAXP) box.appendChild(chip("Ny", false, function () { openForm("new"); }, "+"));
+
+    var tb = $("topics"); tb.innerHTML = "";
+    var modeTopics = TOPICS.filter(function (t) { return t.mode === S.mode; });
+    var cur = sel();
+    var all = cur.length === modeTopics.length;
+    modeTopics.forEach(function (t) {
+      tb.appendChild(chip(t.name, cur.indexOf(t.id) >= 0, function () {
+        var i = cur.indexOf(t.id);
+        if (i >= 0) { if (cur.length > 1) cur.splice(i, 1); } else cur.push(t.id);
+        renderHome();
+      }, t.sym));
+    });
+    tb.appendChild(chip("Alla", all, function () { S.sel[S.mode] = modeTopics.map(function (t) { return t.id; }); renderHome(); }, "∗"));
+
+    var lv = $("lvls"); lv.innerHTML = "";
+    LEVELS.forEach(function (l) {
+      lv.appendChild(chip(l.name, S.lvl === l.id, function () { S.lvl = l.id; renderHome(); }));
+    });
+    $("lvlHint").textContent = (S.mode === "read" ? HINTS_READ : HINTS)[S.lvl];
+
+    var tm = $("timedBtn");
+    tm.textContent = "Tidtagning: " + (p && p.timed ? "På" : "Av");
+    tm.setAttribute("aria-pressed", String(!!(p && p.timed)));
+
+    var bs = p && p.best ? p.best[bestKey()] : null;
+    var line = "Inget resultat än för det här valet.";
+    if (bs) line = "Bästa: " + bs.c + " av " + TOTAL + (bs.ms != null ? " på " + fmtClock(bs.ms) : "");
+    $("best").textContent = line;
+    $("notice").hidden = storageOk;
+  }
+
+  $("timedBtn").addEventListener("click", function () {
+    var p = player(); if (!p) return;
+    p.timed = !p.timed; saveDB(); renderHome();
+  });
+  $("editPlayer").addEventListener("click", function () { openForm("edit"); });
+
+  function goHome() {
+    if (!DB.players.length) { openForm("new"); return; }
+    if (!player()) DB.active = DB.players[0].id;
+    renderHome(); show("home");
+  }
+
+  /* ---------- användarformulär ---------- */
+  function renderSyms() {
+    var g = $("symgrid"); g.innerHTML = "";
+    SYMBOLS.forEach(function (s) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "symbtn"; b.textContent = s;
+      b.setAttribute("aria-pressed", String(form.sym === s));
+      b.setAttribute("aria-label", "Symbol " + s);
+      b.addEventListener("click", function () { form.sym = s; renderSyms(); });
+      g.appendChild(b);
+    });
+  }
+  function openForm(mode) {
+    form.mode = mode; form.confirmDel = false;
+    var p = mode === "edit" ? player() : null;
+    if (mode === "edit" && !p) mode = form.mode = "new";
+    form.id = p ? p.id : null;
+    var used = DB.players.map(function (q) { return q.sym; });
+    form.sym = p ? p.sym : (SYMBOLS.filter(function (s) { return used.indexOf(s) < 0; })[0] || SYMBOLS[0]);
+    $("pname").value = p ? p.name : "";
+    $("formerr").textContent = "";
+    $("formTitle").textContent = p ? "Ändra användare" : (DB.players.length ? "Ny användare" : "Hej! Skapa din användare");
+    $("cancelP").hidden = !DB.players.length;
+    $("delP").hidden = !p;
+    $("delP").textContent = "Ta bort";
+    renderSyms(); show("form");
+    try { $("pname").focus({ preventScroll: true }); } catch (e) {}
+  }
+  function saveForm() {
+    var name = $("pname").value.replace(/\s+/g, " ").trim();
+    if (!name) { $("formerr").textContent = "Skriv ett namn."; return; }
+    if (form.mode === "edit" && form.id) {
+      var p = player(); p.name = name; p.sym = form.sym;
+    } else {
+      var np = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, sym: form.sym, timed: false, last: null, best: {} };
+      DB.players.push(np); DB.active = np.id; applyLast(np);
+    }
+    saveDB(); goHome();
+  }
+  $("saveP").addEventListener("click", saveForm);
+  $("pname").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); saveForm(); } });
+  $("cancelP").addEventListener("click", goHome);
+  $("delP").addEventListener("click", function () {
+    if (!form.confirmDel) { form.confirmDel = true; $("delP").textContent = "Tryck igen för att ta bort"; return; }
+    DB.players = DB.players.filter(function (q) { return q.id !== form.id; });
+    DB.active = DB.players.length ? DB.players[0].id : null;
+    applyLast(player()); saveDB(); goHome();
+  });
+
+  /* ---------- omgång ---------- */
+  function buildRound(topics, lvl) {
+    var order = topics.slice().sort(function () { return Math.random() - 0.5; });
+    var qs = [], seen = {};
+    for (var n = 0; n < TOTAL; n++) {
+      var q, tries = 0, topic = order[n % order.length];
+      do { q = GEN[topic](lvl); tries++; } while (seen[q.key] && tries < 40);
+      seen[q.key] = true; qs.push(q);
+    }
+    for (var i = qs.length - 1; i > 0; i--) { var j = rnd(0, i), t = qs[i]; qs[i] = qs[j]; qs[j] = t; }
+    return qs;
+  }
+
+  function buildKeypad() {
+    var pad = $("keypad"); pad.innerHTML = "";
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "back", "0", "go"].forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "key"; b.dataset.k = k;
+      if (k === "back") { b.textContent = "⌫"; b.setAttribute("aria-label", "Radera"); }
+      else if (k === "go") { b.className = "key go"; b.id = "go"; }
+      else b.textContent = k;
+      b.addEventListener("click", function () { press(k); });
+      pad.appendChild(b);
+    });
+    setGoLabel();
+  }
+  function setGoLabel() {
+    var g = $("go"); if (!g) return;
+    if (S.phase === "feedback") { g.textContent = "Nästa"; g.className = "key go next"; g.setAttribute("aria-label", "Nästa"); }
+    else { g.textContent = "✓"; g.className = "key go"; g.setAttribute("aria-label", "Svara"); }
+  }
+
+  function startRound(qs, full) {
+    clearTimeout(S.timer);
+    S.qs = qs; S.i = 0; S.correct = 0; S.streak = 0; S.missed = []; S.full = full; S.ms = 0;
+    qs.forEach(function (q) { q.ms = 0; });
+    show("game");
+    clearInterval(S.tick);
+    S.tick = setInterval(updateClock, 200);
+    renderQuestion();
+  }
+
+  function updateClock() {
+    var el = $("clock");
+    if (!timed()) { el.textContent = ""; return; }
+    var e = S.ms + (S.phase === "answering" ? performance.now() - S.qStart : 0);
+    el.textContent = fmtClock(e);
+  }
+
+  function renderDots(q) {
+    var el = $("dots"); el.innerHTML = "";
+    el.hidden = !q.dots;
+    if (!q.dots) return;
+    function dot(cls) { var d = document.createElement("span"); d.className = "dot" + (cls ? " " + cls : ""); el.appendChild(d); }
+    var i, d = q.dots;
+    if (d.op === "add") {
+      for (i = 0; i < d.a; i++) dot("");
+      var g = document.createElement("span"); g.className = "gap"; el.appendChild(g);
+      for (i = 0; i < d.b; i++) dot("b");
+    } else {
+      for (i = 0; i < d.a; i++) dot(i >= d.a - d.b ? "off" : "");
+    }
+  }
+
+  function renderChoices(q) {
+    var box = $("choices"); box.innerHTML = "";
+    var layout = q.layout || "sym";
+    box.className = "choices " + layout;
+    q.choices.forEach(function (c, i) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "choice"; b.dataset.v = c.v;
+      b.setAttribute("aria-label", c.cap ? c.label + " " + c.cap : c.label);
+      var cs = document.createElement("span"); cs.className = "cs" + (layout === "sym" && c.label.length > 2 ? " word" : ""); cs.textContent = c.label; b.appendChild(cs);
+      if (c.cap) { var cp = document.createElement("span"); cp.className = "cap"; cp.textContent = c.cap; b.appendChild(cp); }
+      var kh = document.createElement("span"); kh.className = "kh"; kh.textContent = String(i + 1); b.appendChild(kh);
+      b.addEventListener("click", function () { pickChoice(c.v); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderQuestion() {
+    var q = S.qs[S.i], isNum = q.type === "num";
+    S.input = ""; S.phase = "answering";
+    var askEl = $("ask"); askEl.textContent = q.ask || ""; askEl.hidden = !q.ask;
+    var ps = $("passage"); ps.textContent = q.passage || ""; ps.hidden = !q.passage;
+    var pr = $("problem"); pr.textContent = q.prompt; pr.className = "problem" + (q.size ? " " + q.size : ""); pr.hidden = !q.prompt;
+    renderDots(q);
+    $("keypad").hidden = !isNum;
+    $("choices").hidden = isNum;
+    $("nextBtn").hidden = true;
+    if (!isNum) renderChoices(q);
+    var a = $("answer"); a.className = "answer empty"; a.textContent = "?";
+    a.hidden = !(isNum || q.layout === "sym");
+    $("feedback").textContent = ""; $("feedback").className = "feedback";
+    $("meta").textContent = "Fråga " + (S.i + 1) + "/" + S.qs.length;
+    $("streak").textContent = S.streak > 1 ? S.streak + " i rad" : "";
+    $("bar").setAttribute("aria-valuemax", String(S.qs.length));
+    $("bar").setAttribute("aria-valuenow", String(S.i));
+    $("barfill").style.width = (S.i / S.qs.length * 100) + "%";
+    S.qStart = performance.now();
+    setGoLabel(); updateClock(); focusApp();
+  }
+
+  function renderInput() {
+    var a = $("answer");
+    if (S.input === "") { a.className = "answer empty"; a.textContent = "?"; }
+    else { a.className = "answer"; a.textContent = S.input; }
+  }
+
+  function press(k) {
+    if (k === "go") { if (S.phase === "feedback") advance(); else check(); return; }
+    var q = S.qs[S.i];
+    if (S.phase !== "answering" || q.type !== "num") return;
+    if (k === "back") S.input = S.input.slice(0, -1);
+    else if (S.input.length < 4) S.input = (S.input === "0" ? "" : S.input) + k;
+    renderInput();
+  }
+
+  function choiceLabel(q, v) {
+    for (var i = 0; i < q.choices.length; i++) if (q.choices[i].v === v) return q.choices[i].label;
+    return v;
+  }
+  function pickChoice(v) {
+    var q = S.qs[S.i];
+    if (S.phase !== "answering" || q.type !== "choice") return;
+    judge(q, v === q.ans, choiceLabel(q, v), v);
+  }
+  function check() {
+    var q = S.qs[S.i];
+    if (S.input === "" || S.phase !== "answering" || q.type !== "num") return;
+    judge(q, Number(S.input) === q.ans, S.input, null);
+  }
+
+  function judge(q, ok, given, chosenV) {
+    var el = performance.now() - S.qStart;
+    q.ms = el; S.ms += el; S.phase = "feedback";
+    var a = $("answer"), f = $("feedback");
+    if (q.type === "choice") {
+      a.textContent = given;
+      Array.prototype.forEach.call($("choices").children, function (b) {
+        if (b.dataset.v === q.ans) b.classList.add("good");
+        else if (b.dataset.v === chosenV) b.classList.add("bad");
+      });
+    }
+    if (ok) {
+      S.correct++; S.streak++;
+      a.className = "answer good"; f.className = "feedback good";
+      f.textContent = PRAISE[rnd(0, PRAISE.length - 1)];
+      S.timer = setTimeout(advance, 900);
+    } else {
+      S.streak = 0; S.missed.push({ q: q, given: given });
+      a.className = "answer bad shake"; f.className = "feedback bad";
+      f.textContent = "Inte riktigt. Rätt svar är " + q.ansText + ".";
+      if (q.type === "choice") $("nextBtn").hidden = false;
+    }
+    $("streak").textContent = S.streak > 1 ? S.streak + " i rad" : "";
+    $("barfill").style.width = ((S.i + 1) / S.qs.length * 100) + "%";
+    setGoLabel(); updateClock();
+  }
+
+  function advance() {
+    clearTimeout(S.timer);
+    if (S.phase !== "feedback") return;
+    S.i++;
+    if (S.i >= S.qs.length) finish(); else renderQuestion();
+  }
+
+  /* ---------- resultat ---------- */
+  function updateBest(p, c, ms) {
+    var k = bestKey(), old = p.best[k];
+    var rec = { c: c, ms: p.timed ? Math.round(ms) : null };
+    var better = false;
+    if (!old) better = c > 0;
+    else if (c > old.c) better = true;
+    else if (c === old.c && rec.ms != null && (old.ms == null || rec.ms < old.ms)) better = true;
+    if (better) { p.best[k] = rec; saveDB(); }
+    return better;
+  }
+
+  function finish() {
+    clearInterval(S.tick);
+    var p = player(), n = S.correct, total = S.qs.length, pct = n / total;
+    var stars = pct >= 0.9 ? 3 : (pct >= 0.7 ? 2 : (pct >= 0.4 ? 1 : 0));
+    $("r-title").textContent = "Rundan klar, " + p.name + "! " + p.sym;
+    var st = "";
+    for (var i = 0; i < 3; i++) st += i < stars ? "★" : '<span class="off">★</span>';
+    $("stars").innerHTML = st;
+    $("scoreline").textContent = "Du fick " + n + " av " + total + " rätt";
+    $("r-time").textContent = p.timed ? "Tid: " + fmtClock(S.ms) + " · snitt " + fmtAvg(S.ms / total) + " s per fråga" : "";
+    var bestLine = "";
+    if (S.full) {
+      var isBest = updateBest(p, n, S.ms);
+      var b = p.best[bestKey()];
+      if (isBest) bestLine = "Nytt rekord!";
+      else if (b) bestLine = "Bästa: " + b.c + " av " + TOTAL + (b.ms != null ? " på " + fmtClock(b.ms) : "");
+    }
+    $("r-best").textContent = bestLine;
+    var ul = $("missed"); ul.innerHTML = "";
+    S.missed.forEach(function (m) {
+      var li = document.createElement("li");
+      li.textContent = m.q.review;
+      var s = document.createElement("s"); s.textContent = m.given; li.appendChild(s);
+      ul.appendChild(li);
+    });
+    $("missedWrap").hidden = S.missed.length === 0;
+    $("practiceMissed").hidden = S.missed.length === 0;
+    $("barfill").style.width = "100%";
+    show("results");
+  }
+
+  /* ---------- koppling ---------- */
+  function begin() {
+    var p = player(); if (!p) return;
+    p.last = { mode: S.mode, sel: { math: S.sel.math.slice(), read: S.sel.read.slice() }, lvl: S.lvl }; saveDB();
+    startRound(buildRound(sel(), S.lvl), true);
+  }
+  ["math", "read"].forEach(function (m) {
+    $("tab-" + m).addEventListener("click", function () { S.mode = m; renderHome(); });
+  });
+  $("start").addEventListener("click", begin);
+  $("again").addEventListener("click", begin);
+  $("practiceMissed").addEventListener("click", function () {
+    startRound(S.missed.map(function (m) { return m.q; }), false);
+  });
+  $("toHome").addEventListener("click", goHome);
+  $("quit").addEventListener("click", function () { clearTimeout(S.timer); clearInterval(S.tick); goHome(); });
+  $("nextBtn").addEventListener("click", advance);
+
+  function keyChoice(q, k) {
+    var kk = k.length === 1 ? k.toLowerCase() : k;
+    if (kk >= "1" && kk <= "9" && kk.length === 1) { var c = q.choices[Number(kk) - 1]; return c ? c.v : null; }
+    if (q.topic === "cmp") { if (kk === "<" || kk === ",") return "<"; if (kk === ">" || kk === ".") return ">"; if (kk === "=") return "="; }
+    if (q.topic === "eo") { if (kk === "j") return "even"; if (kk === "u") return "odd"; }
+    return null;
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if ($("game").hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+    var q = S.qs[S.i]; if (!q) return;
+    if (e.target && e.target.id === "quit") return;
+    var k = e.key, handled = true;
+    if (k === "Enter") {
+      if (S.phase === "feedback") advance();
+      else if (q.type === "num") check();
+      else handled = false;
+    } else if (S.phase === "answering" && q.type === "num") {
+      if (k.length === 1 && k >= "0" && k <= "9") press(k);
+      else if (k === "Backspace" || k === "Delete") press("back");
+      else handled = false;
+    } else if (S.phase === "answering" && q.type === "choice") {
+      var v = keyChoice(q, k);
+      if (v) pickChoice(v); else handled = false;
+    } else handled = false;
+    if (handled) e.preventDefault();
+  });
+
+  buildKeypad();
+  if (DB.players.length) {
+    if (!player()) DB.active = DB.players[0].id;
+    applyLast(player());
+  }
+  goHome();
+})();
+</script>
+
+</body></html>
