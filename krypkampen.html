@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Krypkampen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Krypkampen: ett strategispel för två med sexkantiga brickor utan spelbräde.
+   Planen till vänster, krypen i handen och knapparna till höger. En kolumn på telefon. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82; --line:#b3d4ec;
+  --accent:#ff7a3d; --go:#22a152; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --p0:#ff7a3d; --p0bg:#ffe0cf; --p1:#7a55d6; --p1bg:#e6dcff;
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+button:disabled{opacity:.45; cursor:not-allowed}
+.wrap{max-width:1040px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:16px 24px}
+header{grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+.tools{display:flex; flex-wrap:wrap; gap:8px}
+.small-btn{color:var(--ink); min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow); text-decoration:none; display:inline-flex; align-items:center}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn.on{background:var(--accent); color:#2a1200}
+
+.stage{min-width:0}
+.board-wrap{position:relative}
+.board{display:block; width:100%; aspect-ratio:1/1; max-height:72vh; background:#c9ecb5; border:5px solid var(--edge); border-radius:20px; box-shadow:0 5px 0 var(--shadow); touch-action:manipulation; user-select:none}
+.board .hit{cursor:pointer}
+.board text{pointer-events:none}
+.msg{margin:12px 2px 0; min-height:2.8em; font-weight:500; font-size:1.05rem}
+.msg.bad{color:#a8330a} .msg.good{color:#0f6b34}
+
+.panel{min-width:0; display:flex; flex-direction:column; gap:12px}
+.card{background:var(--card); border:3px solid var(--edge); border-radius:18px; padding:12px 14px; box-shadow:0 4px 0 var(--shadow)}
+.card h2{font-size:1.05rem; margin:0 0 6px; font-weight:600; color:var(--muted)}
+.turn{display:flex; align-items:center; gap:10px; font-size:1.25rem; font-weight:700}
+.dot{width:26px; height:26px; border-radius:50%; border:3px solid var(--edge); flex:none}
+.score{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px}
+.pill{border-radius:14px; padding:6px 10px; border:3px solid; font-weight:600; font-size:1rem}
+.pill b{font-size:1.3rem}
+.pill.p0{background:var(--p0bg); border-color:var(--p0)} .pill.p1{background:var(--p1bg); border-color:var(--p1)}
+.left{color:var(--muted); font-size:.95rem; margin-top:6px}
+.hand{display:flex; flex-wrap:wrap; gap:8px}
+.hb{position:relative; width:64px; height:64px; border-radius:16px; border:3px solid var(--edge); font-size:2rem; line-height:1; box-shadow:0 4px 0 var(--shadow); display:grid; place-items:center}
+.hb .n{position:absolute; right:-6px; top:-8px; min-width:24px; height:24px; padding:0 5px; border-radius:999px; background:var(--ink); color:#fff; font-size:.85rem; font-weight:700; display:grid; place-items:center}
+.hb.sel{outline:4px solid var(--gold); outline-offset:2px; transform:translateY(2px)}
+.hand.p0 .hb{background:var(--p0bg)} .hand.p1 .hb{background:var(--p1bg)}
+.hand-title{display:flex; align-items:center; gap:8px; font-weight:600; margin:0 0 6px}
+.info{font-size:1rem; min-height:2.6em}
+.info b{font-size:1.1rem}
+.actions{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+.sec{min-height:56px; border-radius:16px; border:3px solid var(--edge); background:var(--card); font-size:1.02rem; font-weight:600; box-shadow:0 5px 0 var(--shadow)}
+.sec:active{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
+
+.rules{grid-column:1/-1}
+.rules ul{margin:6px 0; padding-left:1.2em}
+.critters{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-top:10px}
+.critter{display:flex; gap:10px; align-items:flex-start; background:#f2f8fd; border:2px solid var(--line); border-radius:14px; padding:8px 10px; font-size:.98rem}
+.critter .e{font-size:2rem; line-height:1}
+
+.overlay{position:fixed; inset:0; display:grid; place-items:center; padding:16px; background:rgba(18,50,74,.55); z-index:5}
+.overlay[hidden]{display:none}
+.ocard{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:18px 20px; max-width:460px; width:100%; text-align:center; box-shadow:0 6px 0 var(--shadow)}
+.ocard h2{margin:0 0 6px; font-size:1.7rem}
+.ocard p{margin:6px 0 12px}
+.choices{display:grid; gap:10px; margin:10px 0}
+.choice{min-height:60px; border-radius:16px; border:3px solid var(--edge); background:#f2f8fd; font-size:1.15rem; font-weight:600; box-shadow:0 4px 0 var(--shadow)}
+.choice small{display:block; font-weight:400; font-size:.9rem; color:var(--muted)}
+.tier{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.big{font-size:3rem; line-height:1.1}
+.btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.go{background:var(--go)!important; color:#fff; border-color:#0d5a2e!important}
+
+@media (max-width:780px){
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:1.6rem}
+  .board{max-height:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Krypkampen 🌼 <small>Vem tar blomman först?</small></h1>
+    <div class="tools">
+      <div id="spelarplats"></div>
+      <a class="small-btn" href="index.html">← Alla spel</a>
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+
+  <section class="stage">
+    <div class="board-wrap">
+      <svg class="board" id="board" role="group" aria-label="Spelplan"></svg>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </section>
+
+  <section class="panel">
+    <div class="card">
+      <div class="turn"><span class="dot" id="tdot"></span><span id="tname"></span></div>
+      <div class="score">
+        <div class="pill p0">Orange vid blomman: <b id="s0">0</b></div>
+        <div class="pill p1">Lila vid blomman: <b id="s1">0</b></div>
+      </div>
+      <div class="left" id="left"></div>
+    </div>
+    <div class="card">
+      <p class="hand-title"><span class="dot" style="background:var(--p0)"></span><span id="h0t">Orange kryp kvar att lägga ut</span></p>
+      <div class="hand p0" id="hand0"></div>
+    </div>
+    <div class="card">
+      <p class="hand-title"><span class="dot" style="background:var(--p1)"></span><span id="h1t">Lila kryp kvar att lägga ut</span></p>
+      <div class="hand p1" id="hand1"></div>
+    </div>
+    <div class="card info" id="info" aria-live="polite"></div>
+    <div class="actions">
+      <button class="sec" id="undo" type="button">Ångra</button>
+      <button class="sec" id="newgame" type="button">Ny match</button>
+      <button class="sec" id="rulesbtn" type="button">Regler</button>
+    </div>
+  </section>
+
+  <section class="card rules" id="rules">
+    <h2>Så spelar man</h2>
+    <ul>
+      <li><b>Mål:</b> Ha <b>4 av de 6 platserna runt blomman</b> 🌼 med dina egna kryp.</li>
+      <li>Varje tur gör du <b>en</b> sak: lägger ut ett nytt kryp, eller flyttar ett kryp som redan ligger ute.</li>
+      <li>Ett nytt kryp måste <b>nudda ett av dina egna</b> kryp men <b>inte nudda motståndarens</b>. Det allra första krypet läggs bredvid blomman.</li>
+      <li>Alla kryp och blomman måste alltid <b>hänga ihop</b> i en enda grupp. Ett kryp som skulle dela gruppen får inte flytta.</li>
+      <li>Ett 🔒 betyder att krypet sitter fast hos en igelkott.</li>
+      <li>Efter <b>30 drag var</b> vinner den som har flest kryp vid blomman.</li>
+    </ul>
+    <div class="critters" id="critters"></div>
+  </section>
+</div>
+
+<div class="overlay" id="setup" hidden>
+  <div class="ocard" role="dialog" aria-labelledby="st">
+    <h2 id="st">Krypkampen</h2>
+    <p>Ett strategispel för två. Tryck på hur ni vill spela.</p>
+    <div class="choices">
+      <button class="choice" id="mode2" type="button">👫 Två spelare<small>Turas om på samma skärm</small></button>
+    </div>
+    <p style="margin-bottom:6px"><b>🤖 Mot datorn</b> (du är Orange och börjar)</p>
+    <div class="tier">
+      <button class="choice" data-tier="latt" type="button">Lätt</button>
+      <button class="choice" data-tier="medel" type="button">Medel</button>
+      <button class="choice" data-tier="svar" type="button">Svår</button>
+    </div>
+    <p class="left" id="record"></p>
+  </div>
+</div>
+
+<div class="overlay" id="win" hidden>
+  <div class="ocard" role="dialog" aria-labelledby="wt">
+    <div class="big" id="wicon">🌼</div>
+    <h2 id="wt"></h2>
+    <p id="wtext"></p>
+    <div class="btns">
+      <button class="small-btn go" id="wagain" type="button">Spela igen</button>
+      <button class="small-btn" id="wmode" type="button">Byt läge</button>
+      <button class="small-btn" id="wlook" type="button">Titta på planen</button>
+    </div>
+  </div>
+</div>
+
+<script src="spelhornan.js"></script>
+<script>
+(function(){
+'use strict';
+/* ---------- Spelregler (ren logik, ingen grafik) ---------- */
+const DIRS=[[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+const K=(q,r)=>q+','+r;
+const P=k=>k.split(',').map(Number);
+const FLOWER=K(0,0);
+const RING=DIRS.map(([dq,dr])=>K(dq,dr));
+const NEED=4;          // antal platser runt blomman som krävs för att vinna
+const MAXN=60;         // totalt antal drag innan matchen avgörs på poäng
+const TYPES={
+  snigel:  {namn:'Snigel',  ikon:'🐌', antal:3, text:'Glider ett steg längs kanten av gruppen.'},
+  larv:    {namn:'Larv',    ikon:'🐛', antal:2, text:'Kryper exakt två steg längs kanten.'},
+  groda:   {namn:'Groda',   ikon:'🐸', antal:2, text:'Hoppar två rutor rakt fram, över vad som helst.'},
+  fjaril:  {namn:'Fjäril',  ikon:'🦋', antal:1, text:'Flyger till en tom plats högst tre steg bort.'},
+  igelkott:{namn:'Igelkott',ikon:'🦔', antal:1, text:'Går ett steg. Fiendekryp som står bredvid den sitter fast i taggarna.'}
+};
+const TYPE_ORDER=Object.keys(TYPES);
+const PNAME=['Orange','Lila'];
+
+function nb(k){const [q,r]=P(k);return DIRS.map(([dq,dr])=>K(q+dq,r+dr));}
+function dist(a,b){const [q1,r1]=P(a),[q2,r2]=P(b);const dq=q1-q2,dr=r1-r2;return (Math.abs(dq)+Math.abs(dr)+Math.abs(dq+dr))/2;}
+
+function newState(){
+  const pieces=[];let id=0;
+  for(let o=0;o<2;o++)for(const t of TYPE_ORDER)for(let i=0;i<TYPES[t].antal;i++)pieces.push({id:id++,o,t,k:null});
+  return {pieces,cur:0,n:0,winner:null,last:null,passed:false};
+}
+function clone(s){return {pieces:s.pieces.map(p=>({...p})),cur:s.cur,n:s.n,winner:s.winner,last:s.last,passed:s.passed};}
+function occ(s){const m=new Map();m.set(FLOWER,'F');for(const p of s.pieces)if(p.k)m.set(p.k,p.id);return m;}
+function ringCount(s,m,o){let c=0;for(const k of RING){const v=m.get(k);if(v!==undefined&&v!=='F'&&s.pieces[v].o===o)c++;}return c;}
+function touches(m,k){return nb(k).some(x=>m.has(x));}
+function frozenBy(s,m,p){
+  for(const x of nb(p.k)){const v=m.get(x);if(v!==undefined&&v!=='F'){const q=s.pieces[v];if(q.o!==p.o&&q.t==='igelkott')return true;}}
+  return false;
+}
+function connectedWithout(m,skip){
+  const keys=[...m.keys()].filter(k=>k!==skip);
+  const set=new Set(keys),seen=new Set([FLOWER]),st=[FLOWER];
+  while(st.length){const k=st.pop();for(const x of nb(k))if(set.has(x)&&!seen.has(x)){seen.add(x);st.push(x);}}
+  return seen.size===set.size;
+}
+/* Ett glidsteg: till en tom granne, och krypet måste hela tiden nudda något (en av de två gemensamma grannarna är upptagen). */
+function slides(mm,k){
+  const [q,r]=P(k),out=[];
+  for(let i=0;i<6;i++){
+    const b=K(q+DIRS[i][0],r+DIRS[i][1]);if(mm.has(b))continue;
+    const c1=K(q+DIRS[(i+5)%6][0],r+DIRS[(i+5)%6][1]),c2=K(q+DIRS[(i+1)%6][0],r+DIRS[(i+1)%6][1]);
+    if(mm.has(c1)||mm.has(c2))out.push(b);
+  }
+  return out;
+}
+/* Varför ett kryp inte kan flytta (eller null om det kan). */
+function whyStuck(s,m,p){
+  if(frozenBy(s,m,p))return 'fast';
+  if(!connectedWithout(m,p.k))return 'grupp';
+  return null;
+}
+function pieceTargets(s,m,p){
+  if(whyStuck(s,m,p))return [];
+  const mm=new Map(m);mm.delete(p.k);
+  const res=new Set();
+  if(p.t==='snigel'||p.t==='igelkott'){for(const b of slides(mm,p.k))res.add(b);}
+  else if(p.t==='larv'){for(const b of slides(mm,p.k))for(const c of slides(mm,b))if(c!==p.k)res.add(c);}
+  else if(p.t==='groda'){const [q,r]=P(p.k);for(const [dq,dr] of DIRS){const t=K(q+2*dq,r+2*dr);if(!mm.has(t)&&touches(mm,t))res.add(t);}}
+  else if(p.t==='fjaril'){const [q,r]=P(p.k);
+    for(let dq=-3;dq<=3;dq++)for(let dr=Math.max(-3,-dq-3);dr<=Math.min(3,-dq+3);dr++){
+      const t=K(q+dq,r+dr);if(t!==p.k&&!mm.has(t)&&touches(mm,t))res.add(t);}}
+  return [...res];
+}
+function placeTargets(s,m,o){
+  const mine=s.pieces.filter(p=>p.o===o&&p.k);
+  if(!mine.length)return RING.filter(k=>!m.has(k));
+  const out=new Set();
+  for(const p of mine)for(const x of nb(p.k)){
+    if(m.has(x)||out.has(x))continue;
+    const bad=nb(x).some(y=>{const v=m.get(y);return v!==undefined&&v!=='F'&&s.pieces[v].o!==o;});
+    if(!bad)out.add(x);
+  }
+  return [...out];
+}
+function handTypes(s,o){const t=new Set();for(const p of s.pieces)if(p.o===o&&!p.k)t.add(p.t);return TYPE_ORDER.filter(x=>t.has(x));}
+function legalMoves(s,m){
+  m=m||occ(s);const o=s.cur,mv=[];
+  const ht=handTypes(s,o);
+  if(ht.length){const tg=placeTargets(s,m,o);for(const t of ht)for(const k of tg)mv.push({a:'p',t,k});}
+  for(const p of s.pieces)if(p.o===o&&p.k)for(const k of pieceTargets(s,m,p))mv.push({a:'m',id:p.id,k});
+  return mv;
+}
+function settleByScore(s,m){
+  const a=ringCount(s,m,0),b=ringCount(s,m,1);
+  s.winner=a>b?0:b>a?1:'oavgjort';s.byScore=true;
+}
+function apply(s,mv){
+  const n=clone(s),o=n.cur;
+  let from=null;
+  if(mv.a==='p'){const p=n.pieces.find(p=>p.o===o&&!p.k&&p.t===mv.t);p.k=mv.k;n.last={id:p.id,from:null,to:mv.k};}
+  else{const p=n.pieces[mv.id];from=p.k;p.k=mv.k;n.last={id:p.id,from,to:mv.k};}
+  n.n++;n.passed=false;
+  const m=occ(n);
+  if(ringCount(n,m,o)>=NEED){n.winner=o;return n;}
+  if(n.n>=MAXN){settleByScore(n,m);return n;}
+  n.cur=1-o;
+  if(!legalMoves(n,m).length){
+    n.passed=true;n.cur=o;
+    if(!legalMoves(n,m).length)settleByScore(n,m);
+  }
+  return n;
+}
+
+/* ---------- Datorspelare ---------- */
+function evaluate(s,me){
+  if(s.winner===me)return 1e5-s.n;
+  if(s.winner===1-me)return -1e5+s.n;
+  if(s.winner==='oavgjort')return 0;
+  const m=occ(s);const a=ringCount(s,m,me),b=ringCount(s,m,1-me);
+  let v=(a-b)*100+(a>=3?60:0)-(b>=3?60:0);
+  for(const p of s.pieces){
+    if(!p.k)continue;
+    const d=dist(p.k,FLOWER),sg=p.o===me?1:-1;
+    v-=sg*Math.min(d,5)*6;
+    if(frozenBy(s,m,p))v-=sg*10;
+  }
+  return v;
+}
+function aiMove(s,tier){
+  const me=s.cur,moves=legalMoves(s);
+  if(!moves.length)return null;
+  const scored=[];
+  for(const mv of moves){
+    const s1=apply(s,mv);
+    if(s1.winner===me)return mv;
+    let v;
+    if(tier==='latt'){v=evaluate(s1,me)+Math.random()*220;}
+    else{
+      let worst=Infinity;
+      if(s1.winner!==null||s1.cur===me){worst=evaluate(s1,me);}
+      else for(const r of legalMoves(s1)){
+        const s2=apply(s1,r);
+        let e;
+        if(tier==='medel')e=s2.winner===1-me?-1e5:evaluate(s1,me);
+        else e=evaluate(s2,me);
+        if(e<worst)worst=e;
+        if(worst<=-9e4)break;
+      }
+      v=worst+Math.random()*(tier==='medel'?40:6);
+    }
+    scored.push([v,mv]);
+  }
+  scored.sort((x,y)=>y[0]-x[0]);
+  return scored[0][1];
+}
+
+/* ---------- Grafik och knappar ---------- */
+const $=id=>document.getElementById(id);
+const SVGNS='http://www.w3.org/2000/svg';
+const S=30,R3=Math.sqrt(3);
+const px=k=>{const [q,r]=P(k);return [S*R3*(q+r/2),S*1.5*r];};
+const hexPts=(cx,cy,sz)=>{let a=[];for(let i=0;i<6;i++){const ang=Math.PI/180*(60*i-30);a.push((cx+sz*Math.cos(ang)).toFixed(1)+','+(cy+sz*Math.sin(ang)).toFixed(1));}return a.join(' ');};
+const KEY='krypkampen-v1';
+let saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+let state=newState(),hist=[],mode='2p',tier='medel',sel=null,thinking=false,sound=true;
+const TIERNAME={latt:'Lätt',medel:'Medel',svar:'Svår'};
+
+let ac=null;
+function tone(f,d,type,v){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';o.frequency.value=f;g.gain.value=v||.07;
+    o.connect(g);g.connect(ac.destination);o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+(d||.12));o.stop(ac.currentTime+(d||.12));
+  }catch(e){}
+}
+function say(t,kind){const m=$('msg');m.textContent=t;m.className='msg'+(kind?' '+kind:'');}
+const isAI=o=>mode==='ai'&&o===1;
+
+function el(tag,attrs,parent){const e=document.createElementNS(SVGNS,tag);for(const a in attrs)e.setAttribute(a,attrs[a]);if(parent)parent.appendChild(e);return e;}
+
+function currentTargets(m){
+  if(!sel||state.winner!==null)return [];
+  if(sel.a==='h')return placeTargets(state,m,state.cur);
+  return pieceTargets(state,m,state.pieces[sel.id]);
+}
+
+function render(){
+  const m=occ(state),svg=$('board');svg.innerHTML='';
+  const targets=currentTargets(m);
+  const keys=new Set([FLOWER,...m.keys(),...targets]);
+  for(const k of RING)keys.add(k);
+  for(const k of [...m.keys()])for(const x of nb(k))keys.add(x);
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const k of keys){const [x,y]=px(k);x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
+  const pad=S*1.2;let w=x1-x0+2*pad,h=y1-y0+2*pad,side=Math.max(w,h,S*9);
+  const cx=(x0+x1)/2,cy=(y0+y1)/2;
+  svg.setAttribute('viewBox',(cx-side/2).toFixed(1)+' '+(cy-side/2).toFixed(1)+' '+side.toFixed(1)+' '+side.toFixed(1));
+
+  // platserna runt blomman
+  for(const k of RING){if(m.has(k))continue;const [x,y]=px(k);
+    el('polygon',{points:hexPts(x,y,S*.92),fill:'#fff6c7',stroke:'#e3b400','stroke-width':2,'stroke-dasharray':'5 4'},svg);}
+  // blomman
+  {const [x,y]=px(FLOWER);
+    el('polygon',{points:hexPts(x,y,S*.95),fill:'#ffe36b',stroke:'#b88a00','stroke-width':4},svg);
+    const t=el('text',{x,y:y+1,'font-size':S*1.05,'text-anchor':'middle','dominant-baseline':'central'},svg);t.textContent='🌼';}
+  // krypen
+  for(const p of state.pieces){
+    if(!p.k)continue;const [x,y]=px(p.k);
+    const isSel=sel&&sel.a==='b'&&sel.id===p.id;
+    const isLast=state.last&&state.last.id===p.id;
+    const g=el('g',{class:'hit',role:'button',tabindex:'0','aria-label':PNAME[p.o]+' '+TYPES[p.t].namn},svg);
+    el('polygon',{points:hexPts(x,y,S*.95),fill:p.o?'#e6dcff':'#ffe0cf',stroke:isSel?'#ffc21a':(p.o?'#7a55d6':'#ff7a3d'),'stroke-width':isSel?7:4},g);
+    if(isLast)el('polygon',{points:hexPts(x,y,S*.72),fill:'none',stroke:p.o?'#7a55d6':'#ff7a3d','stroke-width':1.5,'stroke-dasharray':'3 3'},g);
+    if(frozenBy(state,m,p)){el('circle',{cx:x+S*.55,cy:y-S*.5,r:S*.26,fill:'#fff',stroke:'#12324a','stroke-width':2},g);
+      const l=el('text',{x:x+S*.55,y:y-S*.49,'font-size':S*.3,'text-anchor':'middle','dominant-baseline':'central'},g);l.textContent='🔒';}
+    const t=el('text',{x,y:y+1,'font-size':S*.95,'text-anchor':'middle','dominant-baseline':'central'},g);t.textContent=TYPES[p.t].ikon;
+    g.addEventListener('click',()=>tapPiece(p.id));
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tapPiece(p.id);}});
+  }
+  // var flyttade senast ifrån
+  if(state.last&&state.last.from&&!m.has(state.last.from)){const [x,y]=px(state.last.from);
+    el('polygon',{points:hexPts(x,y,S*.6),fill:'none',stroke:'#46647c','stroke-width':1.5,'stroke-dasharray':'2 4'},svg);}
+  // möjliga mål
+  for(const k of targets){
+    const [x,y]=px(k);
+    const g=el('g',{class:'hit',role:'button',tabindex:'0','aria-label':'Hit'},svg);
+    el('polygon',{points:hexPts(x,y,S*.95),fill:'rgba(34,161,82,.22)',stroke:'#22a152','stroke-width':3,'stroke-dasharray':'6 4'},g);
+    el('circle',{cx:x,cy:y,r:S*.22,fill:'#22a152'},g);
+    g.addEventListener('click',()=>tapTarget(k));
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tapTarget(k);}});
+  }
+
+  // sidopanel
+  $('s0').textContent=ringCount(state,m,0);$('s1').textContent=ringCount(state,m,1);
+  const o=state.cur;
+  $('tdot').style.background=o?'var(--p1)':'var(--p0)';
+  $('tname').textContent=state.winner!==null?'Matchen är slut':(isAI(o)?'Datorn (Lila) tänker…':PNAME[o]+'s tur'+(mode==='ai'?' (du)':''));
+  const left=Math.max(0,Math.ceil((MAXN-state.n)/2));
+  $('left').textContent=NEED+' av 6 platser vinner. Ungefär '+left+' drag kvar var.';
+  $('h1t').textContent=mode==='ai'?'Datorns kryp kvar att lägga ut':'Lila kryp kvar att lägga ut';
+  for(const pl of [0,1]){
+    const box=$('hand'+pl);box.innerHTML='';
+    const left=TYPE_ORDER.map(t=>[t,state.pieces.filter(p=>p.o===pl&&!p.k&&p.t===t).length]).filter(x=>x[1]>0);
+    if(!left.length){box.textContent='Alla är utlagda.';continue;}
+    for(const [t,c] of left){
+      const b=document.createElement('button');b.type='button';b.className='hb';
+      b.innerHTML=TYPES[t].ikon+'<span class="n">'+c+'</span>';
+      b.setAttribute('aria-label',TYPES[t].namn+', '+c+' kvar');
+      if(sel&&sel.a==='h'&&sel.t===t&&pl===o)b.classList.add('sel');
+      b.disabled=pl!==o||isAI(pl)||thinking||state.winner!==null;
+      b.onclick=()=>tapHand(t);
+      box.appendChild(b);
+    }
+  }
+  $('undo').disabled=!hist.length||thinking;
+  renderInfo();
+}
+
+function renderInfo(){
+  const box=$('info');
+  let t=null;
+  if(sel)t=sel.a==='h'?sel.t:state.pieces[sel.id].t;
+  if(!t){box.innerHTML='<b>Tips:</b> Tryck på ett kryp i handen eller på planen för att se vart det kan gå.';return;}
+  box.innerHTML='<b>'+TYPES[t].ikon+' '+TYPES[t].namn+'</b><br>'+TYPES[t].text;
+}
+
+function hint(){
+  if(state.winner!==null)return;
+  const o=state.cur;
+  if(isAI(o)){say('Datorn tänker…');return;}
+  const first=!state.pieces.some(p=>p.o===o&&p.k);
+  if(state.passed)say(PNAME[1-o]+' kunde inte göra något och fick stå över. '+PNAME[o]+' igen!');
+  else if(first)say(PNAME[o]+': välj ett kryp i din hand och lägg det bredvid blomman.');
+  else say(PNAME[o]+': lägg ut ett nytt kryp eller flytta ett som ligger ute.');
+}
+
+function tapHand(t){
+  if(thinking||state.winner!==null||isAI(state.cur))return;
+  if(sel&&sel.a==='h'&&sel.t===t){sel=null;render();hint();return;}
+  sel={a:'h',t};tone(520,.08);
+  const m=occ(state);
+  render();
+  if(!placeTargets(state,m,state.cur).length)say('Det finns ingen plats att lägga ut på just nu. Ett nytt kryp måste nudda dina egna men inte motståndarens. Prova att flytta ett kryp i stället.','bad');
+  else say('Tryck på en grön ruta för att lägga ut '+TYPES[t].namn.toLowerCase()+'n.');
+}
+function tapPiece(id){
+  if(thinking||state.winner!==null||isAI(state.cur))return;
+  const p=state.pieces[id];
+  if(sel&&sel.a==='b'&&sel.id===id){sel=null;render();hint();return;}
+  if(p.o!==state.cur){
+    sel=null;render();
+    say('Det där är '+PNAME[p.o]+'s '+TYPES[p.t].namn.toLowerCase()+'. '+TYPES[p.t].text);return;
+  }
+  sel={a:'b',id};
+  const m=occ(state),why=whyStuck(state,m,p),tg=pieceTargets(state,m,p);
+  render();
+  if(why==='fast'){tone(200,.15,'square',.04);say('Den sitter fast! En igelkott från '+PNAME[1-p.o]+' står bredvid.','bad');}
+  else if(why==='grupp'){tone(200,.15,'square',.04);say('Den kan inte flytta, då skulle gruppen gå sönder i två delar.','bad');}
+  else if(!tg.length){tone(200,.15,'square',.04);say('Den har ingenstans att gå just nu.','bad');}
+  else{tone(520,.08);say('Tryck på en grön ruta för att flytta '+TYPES[p.t].namn.toLowerCase()+'n.');}
+}
+function tapTarget(k){
+  if(!sel)return;
+  const mv=sel.a==='h'?{a:'p',t:sel.t,k}:{a:'m',id:sel.id,k};
+  doMove(mv);
+}
+function doMove(mv){
+  hist.push(state);
+  state=apply(state,mv);sel=null;
+  tone(mv.a==='p'?660:780,.1,'triangle');
+  render();
+  if(state.winner!==null){finish();return;}
+  hint();
+  if(isAI(state.cur))aiTurn();
+}
+function aiTurn(){
+  thinking=true;render();say('Datorn tänker…');
+  setTimeout(()=>{
+    const mv=aiMove(state,tier);thinking=false;
+    if(mv)doMove(mv);else render();
+  },550);
+}
+function finish(){
+  const w=state.winner,m=occ(state);
+  const a=ringCount(state,m,0),b=ringCount(state,m,1);
+  let title,text,icon='🌼';
+  if(w==='oavgjort'){title='Oavgjort!';text='Båda hade '+a+' kryp vid blomman.';icon='🤝';tone(440,.3);}
+  else{
+    const how=state.byScore?'Tiden tog slut och '+PNAME[w]+' hade flest kryp vid blomman ('+Math.max(a,b)+' mot '+Math.min(a,b)+').':PNAME[w]+' fick '+NEED+' kryp runt blomman.';
+    if(mode==='ai'){
+      if(w===0){title='Du vann! 🎉';icon='🏆';
+        let pid='';try{const a=window.Spelhornan&&Spelhornan.aktiv();if(a)pid=a.id;}catch(e){}
+        const sk=pid?tier+':'+pid:tier;
+        saved[sk]=(saved[sk]||0)+1;if(pid)saved[tier]=(saved[tier]||0)+1;persist();
+        try{if(window.Spelhornan)Spelhornan.rapportera('krypkampen',tier,{poang:saved[sk],namn:TIERNAME[tier]});}catch(e){}
+        text=how+' Du har vunnit '+saved[sk]+' '+(saved[sk]===1?'gång':'gånger')+' mot datorn på '+TIERNAME[tier]+'.';
+      }else{title='Datorn vann';icon='🤖';text=how+' Försök igen!';}
+    }else{title=PNAME[w]+' vann! 🎉';text=how;}
+    [660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle'),i*140));
+  }
+  $('wt').textContent=title;$('wtext').textContent=text;$('wicon').textContent=icon;
+  say(title+' '+text,'good');
+  $('win').hidden=false;
+}
+function start(md,tr){
+  mode=md;if(tr)tier=tr;
+  state=newState();hist=[];sel=null;thinking=false;
+  $('setup').hidden=true;$('win').hidden=true;
+  render();hint();
+}
+function showSetup(){
+  const r=['latt','medel','svar'].map(t=>TIERNAME[t]+': '+(saved[t]||0)).join(' · ');
+  $('record').textContent='Dina vinster mot datorn. '+r;
+  $('setup').hidden=false;
+}
+
+// regelkort
+for(const t of TYPE_ORDER){
+  const d=document.createElement('div');d.className='critter';
+  d.innerHTML='<span class="e">'+TYPES[t].ikon+'</span><span><b>'+TYPES[t].namn+'</b> ('+TYPES[t].antal+' st)<br>'+TYPES[t].text+'</span>';
+  $('critters').appendChild(d);
+}
+$('mode2').onclick=()=>start('2p');
+document.querySelectorAll('[data-tier]').forEach(b=>b.onclick=()=>start('ai',b.dataset.tier));
+$('newgame').onclick=showSetup;
+$('wagain').onclick=()=>start(mode);
+$('wmode').onclick=()=>{$('win').hidden=true;showSetup();};
+$('wlook').onclick=()=>{$('win').hidden=true;};
+$('rulesbtn').onclick=()=>$('rules').scrollIntoView({behavior:'smooth'});
+$('undo').onclick=()=>{
+  if(!hist.length||thinking)return;
+  state=hist.pop();
+  while(isAI(state.cur)&&hist.length)state=hist.pop();
+  sel=null;$('win').hidden=true;render();hint();
+};
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';};
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=()=>{
+  try{
+    speechSynthesis.cancel();
+    let t=$('msg').textContent+' '+$('info').textContent;
+    if(!sel)t+=' Målet är att ha fyra av de sex platserna runt blomman.';
+    const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';u.rate=.9;speechSynthesis.speak(u);
+  }catch(e){}
+};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sel){sel=null;render();hint();}});
+
+if(window.Spelhornan)Spelhornan.knapp($('spelarplats'));
+window.__kryp={newState,apply,legalMoves,aiMove,occ,ringCount,get state(){return state;}};
+render();showSetup();
+})();
+</script>
+</body>
+</html>
