@@ -60,6 +60,14 @@ canvas{display:block; width:100%; aspect-ratio:16/10; border:5px solid var(--edg
 .part.empty .n{background:#e3edf5}
 .part:active{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
 .tip{font-size:.92rem; color:var(--muted); margin:2px 2px 0}
+.mission{list-style:none; margin:0; padding:8px 12px; background:var(--card); border:3px solid var(--line); border-radius:16px; display:flex; flex-direction:column; gap:4px; font-size:1rem}
+.mission li{display:flex; gap:8px; align-items:center}
+.mission li::before{content:""; flex:none; width:22px; height:22px; border-radius:7px; border:3px solid var(--edge); background:#fff}
+.mission li.ok{color:#0f6b34}
+.mission li.ok::before{content:"✓"; background:var(--go); border-color:#0d5a2e; color:#fff; display:grid; place-items:center; font-weight:700; font-size:.9rem}
+.levels{flex-direction:column; align-items:stretch}
+.lrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.lrow .lab{font-weight:600; color:var(--muted); font-size:.95rem; min-width:100%; margin-top:2px}
 .actions{display:grid; grid-template-columns:2fr 1fr; gap:10px}
 .run{min-height:64px; border-radius:18px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 5px 0 #0d5a2e}
 .run:active{transform:translateY(3px); box-shadow:0 2px 0 #0d5a2e}
@@ -85,9 +93,10 @@ button:disabled{opacity:.45; cursor:not-allowed}
   h1{font-size:1.6rem}
   .parts{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
   .panel .who-box{order:3}
+  .panel .mission-box{order:2}
   .msg{min-height:2.4em; margin-top:8px}
   .lvl{min-width:46px; min-height:48px; font-size:1.05rem; border-radius:12px}
-  .levels{gap:6px}
+  .levels,.lrow{gap:6px}
   .win-card{padding:10px 12px}
   .win-card h2{font-size:1.4rem}
   .stars{font-size:2rem}
@@ -133,6 +142,10 @@ button:disabled{opacity:.45; cursor:not-allowed}
       <h2>Ska till målet</h2>
       <div class="who" id="who"></div>
     </div>
+    <div class="mission-box" id="missionBox">
+      <h2>Uppdrag</h2>
+      <ul class="mission" id="mission"></ul>
+    </div>
     <div>
       <h2>Dina delar</h2>
       <div class="parts" id="parts"></div>
@@ -151,7 +164,7 @@ button:disabled{opacity:.45; cursor:not-allowed}
 'use strict';
 const $=id=>document.getElementById(id);
 /*PURE-START*/
-const W=16,H=10,RAD=0.3,GRAV=20,DT=1/120,LAUNCH=13.5,MAXV=20,TMAX=20;
+const W=16,H=10,RAD=0.3,GRAV=20,DT=1/120,LAUNCH=13.5,MAXV=20,TMAX=30,BELT=3.5,FAN=5;
 const TYPES={
   boll:{namn:'Boll',best:'Bollen',e:0.25,mu:0.02,drive:0,text:'Bollen rullar och tar fart i backar.'},
   kloss:{namn:'Kloss',best:'Klossen',e:0.05,mu:0.4,drive:0,text:'Klossen glider bara i backar. På platt mark stannar den.'},
@@ -163,18 +176,32 @@ const PIECES={
   upp:{namn:'Backe upp',w:2,h:1,segs:[[0,1,2,0]]},
   planka:{namn:'Planka',w:2,h:1,segs:[[0,0,2,0]]},
   studs:{namn:'Studsmatta',w:1,h:1,segs:[],spring:true},
-  vagg:{namn:'Vägg',w:1,h:2,segs:[[0.5,0,0.5,2]]}
+  vagg:{namn:'Vägg',w:1,h:2,segs:[[0.5,0,0.5,2]]},
+  band:{namn:'Rullband →',w:2,h:1,segs:[[0,0,2,0]],belt:1},
+  bandv:{namn:'Rullband ←',w:2,h:1,segs:[[0,0,2,0]],belt:-1},
+  flakt:{namn:'Fläkt',w:1,h:1,segs:[],fan:true}
 };
-const PIECE_ORDER=['ner','upp','planka','studs','vagg'];
+const PIECE_ORDER=['ner','upp','planka','studs','vagg','band','bandv','flakt'];
 function cellAt(L,x,y){return x>=0&&x<W&&y>=0&&y<H?L.rows[y][x]:'.';}
 function solid(L,x,y){return cellAt(L,x,y)==='#';}
+function wall(L,x,y){const c=cellAt(L,x,y);return c==='#'||c==='L';}
+/* # mark, L lucka (öppnas av knappen), K knapp, N nyckel, S start, G mål, * stjärna */
 function parseLevel(L){
-  const P={starts:[],stars:[],goal:null,segs:[]};
+  const P={starts:[],stars:[],goal:null,segs:[],buttons:[],gates:[],key:null};
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const c=L.rows[y][x];
     if(c==='S')P.starts.push({x:x+.5,y:y+.5,cx:x,cy:y});
     else if(c==='G')P.goal={x,y};
     else if(c==='*')P.stars.push({x:x+.5,y:y+.5});
+    else if(c==='K')P.buttons.push({x,y});
+    else if(c==='N')P.key={x:x+.5,y:y+.5};
+    else if(c==='L'){
+      P.gates.push({x,y});
+      if(!wall(L,x,y-1))P.segs.push({x1:x,y1:y,x2:x+1,y2:y,gate:true});
+      if(!wall(L,x,y+1))P.segs.push({x1:x,y1:y+1,x2:x+1,y2:y+1,gate:true});
+      if(!wall(L,x-1,y))P.segs.push({x1:x,y1:y,x2:x,y2:y+1,gate:true});
+      if(!wall(L,x+1,y))P.segs.push({x1:x+1,y1:y,x2:x+1,y2:y+1,gate:true});
+    }
     else if(c==='#'){
       if(!solid(L,x,y-1))P.segs.push({x1:x,y1:y,x2:x+1,y2:y});
       if(!solid(L,x,y+1))P.segs.push({x1:x,y1:y+1,x2:x+1,y2:y+1});
@@ -188,7 +215,7 @@ function footprint(k,x,y){const p=PIECES[k],c=[];for(let j=0;j<p.h;j++)for(let i
 function canPlace(L,pieces,k,x,y){
   for(const [cx,cy] of footprint(k,x,y)){
     if(cx<0||cx>=W||cy<0||cy>=H)return false;
-    const c=L.rows[cy][cx];if(c==='#'||c==='S'||c==='G')return false;
+    const c=L.rows[cy][cx];if('#SGLKN'.includes(c))return false;
     for(const p of pieces)for(const [px,py] of footprint(p.k,p.x,p.y))if(px===cx&&py===cy)return false;
   }
   return true;
@@ -198,19 +225,25 @@ function pieceAt(pieces,x,y){
   return -1;
 }
 function makeSim(L,P,pieces){
-  const segs=P.segs.slice(),springs=[];
-  for(const p of pieces)if(PIECES[p.k].spring)springs.push({x:p.x,y:p.y,boing:-9});
-  for(const p of pieces)for(const s of PIECES[p.k].segs)segs.push({x1:p.x+s[0],y1:p.y+s[1],x2:p.x+s[2],y2:p.y+s[3],spring:!!PIECES[p.k].spring});
-  const objs=L.obj.map((o,i)=>({type:o.type,x:P.starts[i].x,y:P.starts[i].y,vx:0,vy:0,dir:o.dir||1,ang:0,done:false,still:0,ground:null,flip:0}));
-  return {L,P,segs,springs,objs,stars:P.stars.map(s=>({x:s.x,y:s.y,got:false})),t:0,status:'run',why:'',events:[]};
+  const segs=P.segs.slice(),springs=[],fans=[];
+  pieces=pieces.slice().sort((a,b)=>a.y-b.y||a.x-b.x||(a.k<b.k?-1:1)); // samma resultat oavsett i vilken ordning delarna lades
+  for(const p of pieces){
+    const D=PIECES[p.k];
+    if(D.spring)springs.push({x:p.x,y:p.y,boing:-9});
+    if(D.fan)fans.push({x:p.x,y:p.y});
+    for(const s of D.segs)segs.push({x1:p.x+s[0],y1:p.y+s[1],x2:p.x+s[2],y2:p.y+s[3],belt:D.belt||0});
+  }
+  const objs=L.obj.map((o,i)=>({type:o.type,x:P.starts[i].x,y:P.starts[i].y,vx:0,vy:0,dir:o.dir||1,ang:0,done:false,still:0,ground:null,flip:0,belt:0,wait:!!o.wait}));
+  return {L,P,segs,springs,fans,objs,stars:P.stars.map(s=>({x:s.x,y:s.y,got:false})),pressed:false,openT:-9,keyGot:!P.key,t:0,status:'run',why:'',events:[]};
 }
 function collide(o,s,T,S){
   const dx=s.x2-s.x1,dy=s.y2-s.y1,L2=dx*dx+dy*dy;
   let u=((o.x-s.x1)*dx+(o.y-s.y1)*dy)/L2;u=u<0?0:u>1?1:u;
   let nx=o.x-(s.x1+u*dx),ny=o.y-(s.y1+u*dy);const d=Math.hypot(nx,ny);
-  if(d>=RAD||d<1e-9)return;
+  if(d>=RAD||d<1e-9||(s.gate&&S.pressed))return;
   nx/=d;ny/=d;o.x+=nx*(RAD-d);o.y+=ny*(RAD-d);
   if(ny<-0.5&&(!o.ground||ny<o.ground.ny))o.ground={nx,ny};
+  if(s.belt&&ny<-0.5)o.belt=s.belt;
   const vn=o.vx*nx+o.vy*ny;
   if(vn>=0)return;
   if(-vn>3)S.events.push('bump');
@@ -226,29 +259,36 @@ function stepSim(S){
   S.t+=DT;
   for(const o of S.objs){
     if(o.done)continue;
+    if(o.wait){if(!S.pressed)continue;o.wait=false;S.events.push('release');}
     const T=TYPES[o.type];
     o.vy+=GRAV*DT;o.x+=o.vx*DT;o.y+=o.vy*DT;o.flip-=DT;
-    o.ground=null;
+    o.ground=null;o.belt=0;
     for(let it=0;it<2;it++)for(const s of S.segs)collide(o,s,T,S);
     if(o.ground){
       const tx=-o.ground.ny,ty=o.ground.nx,vt=o.vx*tx+o.vy*ty;
-      if(T.drive){const dv=o.dir*T.drive-vt,a=Math.max(-25*DT,Math.min(25*DT,dv));o.vx+=a*tx;o.vy+=a*ty;}
+      if(T.drive||o.belt){const dv=o.dir*T.drive+o.belt*BELT-vt,a=Math.max(-25*DT,Math.min(25*DT,dv));o.vx+=a*tx;o.vy+=a*ty;}
       if(o.type==='kloss')o.ang=Math.atan2(ty,tx);
       else if(o.type!=='bil')o.ang+=vt/RAD*DT;
       else o.ang=Math.atan2(ty,tx);
     }
     for(const p of S.springs)if(o.vy>-2&&o.x>p.x&&o.x<p.x+1&&o.y>p.y+0.3&&o.y<p.y+1.2){o.vy=-LAUNCH;o.ground=null;p.boing=S.t;S.events.push('boing');}
+    for(const f of S.fans)if(o.x>f.x-1&&o.x<f.x+2&&o.y>f.y-FAN&&o.y<f.y+1.2){o.vy-=38*DT;if(o.vy<-7)o.vy=-7;}
     const sp=Math.hypot(o.vx,o.vy);
     if(sp>MAXV){o.vx*=MAXV/sp;o.vy*=MAXV/sp;}
     o.still=sp<0.15?o.still+DT:0;
     for(const st of S.stars)if(!st.got&&Math.hypot(st.x-o.x,st.y-o.y)<0.6){st.got=true;S.events.push('star');}
+    if(!S.pressed)for(const b of S.P.buttons)if(o.x>=b.x&&o.x<b.x+1&&o.y>=b.y&&o.y<b.y+1){S.pressed=true;S.openT=S.t;S.events.push('click');}
+    if(!S.keyGot&&Math.hypot(S.P.key.x-o.x,S.P.key.y-o.y)<0.6){S.keyGot=true;S.events.push('key');}
     const g=S.P.goal;
-    if(o.x>=g.x&&o.x<g.x+1&&o.y>=g.y-0.5&&o.y<g.y+1){o.done=true;S.events.push('goal');}
+    if(S.keyGot&&o.x>=g.x&&o.x<g.x+1&&o.y>=g.y-0.5&&o.y<g.y+1){o.done=true;S.events.push('goal');}
     else if(o.y>H+1||o.x<-1||o.x>W+1){S.status='fail';S.why='ut';S.who=o;return;}
   }
   if(S.objs.every(o=>o.done)){S.status='win';return;}
   if(S.t>TMAX){S.status='fail';S.why='tid';return;}
-  if(S.objs.every(o=>o.done||o.still>1.2)){S.status='fail';S.why='stilla';S.who=S.objs.find(o=>!o.done);}
+  if(S.objs.every(o=>o.done||o.wait||o.still>1.2)){
+    S.status='fail';S.who=S.objs.find(o=>!o.done&&!o.wait)||S.objs.find(o=>!o.done);
+    S.why=S.who.wait?'knapp':(!S.keyGot&&S.P.key?'nyckel':'stilla');
+  }
 }
 /* Banor: # mark, S start, G mål, * stjärna. sol = en känd lösning (används av testerna). */
 const LEVELS=[
@@ -397,6 +437,116 @@ const LEVELS=[
   ".....######...S.",
   "################"]}
 ];
+LEVELS.push(
+ {id:'knappen',del:2,name:'Knappen i gropen',obj:[{type:'boll'}],inv:{ner:1,planka:1,studs:1},sol:['ner 1,7','studs 6,8'],
+  hint:'Luckan är stängd. Knappen i gropen öppnar den. Men hur kommer bollen upp ur gropen sen?',rows:[
+  "..........L.....",
+  ".S........L.....",
+  "..........L.....",
+  "..........L.....",
+  "........*.L.....",
+  "..........L.*...",
+  "..........L.....",
+  "...*......L...G.",
+  "####.K..########",
+  "################"]},
+ {id:'nyckeln',del:2,name:'Nyckeln',obj:[{type:'boll'}],inv:{ner:2,upp:1,vagg:1},sol:['ner 1,3','ner 3,4','upp 12,8'],
+  hint:'Målet är låst. Hämta nyckeln uppe på berget och rulla sedan tillbaka till målet.',rows:[
+  "................",
+  ".S..............",
+  "................",
+  "................",
+  "......N.*.......",
+  ".....####.......",
+  ".....####..*....",
+  ".....####.......",
+  "..G....*........",
+  "################"]}
+);
+LEVELS.push(
+ {id:'rullband',del:2,name:'Rullbandet',obj:[{type:'kloss'}],inv:{band:3,ner:2},sol:['band 1,2','ner 3,3','ner 5,4','band 9,8','band 11,8'],
+  hint:'Klossen stannar på platt mark. Rullbandet bär den framåt, även efter ett fall.',rows:[
+  "................",
+  ".S..............",
+  "....*...........",
+  "###.............",
+  "###.............",
+  "###.....*.......",
+  "###.............",
+  "###........*....",
+  "###...........G.",
+  "######..########"]}
+);
+LEVELS.push(
+ {id:'flakten',del:2,name:'Fläkten',obj:[{type:'kloss'}],inv:{band:2,flakt:1,planka:1},sol:['band 1,8','band 3,8','flakt 6,8'],
+  hint:'Fläkten blåser uppåt. Kan klossen flyga upp på berget?',rows:[
+  "................",
+  ".S..............",
+  ".........*......",
+  "..........G.....",
+  "........########",
+  "......*.########",
+  "........########",
+  "....*...########",
+  "........########",
+  "################"]}
+);
+LEVELS.push(
+ {id:'kedjan',del:2,name:'Kedjereaktionen',obj:[{type:'boll'},{type:'bil',wait:true}],inv:{ner:1,upp:1,vagg:1},sol:['upp 7,4','ner 1,8'],
+  hint:'Bilen väntar i garaget tills någon trycker på knappen. Både bollen och bilen ska till målet.',rows:[
+  "................",
+  "........S.......",
+  "................",
+  "........*.......",
+  "................",
+  ".....S..........",
+  "#...*...........",
+  "#...............",
+  "#..K......*...G.",
+  "################"]}
+);
+LEVELS.push(
+ {id:'nyckelknapp',del:2,name:'Nyckel och knapp',obj:[{type:'boll'}],inv:{ner:2,studs:1,vagg:1},sol:['ner 1,8','studs 3,8'],
+  hint:'Först nyckeln på berget, sedan knappen som öppnar luckan. Sist in i målet!',rows:[
+  "...........L....",
+  ".S.........L....",
+  "...........L....",
+  "...*.......L....",
+  "......N....L....",
+  ".....###*..L....",
+  ".....###...L....",
+  ".....###...L....",
+  ".........K.L*.G.",
+  "################"]}
+);
+LEVELS.push(
+ {id:'hissen',del:2,name:'Hissen',obj:[{type:'kloss'}],inv:{band:3,flakt:1,ner:1},sol:['band 1,8','band 3,8','flakt 6,8','band 10,3'],
+  hint:'Klossen måste upp och hämta nyckeln och sedan ner till målet igen.',rows:[
+  "................",
+  ".S.......*......",
+  "..........N.....",
+  "................",
+  "........####....",
+  "........####.*..",
+  "........####....",
+  "...*....####....",
+  "........####..G.",
+  "################"]}
+);
+LEVELS.push(
+ {id:'maskinen',del:2,name:'Stora maskinen',obj:[{type:'boll'},{type:'kloss',wait:true},{type:'bil',dir:-1,wait:true}],inv:{ner:2,planka:1,vagg:1,band:1},sol:['ner 1,8','planka 6,9','ner 13,7','vagg 5,4'],
+  hint:'Bollen sätter igång maskinen. Klossen och bilen väntar på knappen. Alla tre ska in i målet!',rows:[
+  "................",
+  ".S...........S..",
+  "................",
+  ".............*..",
+  "..........L.....",
+  "......S*..L.....",
+  ".....###..L.....",
+  "..........L.....",
+  "....K...*.L...G.",
+  "######..########"]}
+);
 /*PURE-END*/
 
 
@@ -407,7 +557,10 @@ const ICON={
   upp:'<svg viewBox="0 0 54 34" aria-hidden="true"><path d="M5 28 49 6" stroke="#6b4220" stroke-width="10" stroke-linecap="round"/><path d="M5 28 49 6" stroke="#d39a55" stroke-width="5" stroke-linecap="round"/></svg>',
   planka:'<svg viewBox="0 0 54 34" aria-hidden="true"><path d="M5 17H49" stroke="#6b4220" stroke-width="10" stroke-linecap="round"/><path d="M5 17H49" stroke="#d39a55" stroke-width="5" stroke-linecap="round"/></svg>',
   studs:'<svg viewBox="0 0 54 34" aria-hidden="true"><rect x="12" y="26" width="30" height="6" rx="2" fill="#46647c"/><path d="M18 26l6-4-6-4 6-4M36 26l-6-4 6-4-6-4" stroke="#12324a" stroke-width="2.500" fill="none"/><rect x="9" y="6" width="36" height="7" rx="3.500" fill="#e8402a" stroke="#7d1f0e" stroke-width="2"/></svg>',
-  vagg:'<svg viewBox="0 0 54 34" aria-hidden="true"><rect x="21" y="2" width="12" height="30" rx="3" fill="#8fa3b3" stroke="#3d5568" stroke-width="2.500"/></svg>'
+  vagg:'<svg viewBox="0 0 54 34" aria-hidden="true"><rect x="21" y="2" width="12" height="30" rx="3" fill="#8fa3b3" stroke="#3d5568" stroke-width="2.500"/></svg>',
+  band:'<svg viewBox="0 0 54 34" aria-hidden="true"><rect x="3" y="10" width="48" height="14" rx="7" fill="#46647c" stroke="#12324a" stroke-width="2.500"/><path d="M14 13l6 4-6 4M26 13l6 4-6 4M38 13l6 4-6 4" stroke="#ffd23f" stroke-width="2.500" fill="none"/></svg>',
+  bandv:'<svg viewBox="0 0 54 34" aria-hidden="true"><rect x="3" y="10" width="48" height="14" rx="7" fill="#46647c" stroke="#12324a" stroke-width="2.500"/><path d="M20 13l-6 4 6 4M32 13l-6 4 6 4M44 13l-6 4 6 4" stroke="#ffd23f" stroke-width="2.500" fill="none"/></svg>',
+  flakt:'<svg viewBox="0 0 54 34" aria-hidden="true"><path d="M18 9V2M27 9V1M36 9V2" stroke="#3fa7e8" stroke-width="2.500" stroke-linecap="round"/><rect x="13" y="12" width="28" height="20" rx="4" fill="#8fa3b3" stroke="#3d5568" stroke-width="2.500"/><circle cx="27" cy="22" r="6" fill="#fff" stroke="#3d5568" stroke-width="2"/><path d="M27 16v12M21 22h12" stroke="#3d5568" stroke-width="2"/></svg>'
 };
 
 let cur=0,L=null,P=null,pieces=[],sel=null,sim=null,mode='build',hover=null,cursor={x:0,y:0},sound=true,acc=0,last=0,doneAt=0;
@@ -471,7 +624,7 @@ function drawTerrain(){
   }
   cx.strokeStyle='#6b4220';cx.lineWidth=S*.07;cx.lineCap='round';
   cx.beginPath();
-  for(const s of P.segs){cx.moveTo(s.x1*S,s.y1*S);cx.lineTo(s.x2*S,s.y2*S);}
+  for(const s of P.segs){if(s.gate)continue;cx.moveTo(s.x1*S,s.y1*S);cx.lineTo(s.x2*S,s.y2*S);}
   cx.stroke();
 }
 function drawStart(){
@@ -481,6 +634,43 @@ function drawStart(){
     rr(x+S*.12,y-S*.08,S*.76,S*.3,S*.08);cx.fill();cx.stroke();
     cx.fillStyle='#3d5568';cx.fillRect(x+S*.22,y+S*.18,S*.56,S*.05);
   }
+}
+function drawMechanics(t){
+  const open=sim&&sim.pressed,oa=open?Math.max(0,1-(sim.t-sim.openT)*3):1;
+  if(oa>0)for(const g of P.gates){
+    const x=g.x*S,y=g.y*S;
+    cx.save();cx.globalAlpha=oa;
+    cx.fillStyle='#ffd23f';cx.fillRect(x+S*.1,y,S*.8,S+1);
+    cx.fillStyle='#12324a';
+    for(let k=0;k<2;k++){cx.beginPath();cx.moveTo(x+S*.1,y+S*(k*.5));cx.lineTo(x+S*.9,y+S*(k*.5+.3));cx.lineTo(x+S*.9,y+S*(k*.5+.5));cx.lineTo(x+S*.1,y+S*(k*.5+.2));cx.closePath();cx.fill();}
+    cx.strokeStyle='#12324a';cx.lineWidth=S*.05;cx.strokeRect(x+S*.1,y,S*.8,S);
+    cx.restore();
+  }
+  for(const b of P.buttons){
+    const x=b.x*S,y=b.y*S;
+    cx.fillStyle='#46647c';rr(x+S*.12,y+S*.84,S*.76,S*.16,S*.05);cx.fill();
+    cx.fillStyle=open?'#22a152':'#e8402a';cx.strokeStyle='#12324a';cx.lineWidth=S*.05;
+    const h=open?.06:.2;
+    rr(x+S*.22,y+S*(.84-h),S*.56,S*(h+.02),S*.06);cx.fill();cx.stroke();
+  }
+  if(P.key&&!(sim&&sim.keyGot)){
+    const x=P.key.x*S,y=P.key.y*S+Math.sin(t*3)*S*.05;
+    cx.save();cx.translate(x,y);cx.rotate(-.5);
+    cx.fillStyle='#ffc21a';cx.strokeStyle='#7a5200';cx.lineWidth=S*.05;
+    cx.beginPath();cx.arc(-S*.18,0,S*.15,0,7);cx.fill();cx.stroke();
+    cx.fillRect(-S*.04,-S*.05,S*.36,S*.1);cx.strokeRect(-S*.04,-S*.05,S*.36,S*.1);
+    cx.fillRect(S*.18,S*.04,S*.06,S*.1);cx.fillRect(S*.27,S*.04,S*.05,S*.08);
+    cx.fillStyle='#7a5200';cx.beginPath();cx.arc(-S*.18,0,S*.05,0,7);cx.fill();
+    cx.restore();
+  }
+}
+function drawLock(){
+  if(!P.key||(sim&&sim.keyGot))return;
+  const g=P.goal,x=(g.x+.55)*S,y=(g.y+.35)*S;
+  cx.strokeStyle='#12324a';cx.lineWidth=S*.07;
+  cx.beginPath();cx.arc(x,y-S*.1,S*.13,Math.PI,0);cx.stroke();
+  cx.fillStyle='#ffc21a';cx.lineWidth=S*.05;rr(x-S*.2,y-S*.1,S*.4,S*.3,S*.06);cx.fill();cx.stroke();
+  cx.fillStyle='#12324a';cx.beginPath();cx.arc(x,y+S*.03,S*.045,0,7);cx.fill();
 }
 function drawGoal(t){
   const g=P.goal,x=g.x*S,y=g.y*S;
@@ -517,6 +707,29 @@ function drawPiece(p,alpha,bad,t){
     for(const sx of [.3,.7]){const n=4,h=(y+S*.86-top-S*.1)/n;cx.moveTo(x+sx*S,y+S*.86);for(let i=1;i<=n;i++)cx.lineTo(x+(sx+(i%2?.09:-.09))*S,y+S*.86-h*i);}
     cx.stroke();
     cx.fillStyle='#e8402a';cx.strokeStyle='#7d1f0e';cx.lineWidth=S*.05;rr(x+S*.06,top-S*.1,S*.88,S*.16,S*.07);cx.fill();cx.stroke();
+  }else if(p.k==='band'||p.k==='bandv'){
+    const x=p.x*S,y=p.y*S,dir=PIECES[p.k].belt;
+    cx.fillStyle='#46647c';cx.strokeStyle='#12324a';cx.lineWidth=S*.05;
+    rr(x+S*.04,y,S*1.92,S*.26,S*.13);cx.fill();cx.stroke();
+    cx.save();rr(x+S*.04,y,S*1.92,S*.26,S*.13);cx.clip();
+    cx.strokeStyle='#ffd23f';cx.lineWidth=S*.05;
+    const off=((sim?sim.t:t*.4)*BELT*dir%0.5+0.5)%0.5;
+    cx.beginPath();
+    for(let k=-1;k<5;k++){const ax=x+(k*.5+off)*S;cx.moveTo(ax-dir*S*.07,y+S*.06);cx.lineTo(ax+dir*S*.05,y+S*.13);cx.lineTo(ax-dir*S*.07,y+S*.2);}
+    cx.stroke();cx.restore();
+    cx.fillStyle='#12324a';for(const wx of [.17,1.83]){cx.beginPath();cx.arc(x+wx*S,y+S*.13,S*.07,0,7);cx.fill();}
+  }else if(p.k==='flakt'){
+    const x=p.x*S,y=p.y*S;
+    // vinden
+    cx.fillStyle='rgba(63,167,232,.10)';cx.fillRect((p.x-1)*S,(p.y-FAN)*S,3*S,(FAN+.5)*S);
+    cx.strokeStyle='rgba(63,167,232,.45)';cx.lineWidth=S*.05;cx.lineCap='round';cx.beginPath();
+    for(let k=0;k<6;k++){const wx=p.x-.7+k*.48,ph=((t*2.2+k*.37)%1);const wy=p.y+.3-ph*FAN;cx.moveTo(wx*S,wy*S);cx.lineTo(wx*S,(wy-.45)*S);}
+    cx.stroke();
+    cx.fillStyle='#8fa3b3';cx.strokeStyle='#3d5568';cx.lineWidth=S*.05;
+    rr(x+S*.08,y+S*.42,S*.84,S*.58,S*.08);cx.fill();cx.stroke();
+    cx.save();cx.translate(x+S*.5,y+S*.71);cx.rotate(t*12);
+    cx.fillStyle='#fff';for(let k=0;k<3;k++){cx.rotate(Math.PI*2/3);cx.beginPath();cx.ellipse(S*.1,0,S*.12,S*.05,0,0,7);cx.fill();}
+    cx.restore();
   }else if(p.k==='vagg'){
     cx.fillStyle='#8fa3b3';cx.strokeStyle='#3d5568';cx.lineWidth=S*.06;
     rr((p.x+.36)*S,(p.y+.04)*S,S*.28,S*1.92,S*.07);cx.fill();cx.stroke();
@@ -557,9 +770,9 @@ function drawObj(o,a){
   }
   cx.restore();
 }
-function startObjs(){return L.obj.map((o,i)=>({type:o.type,x:P.starts[i].x,y:P.starts[i].y,ang:0,dir:o.dir||1}));}
+function startObjs(){return L.obj.map((o,i)=>({type:o.type,x:P.starts[i].x,y:P.starts[i].y,ang:0,dir:o.dir||1,wait:!!o.wait}));}
 function draw(t){
-  drawBg();drawTerrain();drawGoal(t);drawStars(t);drawStart();
+  drawBg();drawTerrain();drawMechanics(t);drawGoal(t);drawLock();drawStars(t);drawStart();
   pieces.forEach(p=>drawPiece(p,1,false,t));
   if(mode==='build'&&hover&&sel&&left(sel)>0&&pieceAt(pieces,hover.x,hover.y)<0){
     const ok=canPlace(L,pieces,sel,hover.x,hover.y);
@@ -570,7 +783,7 @@ function draw(t){
     cx.strokeStyle='#d9442b';cx.lineWidth=S*.05;cx.setLineDash([S*.1,S*.08]);cx.strokeRect(p.x*S+2,p.y*S+2,D.w*S-4,D.h*S-4);cx.setLineDash([]);
   }
   const objs=sim?sim.objs:startObjs();
-  objs.forEach(o=>drawObj(o));
+  objs.forEach(o=>{drawObj(o,o.wait?.55:1);if(o.wait){cx.fillStyle='#46647c';cx.font='600 '+Math.round(S*.32)+'px Fredoka, sans-serif';cx.textAlign='center';cx.fillText('Zz',(o.x+.42)*S,(o.y-.25)*S);}});
   if(document.activeElement===cv&&mode==='build'&&kbd){
     cx.strokeStyle='#ff7a3d';cx.lineWidth=S*.08;cx.strokeRect(cursor.x*S+3,cursor.y*S+3,S-6,S-6);
   }
@@ -589,7 +802,7 @@ function frame(ts){
     handleEvents();
     if(sim.status!=='run')finish();
   }
-  draw(t);
+  draw(t);updateMission();
   requestAnimationFrame(frame);
 }
 function handleEvents(){
@@ -599,6 +812,9 @@ function handleEvents(){
     else if(e==='boing')tone(220,.3,'sine',.09,660);
     else if(e==='goal')tone(660,.2,'triangle',.08,990);
     else if(e==='turn')tone(330,.1,'square',.03);
+    else if(e==='click')tone(440,.15,'square',.05,880);
+    else if(e==='key')[784,988,1175].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle',.07),i*80));
+    else if(e==='release')tone(330,.25,'triangle',.07,660);
     else if(e==='bump'&&now-lastTone>90){lastTone=now;tone(140,.08,'sine',.06);}
   }
   sim.events.length=0;
@@ -638,6 +854,8 @@ function finish(){
     if(sim.why==='ut')m=n+' ramlade av banan. Ändra bygget och tryck på Starta igen!';
     else if(sim.why==='tid')m='Det tog för lång tid. Kan du bygga en snabbare väg?';
     else if(o&&o.type==='kloss')m='Klossen stannade. Den glider bara när det lutar nedåt, så bygg backar hela vägen.';
+    else if(sim.why==='knapp')m='Ingen tryckte på knappen, så '+TYPES[o.type].best.toLowerCase()+' kom aldrig iväg.';
+    else if(sim.why==='nyckel')m='Målet är låst! Någon måste hämta nyckeln först.';
     else m=n+' stannade innan målet. Ändra bygget och prova igen!';
     say(m,'bad');
   }
@@ -718,8 +936,26 @@ function cellFromEvent(e){
   return {x,y};
 }
 
+let missionSig='';
+function updateMission(){
+  const items=[];
+  if(P.key)items.push(['Hämta nyckeln',!!(sim&&sim.keyGot)]);
+  if(P.buttons.length)items.push(['Tryck på knappen',!!(sim&&sim.pressed)]);
+  L.obj.forEach((o,i)=>items.push(['Få '+TYPES[o.type].best.toLowerCase()+' i mål',!!(sim&&sim.objs[i].done)]));
+  if(P.stars.length){const g=sim?sim.stars.filter(s=>s.got).length:0;items.push(['Ta stjärnor ('+g+' av '+P.stars.length+')',g===P.stars.length]);}
+  const sig=cur+'|'+JSON.stringify(items);
+  if(sig===missionSig)return;missionSig=sig;
+  const ul=$('mission');ul.innerHTML='';
+  for(const [txt,ok] of items){const li=document.createElement('li');li.textContent=txt;if(ok)li.className='ok';ul.appendChild(li);}
+}
 function buildLevelBar(){
   const bar=$('levels');bar.innerHTML='';
+  const rows={};
+  for(const [d,lab] of [[1,'Del 1: Lär dig delarna'],[2,'Del 2: Uppdrag med fler steg']]){
+    const r=document.createElement('div');r.className='lrow';
+    const l=document.createElement('span');l.className='lab';l.textContent=lab;r.appendChild(l);
+    rows[d]=r;bar.appendChild(r);
+  }
   LEVELS.forEach((lv,i)=>{
     const b=document.createElement('button');b.type='button';b.className='lvl';
     const s=saved.stars[lv.id]||0,done=saved.stars[lv.id]!=null;
@@ -727,7 +963,7 @@ function buildLevelBar(){
     b.setAttribute('aria-label','Bana '+(i+1)+', '+lv.name+(done?', '+s+' av 3 stjärnor':''));
     if(i===cur)b.setAttribute('aria-current','true');
     b.onclick=()=>loadLevel(i);
-    bar.appendChild(b);
+    rows[lv.del||1].appendChild(b);
   });
 }
 function loadLevel(i){
