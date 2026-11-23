@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Ordmemory</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Memory där ett ord och en bild bildar ett par. Teman och ord finns i TEMAN längre ner. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82; --line:#b3d4ec;
+  --go:#22a152; --accent:#ff7a3d; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --back:#58b0ff; --back2:#4aa3f2; --word:#fff4d6; --wordedge:#e0a400;
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:980px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 a{color:inherit; text-decoration:none}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+.tools{display:flex; flex-wrap:wrap; gap:8px}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+
+.bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.bar .lbl{font-weight:600; color:var(--muted); font-size:1rem; margin-right:2px; min-width:3.2em}
+.pick{min-height:48px; padding:4px 12px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-weight:600; font-size:1.05rem; line-height:1.1; box-shadow:0 3px 0 var(--shadow)}
+.pick .em{font-size:1.4rem; margin-right:4px; vertical-align:-2px}
+.pick span.st{display:block; font-size:.78rem; color:var(--gold); letter-spacing:.08em; -webkit-text-stroke:.5px var(--edge)}
+.pick[aria-pressed="true"]{background:var(--accent); color:#2a1200}
+.pick[aria-pressed="true"] span.st{color:#fff}
+
+.status{display:flex; flex-wrap:wrap; gap:8px 18px; font-weight:600; color:var(--muted)}
+.status b{color:var(--ink)}
+
+.board-wrap{position:relative}
+.board{
+  display:grid; gap:10px; grid-template-columns:repeat(var(--cols),minmax(0,1fr));
+  max-width:calc(var(--cols) * 150px); margin:0 auto;
+}
+.card{
+  position:relative; aspect-ratio:3/4; padding:0; border:0; background:none; perspective:700px;
+  container-type:inline-size;
+}
+.card .in{position:absolute; inset:0; transition:transform .45s; transform-style:preserve-3d}
+.card.up .in{transform:rotateY(180deg)}
+.face{
+  position:absolute; inset:0; display:grid; place-items:center; border-radius:16px; border:4px solid var(--edge);
+  backface-visibility:hidden; -webkit-backface-visibility:hidden; box-shadow:0 5px 0 var(--shadow); overflow:hidden;
+}
+.back{
+  background:repeating-linear-gradient(45deg,var(--back) 0 12px,var(--back2) 12px 24px);
+  color:#fff; font-size:44cqw; font-weight:700; -webkit-text-stroke:2px var(--edge);
+}
+.front{transform:rotateY(180deg); background:var(--card); padding:5cqw}
+/* Sida A är gul, sida B är vit, så att man ser vilken sort man har vänt. */
+.front.sa{background:var(--word); border-color:var(--wordedge)}
+.front .em{font-size:58cqw; line-height:1}
+.front .txt{font-weight:700; text-align:center; line-height:1.08; word-break:keep-all}
+.front .bo{display:flex; flex-direction:column; align-items:center; gap:4cqw}
+.front .bo .em{font-size:46cqw}
+.front .bo .txt{font-size:18cqw}
+.front .flag{width:90%; height:auto; border:2px solid var(--edge); border-radius:4px; display:block}
+.front svg{width:92%; height:auto; display:block}
+.front .tag{position:absolute; top:4cqw; right:5cqw; font-size:11cqw; font-weight:600; color:var(--muted)}
+.card.done .front{border-color:var(--go); background:#d9f5df}
+.card.done .in{animation:joy .5s}
+.card.miss .front{border-color:#d9442b}
+.card:not(.up):hover .in{transform:translateY(-3px)}
+.card:not(.up):active .back{box-shadow:0 2px 0 var(--shadow)}
+@keyframes joy{0%,100%{scale:1} 50%{scale:1.08}}
+
+.msg{margin:0 2px; min-height:1.6em; font-weight:500; font-size:1.1rem; text-align:center}
+.msg.bad{color:#a8330a} .msg.good{color:#0f6b34}
+
+.win{position:absolute; inset:-6px; display:grid; place-items:center; padding:14px; background:rgba(18,50,74,.6); border-radius:20px}
+.win[hidden]{display:none}
+.win-card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:18px 20px; text-align:center; max-width:360px; width:100%}
+.win-card h2{margin:0; font-size:1.8rem}
+.stars{font-size:2.6rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:1.5px var(--edge); margin:4px 0}
+.stars i{font-style:normal; display:inline-block; animation:pop .5s both}
+.stars i:nth-child(2){animation-delay:.15s} .stars i:nth-child(3){animation-delay:.3s}
+.stars i.off{color:#e3edf5; animation:none}
+@keyframes pop{0%{transform:scale(0) rotate(-30deg)} 70%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1)}}
+.win-card p{margin:6px 0 12px; font-size:1.05rem}
+.win-btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.win-btns .go{background:var(--go); color:#fff; border-color:#0d5a2e}
+
+@media (max-width:600px){
+  h1{font-size:1.6rem}
+  .board{gap:7px}
+  .face{border-width:3px; border-radius:12px}
+  .pick{min-height:42px; padding:3px 9px; font-size:.95rem}
+  .bar .lbl{display:none}
+  #themes{flex-wrap:nowrap; overflow-x:auto; padding:2px 2px 8px; scrollbar-width:thin}
+  #themes .pick{flex:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .card .in{transition:none}
+  .card.done .in,.stars i{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><a href="index.html" aria-label="Till Spelhörnan">Ordmemory</a> <small>Hitta korten som hör ihop</small></h1>
+    <div class="tools">
+      <span id="spelarplats"></span>
+      <button class="small-btn" id="caps" type="button" aria-pressed="false">ABC</button>
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+  <nav class="bar" id="themes" aria-label="Välj tema"><span class="lbl">Tema</span></nav>
+  <nav class="bar" id="sizes" aria-label="Välj svårighet"><span class="lbl">Nivå</span></nav>
+  <div class="status" aria-live="polite"><span>Par: <b id="pairs">0</b></span><span>Försök: <b id="tries">0</b></span></div>
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+    <div class="win" id="win" hidden>
+      <div class="win-card" role="dialog" aria-labelledby="wt">
+        <h2 id="wt">Bra jobbat!</h2>
+        <div class="stars" id="wstars"></div>
+        <p id="wtext"></p>
+        <div class="win-btns">
+          <button class="small-btn go" id="wagain" type="button">Spela igen</button>
+          <button class="small-btn" id="wnext" type="button">Svårare</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="msg" id="msg" aria-live="polite"></p>
+</div>
+
+<script>
+/* Så lägger du till ett tema: kopiera ett block i TEMAN och byt ut raderna.
+   typ:[A,B] säger hur de två korten i ett par ritas:
+     ord      svensk text (läses upp, kan visas med stora bokstäver)
+     tecken   text som visas precis som den står (siffror, bokstäver)
+     en       engelsk text (läses upp på engelska)
+     bild     en emoji
+     bildord  emoji och ord, skrivs "🐄 ko"
+     flagga   landskod, bilden hämtas från flaggor/<kod>.svg
+     klocka   tid som "14:30", ritas som en urtavla
+     prickar  ett tal 1–10, ritas som prickar
+   Varje rad är [A, B] eller [A, B, namn], där namn läses upp när bilden vänds.
+   samma:true betyder att båda korten är av samma sort (som i motsatser).
+   sorter: vad korten kallas, används när man vänder två av samma sort.
+   Ett tema behöver minst 8 par. "gen" kan användas i stället för "par" för att
+   skapa nya par varje gång. */
+const TAL=["noll","ett","två","tre","fyra","fem","sex","sju","åtta","nio","tio","elva","tolv"];
+const LAND=[["Sverige","se","Stockholm"],["Norge","no","Oslo"],["Danmark","dk","Köpenhamn"],["Finland","fi","Helsinki"],
+  ["Island","is","Reykjavik"],["Tyskland","de","Berlin"],["Frankrike","fr","Paris"],["Spanien","es","Madrid"],
+  ["Italien","it","Rom"],["Irland","ie","Dublin"],["Polen","pl","Warszawa"],["Grekland","gr","Aten"],
+  ["Portugal","pt","Lissabon"],["Schweiz","ch","Bern"],["Österrike","at","Wien"],["USA","us","Washington"],
+  ["Kanada","ca","Ottawa"],["Mexiko","mx","Mexico City"],["Brasilien","br","Brasília"],["Argentina","ar","Buenos Aires"],
+  ["Kina","cn","Peking"],["Japan","jp","Tokyo"],["Indien","in","New Delhi"],["Australien","au","Canberra"],
+  ["Egypten","eg","Kairo"],["Sydafrika","za","Pretoria"],["Kenya","ke","Nairobi"],["Ryssland","ru","Moskva"],
+  ["Turkiet","tr","Ankara"],["Thailand","th","Bangkok"],["Nya Zeeland","nz","Wellington"]];
+const TEMAN=[
+  {namn:"Mat", ikon:"🍕", typ:["ord","bild"], sorter:["ett ord","en bild"], par:[
+    ["pizza","🍕"],["banan","🍌"],["äpple","🍎"],["glass","🍦"],["morot","🥕"],["ost","🧀"],
+    ["bröd","🍞"],["ägg","🥚"],["jordgubbe","🍓"],["druvor","🍇"],["päron","🍐"],["citron","🍋"],
+    ["melon","🍉"],["korv","🌭"],["hamburgare","🍔"],["pannkaka","🥞"],["mjölk","🥛"],["tårta","🎂"],
+    ["kaka","🍪"],["majs","🌽"],["tomat","🍅"],["gurka","🥒"],["broccoli","🥦"],["potatis","🥔"],
+    ["godis","🍬"],["popcorn","🍿"],["apelsin","🍊"],["körsbär","🍒"],["smörgås","🥪"],["soppa","🍲"],
+    ["choklad","🍫"],["munk","🍩"],["ris","🍚"],["kyckling","🍗"]]},
+  {namn:"Djur", ikon:"🐱", typ:["ord","bild"], sorter:["ett ord","en bild"], par:[
+    ["katt","🐱"],["hund","🐶"],["ko","🐮"],["gris","🐷"],["häst","🐴"],["får","🐑"],["höna","🐔"],
+    ["anka","🦆"],["fisk","🐟"],["groda","🐸"],["elefant","🐘"],["lejon","🦁"],["apa","🐒"],["björn","🐻"],
+    ["kanin","🐰"],["mus","🐭"],["uggla","🦉"],["orm","🐍"],["giraff","🦒"],["zebra","🦓"],["igelkott","🦔"],
+    ["räv","🦊"],["fjäril","🦋"],["snigel","🐌"],["bi","🐝"],["nyckelpiga","🐞"],["pingvin","🐧"],["val","🐳"]]},
+  {namn:"Fordon", ikon:"🚗", typ:["ord","bild"], sorter:["ett ord","en bild"], par:[
+    ["bil","🚗"],["buss","🚌"],["tåg","🚆"],["flygplan","✈️"],["segelbåt","⛵"],["cykel","🚲"],["traktor","🚜"],
+    ["helikopter","🚁"],["raket","🚀"],["lastbil","🚚"],["brandbil","🚒"],["polisbil","🚓"],["ambulans","🚑"],
+    ["motorcykel","🏍️"],["sparkcykel","🛴"],["taxi","🚕"],["fartyg","🚢"]]},
+  {namn:"Djurungar", ikon:"🐣", typ:["bildord","ord"], sorter:["ett djur","en unge"], par:[
+    ["🐄 ko","kalv"],["🐎 häst","föl"],["🐑 får","lamm"],["🐕 hund","valp"],["🐈 katt","kattunge"],["🐖 gris","kulting"],
+    ["🐔 höna","kyckling"],["🐐 get","killing"],["🐸 groda","grodyngel"],["🦋 fjäril","larv"],["🦆 anka","ankunge"],["🦁 lejon","lejonunge"]]},
+  {namn:"Yrken", ikon:"🧑‍🚒", typ:["ord","bild"], sorter:["ett yrke","en sak"], par:[
+    ["brandman","🚒"],["polis","🚓"],["läkare","🩺"],["frisör","✂️"],["kock","🍳"],["bonde","🚜"],["målare","🖌️"],
+    ["snickare","🔨"],["pilot","✈️"],["brevbärare","✉️"],["tandläkare","🦷"],["lärare","📚"],["fiskare","🎣"],
+    ["astronaut","🚀"],["musiker","🎸"],["bagare","🥖"]]},
+  {namn:"Engelska", ikon:"🇬🇧", typ:["bildord","en"], sorter:["ett svenskt ord","ett engelskt ord"], par:[
+    ["🐶 hund","dog"],["🐱 katt","cat"],["🍎 äpple","apple"],["🚗 bil","car"],["🏠 hus","house"],["☀️ sol","sun"],
+    ["⚽ boll","ball"],["🐟 fisk","fish"],["📖 bok","book"],["🐴 häst","horse"],["🐦 fågel","bird"],["🌳 träd","tree"],
+    ["🌸 blomma","flower"],["🥛 mjölk","milk"],["🍌 banan","banana"],["🐮 ko","cow"],["🐭 mus","mouse"],["⭐ stjärna","star"],
+    ["🌙 måne","moon"],["👟 sko","shoe"],["🎩 hatt","hat"],["⛵ båt","boat"],["🚆 tåg","train"],["🍦 glass","ice cream"]]},
+  {namn:"Flaggor", ikon:"🇸🇪", typ:["ord","flagga"], sorter:["ett land","en flagga"], par:LAND.map(l=>[l[0],l[1]])},
+  {namn:"Huvudstäder", ikon:"🏛️", typ:["ord","ord"], sorter:["ett land","en huvudstad"], par:LAND.map(l=>[l[0],l[2]])},
+  {namn:"Klockan", ikon:"🕒", typ:["ord","klocka"], sorter:["en tid i ord","en klocka"], gen:klockPar},
+  {namn:"Plus", ikon:"➕", typ:["tecken","tecken"], sorter:["ett tal","ett svar"], gen:plusPar},
+  {namn:"Prickar", ikon:"🔢", typ:["tecken","prickar"], sorter:["en siffra","prickar"], par:
+    [1,2,3,4,5,6,7,8,9,10].map(n=>[String(n),String(n)])},
+  {namn:"Motsatser", ikon:"↔️", typ:["ord","ord"], samma:true, par:[
+    ["stor","liten"],["varm","kall"],["lång","kort"],["glad","ledsen"],["snabb","långsam"],["ljus","mörk"],
+    ["upp","ner"],["öppen","stängd"],["tung","lätt"],["gammal","ung"],["full","tom"],["hög","låg"],
+    ["våt","torr"],["dag","natt"],["först","sist"],["in","ut"],["ren","smutsig"],["mjuk","hård"]]},
+  {namn:"Bokstäver", ikon:"🔤", typ:["tecken","tecken"], sorter:["en stor bokstav","en liten bokstav"], par:
+    [..."ABCDEFGHIJKLMNOPRSTUVYÅÄÖ"].map(c=>[c,c.toLocaleLowerCase('sv-SE')])},
+  {namn:"Första bokstaven", ikon:"🅰️", typ:["tecken","bild"], sorter:["en bokstav","en bild"], par:[
+    ["A","🐒","apa"],["B","🍌","banan"],["C","🚲","cykel"],["D","🐉","drake"],["E","🐘","elefant"],["F","🐟","fisk"],
+    ["G","🐷","gris"],["H","🐶","hund"],["I","🦔","igelkott"],["J","🍓","jordgubbe"],["K","🐱","katt"],["L","🦁","lejon"],
+    ["M","🐭","mus"],["N","🔑","nyckel"],["O","🐍","orm"],["P","🍕","pizza"],["R","🚀","raket"],["S","☀️","sol"],
+    ["T","🚆","tåg"],["U","🦉","uggla"],["V","🐳","val"],["Z","🦓","zebra"],["Ä","🍎","äpple"],["Ö","👁️","öga"]]}
+];
+function klockPar(){
+  const out=[],seen=new Set();
+  while(out.length<12){
+    const h=1+Math.floor(Math.random()*12),k=Math.floor(Math.random()*4);
+    const nx=TAL[h%12+1];
+    const [txt,hh,mm]=[["klockan "+TAL[h],h,0],["kvart över "+TAL[h],h,15],["halv "+nx,h,30],["kvart i "+nx,h,45]][k];
+    const key=hh+':'+mm;if(seen.has(key))continue;seen.add(key);
+    out.push([txt,key]);
+  }
+  return out;
+}
+function plusPar(){
+  const out=[];
+  for(let s=2;s<=10;s++){const a=1+Math.floor(Math.random()*(s-1));out.push([a+" + "+(s-a),String(s),a+" plus "+(s-a)+" är "+s]);}
+  return out;
+}
+const NIVAER=[{namn:"Lätt",par:4},{namn:"Mellan",par:6},{namn:"Svår",par:8}];
+const KEY='ordmemory-v1';
+const TEXTTYP={ord:'sv-SE',tecken:'sv-SE',en:'en-GB',bildord:'sv-SE'};
+
+(function(){
+const $=id=>document.getElementById(id);
+let tema=0,niva=0,cards=[],open=[],lock=false,tries=0,found=0,sound=true,caps=false,t0=0,started=false;
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+if(typeof saved.caps==='boolean')caps=saved.caps;
+const ti=TEMAN.findIndex(T=>T.namn===saved.tema);if(ti>=0)tema=ti;
+if(Number.isInteger(saved.niva)&&NIVAER[saved.niva])niva=saved.niva;
+if(!saved.stj||Array.isArray(saved.stj))saved.stj={};
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+let ac=null;
+function tone(f,d,type,v){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';o.frequency.value=f;g.gain.value=v||.07;
+    o.connect(g);g.connect(ac.destination);o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+(d||.12));o.stop(ac.currentTime+(d||.12));
+  }catch(e){}
+}
+/* parts: lista med [text, språk] som läses upp efter varandra */
+function speak(parts,force){
+  if(!(sound||force)||!('speechSynthesis' in window)||!parts.length)return;
+  try{
+    speechSynthesis.cancel();
+    for(const [t,l] of parts){const u=new SpeechSynthesisUtterance(t);u.lang=l||'sv-SE';u.rate=.85;speechSynthesis.speak(u);}
+  }catch(e){}
+}
+function say(t,kind){const m=$('msg');m.textContent=t;m.className='msg'+(kind?' '+kind:'');}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const skey=(t,n)=>TEMAN[t].namn+'|'+n;
+const starStr=s=>'★'.repeat(s)+'☆'.repeat(3-s);
+const up=w=>caps?w.toLocaleUpperCase('sv-SE'):w;
+const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* Vad som läses upp för ett kort när det vänds, och hur det heter för skärmläsare. */
+function spoken(c){
+  const typ=c.typ,v=c.val;
+  if(typ==='bildord')return [[v.split(' ').slice(1).join(' '),'sv-SE']];
+  if(TEXTTYP[typ])return [[v.replace(' + ',' plus '),TEXTTYP[typ]]];
+  if(c.namn)return [[c.namn,'sv-SE']];
+  return [];
+}
+function label(c){
+  const p=spoken(c);if(p.length)return p[0][0];
+  if(c.typ==='flagga')return 'flagga';
+  if(c.typ==='klocka')return 'klocka '+c.val;
+  if(c.typ==='prickar')return c.val+' prickar';
+  return c.val;
+}
+
+function clockSvg(t){
+  const [h,m]=t.split(':').map(Number);
+  const ha=((h%12)+m/60)*30,ma=m*6;
+  let ticks='';
+  for(let i=0;i<12;i++){const a=i*30*Math.PI/180,r1=i%3?40:36;
+    ticks+=`<line x1="${50+Math.sin(a)*r1}" y1="${50-Math.cos(a)*r1}" x2="${50+Math.sin(a)*44}" y2="${50-Math.cos(a)*44}" stroke="#12324a" stroke-width="${i%3?2:3.5}" stroke-linecap="round"/>`;}
+  const nums=[[12,50,22],[3,79,54],[6,50,85],[9,21,54]].map(([n,x,y])=>`<text x="${x}" y="${y}" font-size="12" font-weight="700" text-anchor="middle" fill="#12324a" font-family="Fredoka,sans-serif">${n}</text>`).join('');
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="47" fill="#fff" stroke="#12324a" stroke-width="4"/>${ticks}${nums}`+
+    `<line x1="50" y1="50" x2="50" y2="27" stroke="#ff7a3d" stroke-width="6" stroke-linecap="round" transform="rotate(${ha} 50 50)"/>`+
+    `<line x1="50" y1="50" x2="50" y2="12" stroke="#12324a" stroke-width="3.5" stroke-linecap="round" transform="rotate(${ma} 50 50)"/>`+
+    `<circle cx="50" cy="50" r="4" fill="#12324a"/></svg>`;
+}
+/* Prickarna ritas som en tiorad: två kolumner med fem rutor. */
+function dotsSvg(n){
+  let g='';
+  for(let i=0;i<10;i++){const x=18+(i%2)*28,y=16+Math.floor(i/2)*28;
+    g+=i<n?`<circle cx="${x}" cy="${y}" r="10" fill="#ff7a3d" stroke="#12324a" stroke-width="2.5"/>`:`<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="#b3d4ec" stroke-width="2" stroke-dasharray="3 3"/>`;}
+  return `<svg viewBox="0 0 64 144" aria-hidden="true" style="width:58%">${g}</svg>`;
+}
+function textSize(t){
+  /* Längsta ordet styr storleken så att inget ord behöver delas. */
+  const n=Math.max(3,...t.split(' ').map(w=>w.length));
+  const k=caps?118:150;
+  return Math.max(11,Math.min(caps?30:36,k/n));
+}
+function fillFront(c){
+  const f=c.el.querySelector('.front'),v=c.val;
+  let h='';
+  switch(c.typ){
+    case 'bild':h='<span class="em">'+v+'</span>';break;
+    case 'bildord':{const [e,...w]=v.split(' ');const t=up(w.join(' '));h='<div class="bo"><span class="em">'+e+'</span><span class="txt">'+esc(t)+'</span></div>';break;}
+    case 'flagga':h='<img class="flag" alt="" src="flaggor/'+v+'.svg">';break;
+    case 'klocka':h=clockSvg(v);break;
+    case 'prickar':h=dotsSvg(Number(v));break;
+    case 'tecken':h='<span class="txt" style="font-size:'+Math.min(56,150/Math.max(2,v.length))+'cqw">'+esc(v)+'</span>';break;
+    default:{const t=up(v);h='<span class="txt" style="font-size:'+textSize(t)+'cqw">'+esc(t)+'</span>';
+      if(c.typ==='en')h+='<span class="tag">engelska</span>';}
+  }
+  f.innerHTML=h;
+}
+
+function buildBars(){
+  const tb=$('themes');tb.querySelectorAll('button').forEach(b=>b.remove());
+  TEMAN.forEach((T,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='pick';
+    b.innerHTML='<span class="em" aria-hidden="true">'+T.ikon+'</span>'+esc(T.namn);
+    b.setAttribute('aria-pressed',String(i===tema));
+    b.onclick=()=>{tema=i;newGame();};
+    tb.appendChild(b);
+    if(i===tema)requestAnimationFrame(()=>{tb.scrollLeft=Math.max(0,b.offsetLeft-tb.offsetLeft-40);});
+  });
+  const sb=$('sizes');sb.querySelectorAll('button').forEach(b=>b.remove());
+  NIVAER.forEach((N,i)=>{
+    const s=saved.stj[skey(tema,i)]||0;
+    const b=document.createElement('button');b.type='button';b.className='pick';
+    b.innerHTML=N.namn+'<span class="st">'+starStr(s)+'</span>';
+    b.setAttribute('aria-label',N.namn+', '+N.par+' par, '+s+' av 3 stjärnor');
+    b.setAttribute('aria-pressed',String(i===niva));
+    b.onclick=()=>{niva=i;newGame();};
+    sb.appendChild(b);
+  });
+}
+
+function newGame(){
+  saved.tema=TEMAN[tema].namn;saved.niva=niva;persist();
+  buildBars();
+  const T=TEMAN[tema],N=NIVAER[niva];
+  const rows=shuffle((T.gen?T.gen():T.par).slice()).slice(0,N.par);
+  cards=[];
+  rows.forEach((r,id)=>{
+    for(const s of [0,1])cards.push({id,side:s,typ:T.typ[s],val:r[s],namn:s===1?r[2]:undefined,row:r});
+  });
+  shuffle(cards);
+  open=[];lock=false;tries=0;found=0;started=false;
+  $('win').hidden=true;
+  const board=$('board');board.innerHTML='';
+  const cols=window.innerWidth<480&&N.par===6?3:4;
+  board.style.setProperty('--cols',cols);
+  cards.forEach((c,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='card';
+    b.setAttribute('aria-label','Kort '+(i+1));
+    const side=T.samma||c.side===0?'sa':'sb';
+    b.innerHTML='<div class="in"><div class="face back" aria-hidden="true">?</div><div class="face front '+side+'" aria-hidden="true"></div></div>';
+    c.el=b;fillFront(c);
+    b.onclick=()=>flip(i);
+    board.appendChild(b);
+  });
+  updStatus();
+  say(T.samma?'Vänd två kort. Hitta orden som är varandras motsats!':'Vänd två kort. Hitta '+T.sorter[0]+' och '+T.sorter[1]+' som hör ihop!');
+}
+function updStatus(){$('pairs').textContent=found+' av '+cards.length/2;$('tries').textContent=tries;}
+
+/* Det som sägs när ett par hittas: båda korten, om de går att läsa upp. */
+function pairSpeech(a,b){
+  const [x,y]=a.side===0?[a,b]:[b,a];
+  return [...spoken(x),...spoken(y)];
+}
+function pairText(a,b){
+  const [x,y]=a.side===0?[a,b]:[b,a];
+  return [x,y].map(c=>{
+    if(c.typ==='bild')return c.val;
+    if(c.typ==='bildord')return c.val.split(' ')[0]+' '+up(c.val.split(' ').slice(1).join(' '));
+    if(c.typ==='flagga'||c.typ==='klocka'||c.typ==='prickar')return '';
+    return c.typ==='tecken'?c.val:up(c.val);
+  }).filter(Boolean).join(TEMAN[tema].samma?' och ':' = ');
+}
+
+function flip(i){
+  const c=cards[i];
+  if(lock||c.up||c.done)return;
+  if(!started){started=true;t0=Date.now();}
+  c.up=true;c.el.classList.add('up');
+  c.el.setAttribute('aria-label',label(c));
+  tone(c.side?520:660,.09,'triangle');
+  speak(spoken(c));
+  open.push(c);
+  if(open.length<2)return;
+  tries++;
+  const [a,b]=open;open=[];
+  const T=TEMAN[tema];
+  if(a.id===b.id){
+    found++;
+    a.done=b.done=true;
+    setTimeout(()=>{
+      a.el.classList.add('done');b.el.classList.add('done');
+      a.el.disabled=b.el.disabled=true;
+      tone(660,.1);setTimeout(()=>tone(880,.16),110);
+      const row=a.row;
+      speak(row.length>2&&T.typ[1]!=='bild'?[[row[2],'sv-SE']]:pairSpeech(a,b));
+      say((pairText(a,b)||'Ett par')+'. Rätt!','good');
+      updStatus();
+      if(found===cards.length/2)setTimeout(win,700);
+    },350);
+  }else{
+    lock=true;
+    updStatus();
+    say(!T.samma&&a.side===b.side?'Samma sort! Leta efter '+T.sorter[0]+' och '+T.sorter[1]+'.':'De hör inte ihop. Försök igen!','bad');
+    setTimeout(()=>{a.el.classList.add('miss');b.el.classList.add('miss');tone(220,.18,'sawtooth',.04);},450);
+    setTimeout(()=>{
+      for(const c of [a,b]){c.up=false;c.el.classList.remove('up','miss');c.el.setAttribute('aria-label','Kort '+(cards.indexOf(c)+1));}
+      lock=false;
+    },1500);
+  }
+}
+
+function win(){
+  const par=cards.length/2;
+  const stars=tries<=Math.ceil(par*1.5)?3:tries<=par*2+1?2:1;
+  const k=skey(tema,niva);
+  if(stars>(saved.stj[k]||0)){saved.stj[k]=stars;persist();}
+  buildBars();
+    $('wstars').innerHTML=[0,1,2].map(i=>'<i'+(i<stars?'':' class="off"')+'>★</i>').join('');
+  $('wtext').textContent='Du hittade alla '+par+' par på '+tries+' försök.';
+  $('wnext').hidden=niva>=NIVAER.length-1;
+  $('win').hidden=false;
+  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.18),i*130));
+  say('Alla par hittade!','good');
+  $('wagain').focus();
+  /* Gemensam topplista (spelhornan.js): stjärnor per tema och nivå, kortast tid vinner vid lika. */
+  try{
+    if(window.Spelhornan)
+      Spelhornan.rapportera('ordmemory',(TEMAN[tema].namn+'-'+NIVAER[niva].namn).toLowerCase(),{poang:stars,max:3,tid:Date.now()-t0,namn:TEMAN[tema].namn+' · '+NIVAER[niva].namn});
+  }catch(e){}
+}
+
+$('wagain').onclick=newGame;
+$('wnext').onclick=()=>{niva=Math.min(niva+1,NIVAER.length-1);newGame();};
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';if(!sound&&'speechSynthesis' in window)speechSynthesis.cancel();};
+const capsBtn=$('caps');
+function setCaps(){capsBtn.setAttribute('aria-pressed',String(caps));capsBtn.textContent=caps?'ABC':'abc';capsBtn.title=caps?'Stora bokstäver':'Små bokstäver';cards.forEach(c=>{if(c.el)fillFront(c);});}
+capsBtn.onclick=()=>{caps=!caps;saved.caps=caps;persist();setCaps();};
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=()=>{
+  const T=TEMAN[tema];
+  speak([['Ordmemory. Tema: '+T.namn+'. Vänd två kort i taget. '+$('msg').textContent,'sv-SE']],true);
+};
+newGame();
+setCaps();
+})();
+</script>
+<script src="spelhornan.js"></script>
+<script>if(window.Spelhornan)Spelhornan.knapp(document.getElementById('spelarplats'));</script>
+</body>
+</html>

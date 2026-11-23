@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Kalaha</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Kalaha: brädet i mitten, läge och knappar ovanför. Brädet står upp på smala skärmar. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --accent:#ff7a3d; --go:#22a152; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --wood:#d79a5b; --wood2:#c4844a; --pit:#8f5a2c; --pit2:#6f4321;
+  --pa:#ff7a3d; --pb:#7b5cd6;
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+button:disabled{cursor:default}
+.wrap{max-width:980px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 a{color:inherit; text-decoration:none}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+.tools{display:flex; flex-wrap:wrap; gap:8px}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn:active{transform:translateY(2px); box-shadow:0 1px 0 var(--shadow)}
+
+.setup-box summary{display:none}
+.small-btn .ic{display:none}
+.setup{display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center}
+.seg{display:flex; gap:6px; flex-wrap:wrap; align-items:center}
+.seg .lbl{font-size:.95rem; font-weight:600; color:var(--muted); margin-right:2px}
+.opt{min-height:44px; padding:4px 12px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-weight:600; font-size:1rem; box-shadow:0 3px 0 var(--shadow)}
+.opt[aria-pressed="true"]{background:var(--accent); color:#2a1200}
+.new{margin-left:auto; min-height:44px; padding:4px 16px; border-radius:12px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-weight:700; font-size:1.05rem; box-shadow:0 3px 0 #0d5a2e}
+.new:active{transform:translateY(2px); box-shadow:0 1px 0 #0d5a2e}
+
+.status{
+  display:flex; align-items:center; gap:10px; min-height:58px; padding:8px 14px; border-radius:16px;
+  background:var(--card); border:3px solid var(--edge); box-shadow:0 4px 0 var(--shadow); font-size:1.1rem; font-weight:600;
+}
+.status .who{font-size:1.8rem; line-height:1}
+.status.a{border-color:var(--pa)} .status.b{border-color:var(--pb)}
+.status.good{color:#0f6b34}
+
+/* ---------- brädet ---------- */
+.stage{position:relative; display:flex; flex-direction:column; align-items:center; gap:8px}
+.tag{display:inline-flex; align-items:center; gap:6px; font-weight:600; padding:2px 12px; border-radius:999px; background:var(--card); border:3px solid var(--edge); font-size:1rem}
+.tag.a{border-color:var(--pa)} .tag.b{border-color:var(--pb)}
+.tag.on{box-shadow:0 0 0 4px rgba(255,194,26,.7)}
+.tags-v{display:none}
+.board{
+  --s:min(calc((100vw - 70px) / 8.8), 104px);
+  display:grid; gap:calc(var(--s) * .12); padding:calc(var(--s) * .16);
+  grid-template-columns:calc(var(--s) * 1.25) repeat(6, var(--s)) calc(var(--s) * 1.25);
+  grid-template-rows:var(--s) var(--s);
+  background:linear-gradient(180deg,var(--wood),var(--wood2)); border:5px solid #6b4220; border-radius:calc(var(--s) * .5);
+  box-shadow:0 6px 0 var(--shadow), inset 0 2px 0 rgba(255,255,255,.35);
+}
+.pit,.store{
+  position:relative; border-radius:50%; border:0; padding:0;
+  background:radial-gradient(circle at 50% 35%, var(--pit2), var(--pit) 70%);
+  box-shadow:inset 0 4px 8px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.35);
+}
+.store{border-radius:calc(var(--s) * .6); grid-row:1 / span 2}
+.store.a{grid-column:8; box-shadow:inset 0 4px 8px rgba(0,0,0,.45), 0 0 0 4px var(--pa)}
+.store.b{grid-column:1; box-shadow:inset 0 4px 8px rgba(0,0,0,.45), 0 0 0 4px var(--pb)}
+.pit.side-a{grid-row:2} .pit.side-b{grid-row:1}
+.pit.play{cursor:pointer; box-shadow:inset 0 4px 8px rgba(0,0,0,.45), 0 0 0 4px var(--gold)}
+.pit.play:hover{filter:brightness(1.15)}
+.pit.play:active{transform:scale(.96)}
+.pit.hot{outline:4px solid #fff; outline-offset:2px}
+.pit.cap,.store.cap{animation:flash .5s 2}
+@keyframes flash{50%{filter:brightness(1.8)}}
+.stones{position:absolute; inset:0; pointer-events:none}
+.stone{
+  position:absolute; width:22%; aspect-ratio:1; border-radius:50%; translate:-50% -50%;
+  box-shadow:inset -2px -2px 3px rgba(0,0,0,.35), inset 2px 2px 3px rgba(255,255,255,.55);
+}
+.store .stone{width:calc(var(--s) * .2)}
+.stone.pop{animation:pop .3s}
+@keyframes pop{0%{scale:.2} 70%{scale:1.3} 100%{scale:1}}
+.count{
+  position:absolute; left:50%; translate:-50% 0; bottom:-2px; min-width:1.9em; padding:0 .35em;
+  border-radius:999px; background:#fff; border:2px solid #6b4220; color:#3a2210;
+  font-weight:700; font-size:max(14px, calc(var(--s) * .2)); line-height:1.35; text-align:center; pointer-events:none;
+}
+.side-b .count{bottom:auto; top:-2px}
+.store .count{bottom:auto; top:50%; translate:-50% -50%; font-size:max(16px, calc(var(--s) * .28))}
+.mark{position:absolute; right:-4px; top:-6px; font-size:max(14px, calc(var(--s) * .26)); line-height:1; pointer-events:none}
+.side-b .mark{top:auto; bottom:-6px}
+.hand{
+  position:absolute; left:50%; top:50%; translate:-50% -50%; pointer-events:none; z-index:2;
+  font-weight:700; font-size:max(14px, calc(var(--s) * .24)); background:var(--gold); color:#3a2210;
+  border:2px solid #6b4220; border-radius:999px; padding:0 .4em;
+}
+
+/* Stående bräde på smala skärmar: motståndaren till vänster, du till höger, ditt bo högst upp. */
+@media (max-width:640px) and (orientation:portrait){
+  .board{
+    --s:max(46px, min(calc((100vw - 120px) / 2.6), calc((100dvh - 330px) / 8.7), 92px));
+    grid-template-columns:var(--s) var(--s);
+    grid-template-rows:calc(var(--s) * 1.1) repeat(6, var(--s)) calc(var(--s) * 1.1);
+  }
+  .store{grid-row:auto; border-radius:calc(var(--s) * .5)}
+  .store.a{grid-column:1 / span 2; grid-row:1}
+  .store.b{grid-column:1 / span 2; grid-row:8}
+  .pit.side-a{grid-column:2} .pit.side-b{grid-column:1}
+  .side-b .count,.side-b .mark{top:auto; bottom:-2px}
+  .side-b .mark{bottom:-6px}
+  .tags-h{display:none}
+  .tags-v{display:flex; gap:8px; justify-content:center}
+  .stage{gap:6px}
+}
+
+.over{position:absolute; inset:-6px; display:grid; place-items:center; padding:14px; background:rgba(18,50,74,.6); border-radius:24px; z-index:5}
+.over[hidden]{display:none}
+.over-card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:18px 20px; text-align:center; max-width:380px; width:100%}
+.over-card h2{margin:0; font-size:1.8rem}
+.big{font-size:2.6rem; line-height:1.1; margin:4px 0}
+.over-card p{margin:6px 0 12px; font-size:1.05rem}
+.btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.btns .go{background:var(--go); color:#fff; border-color:#0d5a2e}
+
+.score{font-size:1rem; color:var(--muted); margin:0}
+.score b{color:var(--ink)}
+
+dialog{border:4px solid var(--edge); border-radius:22px; padding:18px 20px; max-width:560px; width:calc(100% - 32px); color:var(--ink); font-family:var(--font); background:var(--card)}
+dialog::backdrop{background:rgba(18,50,74,.55)}
+dialog h2{margin:0 0 8px; font-size:1.6rem}
+dialog ol{padding-left:1.4em; margin:8px 0} dialog li{margin:6px 0}
+dialog .note{font-size:.95rem; color:var(--muted)}
+@media (max-width:640px){
+  h1{font-size:1.6rem} h1 small{display:none} header{flex-wrap:nowrap}
+  .small-btn{padding:4px 10px} .small-btn .ic{display:inline; font-size:1.2rem} .small-btn .tx,.opt .tx{display:none}
+  .new{margin-left:0}
+  .setup-box summary{
+    display:flex; align-items:center; gap:8px; min-height:44px; padding:4px 14px; border-radius:12px; cursor:pointer; list-style:none;
+    border:3px solid var(--edge); background:var(--card); font-weight:600; box-shadow:0 3px 0 var(--shadow)
+  }
+  .setup-box summary::-webkit-details-marker{display:none}
+  .setup-box summary::after{content:"▾"; margin-left:auto}
+  .setup-box[open] summary::after{content:"▴"}
+  .setup-box[open] .setup{margin-top:10px}
+  .status{font-size:1rem; min-height:50px; padding:6px 12px}
+  .wrap{gap:10px}
+}
+@media (prefers-reduced-motion:reduce){.stone.pop,.pit.cap,.store.cap{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><a href="index.html" aria-label="Till Spelhörnan">Kalaha</a> <small>Så stenar, fånga och fyll ditt bo</small></h1>
+    <div class="tools" id="tools">
+      <button class="small-btn" id="rulesBtn" type="button" aria-label="Regler"><span class="ic">📖</span><span class="tx">Regler</span></button>
+      <button class="small-btn" id="speak" type="button" aria-label="Läs upp"><span class="ic">🗣️</span><span class="tx">Läs upp</span></button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true"><span class="ic">🔊</span><span class="tx">Ljud på</span></button>
+    </div>
+  </header>
+
+  <details class="setup-box" id="setupBox">
+  <summary id="setupSum"></summary>
+  <div class="setup">
+    <div class="seg" role="group" aria-label="Spela mot">
+      <span class="lbl">Spela mot</span>
+      <button class="opt" type="button" data-mode="latt">🤖 <span class="tx">Datorn </span>lätt</button>
+      <button class="opt" type="button" data-mode="svar">🤖 <span class="tx">Datorn </span>svår</button>
+      <button class="opt" type="button" data-mode="tva">👫 Två<span class="tx"> spelare</span></button>
+    </div>
+    <div class="seg" role="group" aria-label="Stenar i varje grop">
+      <span class="lbl">Stenar</span>
+      <button class="opt" type="button" data-st="4">4</button>
+      <button class="opt" type="button" data-st="6">6</button>
+    </div>
+    <div class="seg">
+      <button class="opt" type="button" id="tips" aria-pressed="false">💡 Tips</button>
+      <button class="opt" type="button" id="fast" aria-pressed="false">⚡ Snabbt</button>
+    </div>
+    <button class="new" type="button" id="newBtn">Nytt spel</button>
+  </div>
+  </details>
+
+  <div class="status" id="status" aria-live="polite"><span class="who" id="swho"></span><span id="stext"></span></div>
+
+  <section class="stage">
+    <div class="tags-h"><span class="tag b" id="tagB1"></span></div>
+    <div class="tags-v"><span class="tag b" id="tagB2"></span><span class="tag a" id="tagA2"></span></div>
+    <div class="board" id="board" aria-label="Kalahabräde"></div>
+    <div class="tags-h"><span class="tag a" id="tagA1"></span></div>
+    <div class="over" id="over" hidden>
+      <div class="over-card" role="dialog" aria-labelledby="ot">
+        <h2 id="ot"></h2>
+        <div class="big" id="obig"></div>
+        <p id="otext"></p>
+        <div class="btns">
+          <button class="small-btn go" id="again" type="button">Spela igen</button>
+          <button class="small-btn" id="look" type="button">Titta på brädet</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <p class="score" id="score"></p>
+</div>
+
+<dialog id="rules" aria-labelledby="rt">
+  <h2 id="rt">Så spelar du Kalaha</h2>
+  <ol>
+    <li>Brädet har <b>6 gropar</b> på varje sida och ett <b>bo</b> i varje ände. Dina gropar är de närmast dig, och ditt bo är det som ligger till höger om dem (ovanför när brädet står upp).</li>
+    <li>På din tur väljer du en av dina gropar som har stenar. Du tar upp <b>alla</b> stenarna och lägger <b>en i taget</b> i groparna efter, moturs. Du lägger också en i ditt eget bo, men aldrig i motståndarens bo.</li>
+    <li>⭐ Hamnar den sista stenen i <b>ditt bo</b> får du göra ett drag till.</li>
+    <li>🎯 Hamnar den sista stenen i en <b>tom grop på din sida</b>, och gropen mitt emot har stenar, <b>fångar</b> du dem. Både de stenarna och din sista sten åker in i ditt bo.</li>
+    <li>Spelet tar slut när alla gropar på ena sidan är tomma. Då får den andra spelaren lägga stenarna som är kvar på sin sida i sitt eget bo.</li>
+    <li>Den som har <b>flest stenar i sitt bo</b> vinner.</li>
+  </ol>
+  <p class="note">Vi spelar med de vanligaste reglerna (som kallas Kalah). Många spelar med 4 stenar i varje grop, men du kan välja 6 för ett längre spel. Hemma kanske ni spelar lite annorlunda, och det är också okej!</p>
+  <p class="note">Tryck på 💡 Tips så visar brädet vilka gropar som ger ett extra drag (⭐) eller en fångst (🎯).</p>
+  <div class="btns"><button class="small-btn go" id="rulesClose" type="button">Då kör vi!</button></div>
+</dialog>
+
+<script>
+/* ---------- regler (rena funktioner) ----------
+   Index: 0–5 spelare A:s gropar, 6 A:s bo, 7–12 spelare B:s gropar, 13 B:s bo.
+   A är du (eller spelare 1), B är datorn (eller spelare 2). Sådd går 0→1→…→13→0. */
+const STORE=[6,13];
+const pitsOf=p=>p===0?[0,1,2,3,4,5]:[7,8,9,10,11,12];
+const ownerOf=i=>i<6?0:(i>6&&i<13?1:-1);
+const opposite=i=>12-i;
+function legal(b,p){return pitsOf(p).filter(i=>b[i]>0);}
+function play(b0,p,i){
+  const b=b0.slice(); let n=b[i]; b[i]=0; const path=[]; let k=i;
+  while(n>0){k=(k+1)%14; if(k===STORE[1-p])continue; b[k]++; n--; path.push(k);}
+  let cap=null, again=k===STORE[p];
+  if(!again && ownerOf(k)===p && b[k]===1 && b[opposite(k)]>0){
+    cap={pit:k,opp:opposite(k),n:b[opposite(k)]+1};
+    b[STORE[p]]+=cap.n; b[k]=0; b[opposite(k)]=0;
+  }
+  let sweep=null;
+  const emptyA=pitsOf(0).every(j=>b[j]===0), emptyB=pitsOf(1).every(j=>b[j]===0);
+  if(emptyA||emptyB){
+    sweep=[];
+    for(const q of [0,1]) for(const j of pitsOf(q)) if(b[j]>0){sweep.push({pit:j,to:STORE[q],n:b[j]}); b[STORE[q]]+=b[j]; b[j]=0;}
+    again=false;
+  }
+  return {b,path,last:k,again,cap,sweep,end:!!sweep};
+}
+
+/* ---------- datorn ---------- */
+function evalB(b,p){return b[STORE[p]]-b[STORE[1-p]];}
+function search(b,p,me,depth,alpha,beta){
+  const moves=legal(b,p);
+  if(depth===0||moves.length===0) return evalB(b,me);
+  // Drag som ger extra tur först, det gör sökningen snabbare.
+  const res=moves.map(i=>[i,play(b,p,i)]).sort((x,y)=>(y[1].again-x[1].again)||(y[1].b[STORE[p]]-x[1].b[STORE[p]]));
+  let best=p===me?-1e9:1e9;
+  for(const [,r] of res){
+    const v=r.end?evalB(r.b,me)*100:search(r.b,r.again?p:1-p,me,depth-1,alpha,beta);
+    if(p===me){best=Math.max(best,v); alpha=Math.max(alpha,v);} else {best=Math.min(best,v); beta=Math.min(beta,v);}
+    if(beta<=alpha)break;
+  }
+  return best;
+}
+function aiMove(b,p,level){
+  const moves=legal(b,p);
+  if(level==='latt'){
+    // Lätt: oftast ett slumpdrag, ibland det drag som ger flest stenar i boet just nu.
+    if(Math.random()<0.65) return moves[Math.floor(Math.random()*moves.length)];
+    let best=moves[0],bv=-1e9;
+    for(const i of moves){const r=play(b,p,i); const v=r.b[STORE[p]]+(r.again?1:0)+Math.random()*.5; if(v>bv){bv=v;best=i;}}
+    return best;
+  }
+  let best=moves[0],bv=-1e9;
+  for(const i of moves){
+    const r=play(b,p,i);
+    const v=r.end?evalB(r.b,p)*100:search(r.b,r.again?p:1-p,p,8,-1e9,1e9);
+    if(v>bv){bv=v;best=i;}
+  }
+  return best;
+}
+
+/* ---------- sparat ---------- */
+const KEY='kalaha-v1';
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+saved.res=saved.res||{latt:[0,0,0],svar:[0,0,0]};
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+/* ---------- spelläge ---------- */
+const $=id=>document.getElementById(id);
+let mode=saved.mode||'latt', stones=saved.stenar||4, tips=!!saved.tips, fast=!!saved.fast, sound=saved.ljud!==false;
+let board=[], turn=0, busy=false, over=false, moves=0, game=0;
+const names=()=>mode==='tva'?[{n:'Spelare 1',e:'🟠'},{n:'Spelare 2',e:'🟣'}]:[{n:'Du',e:'😀'},{n:'Datorn',e:'🤖'}];
+const isAI=p=>mode!=='tva'&&p===1;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+let ac=null;
+function tone(f,d,type,v){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';o.frequency.value=f;g.gain.value=v||.07;
+    o.connect(g);g.connect(ac.destination);o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+(d||.12));o.stop(ac.currentTime+(d||.12));
+  }catch(e){}
+}
+function fanfare(ok){(ok?[523,659,784,1047]:[392,330,262]).forEach((f,i)=>setTimeout(()=>tone(f,.25,'triangle',.08),i*150));}
+
+/* ---------- ritning ---------- */
+const COLORS=['#ffd166','#ef476f','#06d6a0','#4cc9f0','#f78c6b','#b5e48c','#cdb4db','#fefae0'];
+const els=[];
+function buildBoard(){
+  const bd=$('board'); bd.innerHTML='';
+  for(let i=0;i<14;i++){
+    let el;
+    if(i===6||i===13){el=document.createElement('div'); el.className='store '+(i===6?'a':'b');}
+    else{
+      el=document.createElement('button'); el.type='button';
+      const side=i<6?'a':'b'; el.className='pit side-'+side;
+      // vågrätt: B:s gropar ritas från höger till vänster (12 längst till vänster)
+      el.style.gridColumn=i<6?(i+2):(14-i);
+      el.style.setProperty('--vrow', i<6?(7-i):(i-5));
+      el.addEventListener('click',()=>humanMove(i));
+    }
+    const st=document.createElement('div'); st.className='stones'; el.appendChild(st);
+    const c=document.createElement('span'); c.className='count'; el.appendChild(c);
+    els[i]=el; bd.appendChild(el);
+  }
+  // stående bräde: radplacering via egen regel
+  applyRows();
+}
+const mq=matchMedia('(max-width:640px) and (orientation:portrait)');
+function applyRows(){
+  for(let i=0;i<14;i++){
+    if(i===6||i===13)continue;
+    if(mq.matches){els[i].style.gridRow=els[i].style.getPropertyValue('--vrow'); els[i].style.gridColumn='';}
+    else{els[i].style.gridRow=''; els[i].style.gridColumn=i<6?(i+2):(14-i);}
+  }
+}
+mq.addEventListener?mq.addEventListener('change',applyRows):mq.addListener(applyRows);
+
+function drawStones(i,popLast){
+  const el=els[i], st=el.querySelector('.stones'), n=board[i];
+  const isStore=i===6||i===13, max=isStore?60:24;
+  const show=Math.min(n,max);
+  while(st.children.length>show) st.lastChild.remove();
+  while(st.children.length<show){
+    const k=st.children.length, s=document.createElement('i'); s.className='stone';
+    const a=k*2.39996+i, r=(isStore?5.6:8.2)*Math.sqrt(k+.4);
+    s.style.left=(50+r*Math.cos(a)*(isStore?1.25:1))+'%';
+    s.style.top=(50+r*Math.sin(a)*(isStore?0.9:1))+'%';
+    s.style.background=COLORS[(k*5+i*3)%COLORS.length];
+    st.appendChild(s);
+    if(popLast&&st.children.length===show) {s.classList.add('pop');}
+  }
+  el.querySelector('.count').textContent=n;
+  if(!isStore) el.setAttribute('aria-label',(i<6?names()[0].n:names()[1].n)+', grop '+(i<6?i+1:i-6)+', '+n+(n===1?' sten':' stenar'));
+  else el.setAttribute('aria-label',(i===6?names()[0].n:names()[1].n)+'s bo, '+n+(n===1?' sten':' stenar'));
+}
+function drawAll(){for(let i=0;i<14;i++)drawStones(i);marks();}
+function marks(){
+  for(let i=0;i<14;i++){
+    if(i===6||i===13)continue;
+    const el=els[i]; el.querySelector('.mark')?.remove();
+    const can=!busy&&!over&&ownerOf(i)===turn&&!isAI(turn)&&board[i]>0;
+    el.classList.toggle('play',can); el.disabled=!can;
+    if(can&&tips){
+      const r=play(board,turn,i); let m='';
+      if(r.again&&!r.end)m='⭐'; else if(r.cap)m='🎯';
+      if(m){const s=document.createElement('span'); s.className='mark'; s.textContent=m; el.appendChild(s);}
+    }
+  }
+}
+function setStatus(text,cls){
+  const nm=names(); $('swho').textContent=over?'🏁':nm[turn].e; $('stext').textContent=text;
+  $('status').className='status '+(cls||(turn===0?'a':'b'));
+  for(const s of ['1','2']){
+    $('tagA'+s).textContent=nm[0].e+' '+nm[0].n; $('tagB'+s).textContent=nm[1].e+' '+nm[1].n;
+    $('tagA'+s).classList.toggle('on',!over&&turn===0); $('tagB'+s).classList.toggle('on',!over&&turn===1);
+  }
+}
+function turnText(extra){
+  const nm=names();
+  if(isAI(turn)) return extra?'Datorn fick ett extra drag och tänker…':'Datorn tänker…';
+  const who=mode==='tva'?nm[turn].n+', din tur':'Din tur';
+  return (extra?'⭐ Extra drag! ':'')+who+'! Tryck på en '+(mode==='tva'?(turn===0?'orange':'lila')+' ':'')+'grop med stenar på din sida.';
+}
+function drawScore(){
+  const r=saved.res;
+  $('score').innerHTML='Mot datorn: <b>Lätt</b> '+r.latt[0]+' vinster, '+r.latt[1]+' förluster · <b>Svår</b> '+r.svar[0]+' vinster, '+r.svar[1]+' förluster';
+}
+function drawSetup(){
+  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
+  document.querySelectorAll('[data-st]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.st===stones));
+  $('tips').setAttribute('aria-pressed',tips); $('fast').setAttribute('aria-pressed',fast);
+  $('snd').setAttribute('aria-pressed',sound); $('snd').querySelector('.tx').textContent=sound?'Ljud på':'Ljud av';
+  $('snd').querySelector('.ic').textContent=sound?'🔊':'🔇'; $('snd').setAttribute('aria-label',sound?'Ljud på':'Ljud av');
+  $('setupSum').textContent='⚙️ '+({latt:'Mot datorn, lätt',svar:'Mot datorn, svår',tva:'Två spelare'})[mode]+' · '+stones+' stenar'+(tips?' · tips':'');
+}
+
+/* ---------- spelets gång ---------- */
+function newGame(){
+  game++; board=Array(14).fill(0); for(let i=0;i<14;i++) if(i!==6&&i!==13) board[i]=stones;
+  turn=0; busy=false; over=false; moves=0; $('over').hidden=true;
+  drawSetup(); drawAll(); setStatus(turnText()); drawScore();
+}
+function humanMove(i){
+  if(busy||over||isAI(turn)||ownerOf(i)!==turn||board[i]===0)return;
+  doMove(i);
+}
+async function doMove(i){
+  const g=game, p=turn, r=play(board,p,i), step=fast?90:260;
+  busy=true; moves++; marks();
+  // 1) plocka upp
+  let hand=board[i]; board[i]=0; drawStones(i); els[i].classList.add('hot'); tone(330,.1,'triangle');
+  const hb=document.createElement('span'); hb.className='hand'; hb.textContent=hand; els[i].appendChild(hb);
+  await sleep(step);
+  els[i].classList.remove('hot');
+  // 2) så en sten i taget
+  for(let s=0;s<r.path.length;s++){
+    if(g!==game)return;
+    const k=r.path[s]; board[k]++; hand--; drawStones(k,true);
+    hb.remove(); if(hand>0){hb.textContent=hand; els[k].appendChild(hb);}
+    tone(440+s*35,.09,'sine',.06);
+    await sleep(step);
+  }
+  hb.remove();
+  if(g!==game)return;
+  // 3) fångst
+  if(r.cap){
+    setStatus('🎯 '+(isAI(p)?'Datorn fångade':mode==='tva'?names()[p].n+' fångade':'Du fångade')+' '+r.cap.n+' stenar!',p===0?'a':'b');
+    els[r.cap.pit].classList.add('cap'); els[r.cap.opp].classList.add('cap');
+    tone(660,.18,'triangle',.08); setTimeout(()=>tone(880,.25,'triangle',.08),120);
+    await sleep(fast?450:900); if(g!==game)return;
+    els[r.cap.pit].classList.remove('cap'); els[r.cap.opp].classList.remove('cap');
+    board[r.cap.pit]=0; board[r.cap.opp]=0; board[STORE[p]]+=r.cap.n;
+    drawStones(r.cap.pit); drawStones(r.cap.opp); drawStones(STORE[p],true);
+    await sleep(step);
+  }
+  // 4) slut: resten till boet
+  if(r.sweep){
+    if(r.sweep.length){
+      setStatus('En sida är tom! Stenarna som är kvar åker till sitt eget bo.');
+      await sleep(fast?400:900); if(g!==game)return;
+      for(const sw of r.sweep){els[sw.pit].classList.add('cap'); board[sw.pit]=0; board[sw.to]+=sw.n; drawStones(sw.pit); drawStones(sw.to,true); tone(520,.08); await sleep(step);}
+      for(const sw of r.sweep)els[sw.pit].classList.remove('cap');
+    }
+  }
+  board=r.b; drawAll();
+  if(r.end){finish();return;}
+  if(!r.again) turn=1-p;
+  else if(!isAI(p)) {tone(784,.15,'triangle',.08);}
+  busy=false; setStatus(turnText(r.again)); marks();
+  if(isAI(turn)) aiTurn();
+}
+async function aiTurn(){
+  const g=game; busy=true; marks();
+  await sleep(fast?250:700);
+  if(g!==game||over)return;
+  const i=aiMove(board,turn,mode);
+  els[i].classList.add('hot'); await sleep(fast?150:400); els[i].classList.remove('hot');
+  if(g!==game)return;
+  doMove(i);
+}
+function finish(){
+  over=true; busy=false; marks();
+  const a=board[6], b=board[13], nm=names();
+  let title,big,text,ok=true;
+  if(a===b){title='Oavgjort!'; big='🤝'; text='Ni fick lika många stenar: '+a+' var.';}
+  else if(mode==='tva'){const w=a>b?0:1; title=nm[w].n+' vann!'; big='🏆'; text=nm[0].n+' fick '+a+' och '+nm[1].n+' fick '+b+' stenar.';}
+  else if(a>b){title='Du vann!'; big='🏆'; text='Du fick '+a+' stenar och datorn '+b+'. '+(mode==='svar'?'Du slog den svåra datorn, starkt!':'Testa den svåra datorn nästa gång!');}
+  else {ok=false; title='Datorn vann'; big='🤖'; text='Datorn fick '+b+' stenar och du '+a+'. Tips: försök landa i ditt bo för extra drag!';}
+  if(mode!=='tva'){
+    const r=saved.res[mode]; r[a>b?0:a<b?1:2]++; persist(); drawScore();
+    // Gemensam topplista (spelhornan.js): rekord = flest stenar i boet när du slår datorn.
+    if(a>b&&window.Spelhornan&&Spelhornan.rapportera){
+      try{Spelhornan.rapportera('kalaha',mode+'-'+stones,{poang:a,max:stones*12,namn:(mode==='latt'?'Lätt':'Svår')+' · '+stones+' stenar'});}catch(e){}
+    }
+  }
+  $('ot').textContent=title; $('obig').textContent=big; $('otext').textContent=text;
+  setStatus(title+' '+nm[0].n+' '+a+', '+nm[1].n+' '+b+'.','good');
+  fanfare(ok); $('over').hidden=false; $('again').focus();
+}
+
+/* ---------- knappar ---------- */
+function choose(fn){fn(); persistSettings(); if(moves===0||over) newGame(); else {drawSetup(); setStatus('Tryck på Nytt spel för att börja med det nya valet.');}}
+function persistSettings(){saved.mode=mode; saved.stenar=stones; saved.tips=tips; saved.fast=fast; saved.ljud=sound; persist();}
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>choose(()=>{mode=b.dataset.mode;}));
+document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>choose(()=>{stones=+b.dataset.st;}));
+$('tips').onclick=()=>{tips=!tips; persistSettings(); drawSetup(); marks();};
+$('fast').onclick=()=>{fast=!fast; persistSettings(); drawSetup();};
+$('snd').onclick=()=>{sound=!sound; persistSettings(); drawSetup();};
+$('newBtn').onclick=()=>{newGame(); if(matchMedia('(max-width:640px)').matches)$('setupBox').open=false;}; $('again').onclick=newGame;
+$('look').onclick=()=>{$('over').hidden=true;};
+$('rulesBtn').onclick=()=>$('rules').showModal();
+$('rulesClose').onclick=()=>$('rules').close();
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=()=>{
+  try{
+    speechSynthesis.cancel();
+    const t=$('stext').textContent+' Ditt bo har '+board[6]+' stenar och '+(mode==='tva'?'spelare 2':'datorn')+'s bo har '+board[13]+'.';
+    const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';u.rate=.9;speechSynthesis.speak(u);
+  }catch(e){}
+};
+document.addEventListener('keydown',e=>{
+  // Siffrorna 1–6 spelar din grop när det är din tur.
+  if(e.target.tagName==='INPUT'||$('rules').open)return;
+  const n=+e.key; if(n>=1&&n<=6){const i=turn===0?n-1:6+n; humanMove(i);}
+});
+if(!matchMedia('(max-width:640px)').matches) $('setupBox').open=true;
+buildBoard(); newGame();
+if(!saved.settRegler){saved.settRegler=true; persist(); try{$('rules').showModal();}catch(e){}}
+</script>
+<script src="spelhornan.js" async onload="if(window.Spelhornan&&Spelhornan.knapp){try{Spelhornan.knapp(document.getElementById('tools'))}catch(e){}}"></script>
+</body>
+</html>
