@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Klossregn</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: spelplanen till vänster, nästa kloss + poäng till höger. Knappar under planen på telefon. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --well:#163a56; --well2:#1b4462; --accent:#ff7a3d; --go:#22a152; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:14px 24px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:12px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 a{color:inherit; text-decoration:none}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+.tools{display:flex; gap:8px; flex-wrap:wrap}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn:disabled{opacity:.4; cursor:default}
+
+.game{display:grid; grid-template-columns:auto minmax(0,1fr); gap:14px; align-items:start}
+.board-wrap{position:relative; justify-self:center}
+#board{
+  display:block; height:min(68svh, 640px); aspect-ratio:1/2; max-width:100%;
+  border:5px solid var(--edge); border-radius:18px; background:var(--well); box-shadow:0 5px 0 var(--shadow);
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+.overlay{
+  position:absolute; inset:5px; border-radius:13px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; text-align:center; padding:14px; background:rgba(22,58,86,.86); color:#fff;
+}
+.overlay[hidden]{display:none}
+.overlay h2{margin:0; font-size:1.7rem}
+.overlay p{margin:0; font-size:1rem; color:#d8ecfb}
+.big-btn{min-height:52px; padding:8px 22px; border-radius:14px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-weight:700; font-size:1.2rem; box-shadow:0 4px 0 rgba(0,0,0,.3)}
+.seg{display:flex; gap:6px; flex-wrap:wrap; justify-content:center}
+.seg button{min-height:44px; padding:4px 14px; border-radius:12px; border:3px solid #fff; background:transparent; color:#fff; font-weight:600; font-size:1rem}
+.seg button[aria-pressed="true"]{background:var(--gold); color:#2a1d00; border-color:var(--gold)}
+.new-best{font-weight:700; color:var(--gold)!important; font-size:1.15rem!important}
+
+.side{display:flex; flex-direction:column; gap:10px; min-width:0}
+.box{background:var(--card); border:3px solid var(--edge); border-radius:16px; padding:8px 12px; box-shadow:0 3px 0 var(--shadow)}
+.box span{display:block; font-size:.85rem; color:var(--muted); font-weight:500}
+.box b{font-size:1.5rem; font-variant-numeric:tabular-nums}
+.stats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+#next{display:block; width:100%; max-width:140px; aspect-ratio:4/3; margin-top:4px}
+.help{margin:0; color:var(--muted); font-size:.95rem}
+.msg{margin:0; min-height:1.4em; font-weight:600; color:var(--accent); font-size:1.05rem}
+
+.pad{display:none; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px}
+.pad button{
+  min-height:62px; border-radius:16px; border:3px solid var(--edge); background:var(--card); font-size:1.6rem; font-weight:700;
+  box-shadow:0 4px 0 var(--shadow); touch-action:manipulation; user-select:none; -webkit-user-select:none;
+}
+.pad button:active{transform:translateY(3px); box-shadow:0 1px 0 var(--shadow)}
+.pad .rot{background:#ffe3d3; border-color:var(--accent)}
+@media (pointer:coarse){ .pad{display:grid} .keys-help{display:none} }
+@media (pointer:fine){ .touch-help{display:none} }
+
+@media (max-width:560px){
+  h1{font-size:1.6rem}
+  .game{grid-template-columns:auto minmax(0,1fr); gap:10px}
+  #board{height:min(58svh, 560px)}
+  .box{padding:6px 8px; border-radius:12px}
+  .box b{font-size:1.2rem}
+  .stats{grid-template-columns:1fr}
+  .help{font-size:.85rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><a href="index.html" aria-label="Tillbaka till Spelhörnan">Klossregn</a> <small>Fyll hela rader så försvinner de!</small></h1>
+    <div class="tools">
+      <button class="small-btn" id="pause" type="button" disabled>Paus</button>
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+
+  <div class="game">
+    <div class="board-wrap">
+      <canvas id="board" width="300" height="600" aria-label="Spelplan"></canvas>
+      <div class="overlay" id="overlay">
+        <h2 id="ovTitle">Klossregn</h2>
+        <p id="ovText">Klossar regnar ner från himlen. Vrid och flytta dem så att de fyller hela rader.</p>
+        <p id="ovBest" class="new-best" hidden></p>
+        <div class="seg" id="levels" role="group" aria-label="Svårighet">
+          <button type="button" data-d="0" aria-pressed="true">Lätt</button>
+          <button type="button" data-d="1" aria-pressed="false">Medel</button>
+          <button type="button" data-d="2" aria-pressed="false">Svår</button>
+        </div>
+        <button class="big-btn" id="start" type="button">Starta</button>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="box"><span>Nästa kloss</span><canvas id="next" width="160" height="120" aria-hidden="true"></canvas></div>
+      <div class="stats">
+        <div class="box"><span>Poäng</span><b id="score">0</b></div>
+        <div class="box"><span>Rekord</span><b id="best">0</b></div>
+        <div class="box"><span>Rader</span><b id="lines">0</b></div>
+        <div class="box"><span>Nivå</span><b id="level">1</b></div>
+      </div>
+      <p class="msg" id="msg" aria-live="polite"></p>
+      <p class="help keys-help">← → flyttar, ↑ vrider, ↓ går fortare, mellanslag släpper ner klossen. P pausar.</p>
+      <p class="help touch-help">Dra på planen för att flytta. Tryck för att vrida. Svep snabbt neråt för att släppa.</p>
+    </aside>
+  </div>
+
+  <div class="pad" aria-label="Styrknappar">
+    <button type="button" data-a="left" aria-label="Vänster">◀</button>
+    <button type="button" data-a="rot" class="rot" aria-label="Vrid">⟳</button>
+    <button type="button" data-a="right" aria-label="Höger">▶</button>
+    <button type="button" data-a="down" aria-label="Fortare ner">▼</button>
+    <button type="button" data-a="drop" aria-label="Släpp ner">⤓</button>
+  </div>
+</div>
+
+<script src="spelhornan.js" onerror="this.remove()"></script>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const W=10,H=20;
+const cv=$('board'),ctx=cv.getContext('2d');
+const nx=$('next'),nctx=nx.getContext('2d');
+const C=30; // cellstorlek i canvas-pixlar (300x600)
+const KEY='klossregn-v1';
+const DIFF=[
+  {namn:'Lätt', start:1, bas:1000},
+  {namn:'Medel',start:3, bas:800},
+  {namn:'Svår', start:6, bas:700}
+];
+
+/* Klossarna: egna färger och namn. Varje form är en lista med rutor i en 4x4-ruta. */
+const PIECES={
+  I:{c:'#3fa9f5',d:'#1f78bd',cells:[[0,1],[1,1],[2,1],[3,1]]},
+  O:{c:'#ffc21a',d:'#c68f00',cells:[[1,0],[2,0],[1,1],[2,1]]},
+  T:{c:'#9b6bf0',d:'#6a3fc0',cells:[[1,0],[0,1],[1,1],[2,1]]},
+  S:{c:'#3cc66b',d:'#1f8d44',cells:[[1,0],[2,0],[0,1],[1,1]]},
+  Z:{c:'#ff5d6c',d:'#c22f3e',cells:[[0,0],[1,0],[1,1],[2,1]]},
+  J:{c:'#22b8b0',d:'#11837d',cells:[[0,0],[0,1],[1,1],[2,1]]},
+  L:{c:'#ff7a3d',d:'#c4501a',cells:[[2,0],[0,1],[1,1],[2,1]]}
+};
+const TYPES=Object.keys(PIECES);
+
+function rotateCells(cells,type,dir){
+  if(type==='O')return cells.map(p=>p.slice());
+  const n=type==='I'?4:3;
+  return cells.map(([x,y])=>dir>0?[n-1-y,x]:[y,n-1-x]);
+}
+
+let grid,cur,nextType,bag=[],score,lines,level,diff=0,state='menu',dropTimer=0,lastT=0;
+let lockTimer=0,lockMoves=0,flash=null,softDrop=false,sound=true,best=0,effects=[];
+
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+function bestFor(d){return (saved.best&&saved.best[d])||0;}
+
+/* Ljud */
+let ac=null;
+function tone(f,d,type,v,delay){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const t0=ac.currentTime+(delay||0);
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t0);g.gain.setValueAtTime(v||.06,t0);
+    o.connect(g);g.connect(ac.destination);o.start(t0);
+    g.gain.exponentialRampToValueAtTime(.0001,t0+(d||.1));o.stop(t0+(d||.1)+.02);
+  }catch(e){}
+}
+const SFX={
+  move:()=>tone(330,.04,'triangle',.03),
+  rot:()=>tone(520,.06,'triangle',.04),
+  land:()=>tone(150,.09,'sine',.08),
+  drop:()=>{tone(260,.05,'square',.03);tone(130,.12,'sine',.09,.04);},
+  clear:n=>{const notes=[523,659,784,1047];for(let i=0;i<n;i++)tone(notes[i],.16,'triangle',.06,i*.08);},
+  level:()=>{[392,523,659,784].forEach((f,i)=>tone(f,.15,'square',.035,i*.09));},
+  over:()=>{[392,330,262,196].forEach((f,i)=>tone(f,.22,'triangle',.06,i*.16));}
+};
+
+function say(t){$('msg').textContent=t||'';}
+
+function newBag(){const b=TYPES.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function takeType(){if(!bag.length)bag=newBag();return bag.pop();}
+
+function spawn(){
+  const type=nextType||takeType();
+  nextType=takeType();
+  cur={type,cells:PIECES[type].cells.map(p=>p.slice()),x:3,y:type==='I'?-1:0};
+  lockTimer=0;lockMoves=0;
+  if(collides(cur.cells,cur.x,cur.y)){gameOver();return;}
+  drawNext();
+}
+
+function collides(cells,ox,oy){
+  for(const [x,y] of cells){
+    const gx=x+ox,gy=y+oy;
+    if(gx<0||gx>=W||gy>=H)return true;
+    if(gy>=0&&grid[gy][gx])return true;
+  }
+  return false;
+}
+function onGround(){return collides(cur.cells,cur.x,cur.y+1);}
+
+function move(dx){
+  if(state!=='play'||flash)return false;
+  if(!collides(cur.cells,cur.x+dx,cur.y)){cur.x+=dx;bumpLock();SFX.move();return true;}
+  return false;
+}
+function rotate(dir){
+  if(state!=='play'||flash)return;
+  const r=rotateCells(cur.cells,cur.type,dir);
+  // Prova att knuffa klossen lite åt sidan eller uppåt om den slår i något.
+  const kicks=[[0,0],[-1,0],[1,0],[-2,0],[2,0],[0,-1],[-1,-1],[1,-1]];
+  for(const [kx,ky] of kicks){
+    if(!collides(r,cur.x+kx,cur.y+ky)){cur.cells=r;cur.x+=kx;cur.y+=ky;bumpLock();SFX.rot();return;}
+  }
+}
+function bumpLock(){if(onGround()&&lockMoves<15){lockTimer=0;lockMoves++;}}
+function stepDown(){
+  if(!collides(cur.cells,cur.x,cur.y+1)){cur.y++;return true;}
+  return false;
+}
+function hardDrop(){
+  if(state!=='play'||flash)return;
+  let n=0;while(stepDown())n++;
+  score+=n*2;
+  SFX.drop();
+  lock(true);
+}
+function lock(dropped){
+  let above=false;
+  for(const [x,y] of cur.cells){
+    const gy=y+cur.y;
+    if(gy<0){above=true;continue;}
+    grid[gy][x+cur.x]=cur.type;
+  }
+  if(!dropped)SFX.land();
+  if(above){gameOver();return;}
+  const full=[];
+  for(let y=0;y<H;y++)if(grid[y].every(Boolean))full.push(y);
+  if(full.length){
+    flash={rows:full,t:0};
+    SFX.clear(full.length);
+    for(const y of full)for(let x=0;x<W;x++)effects.push({x:x+.5,y:y+.5,vx:(Math.random()-.5)*6,vy:-Math.random()*6-2,t:0,c:PIECES[grid[y][x]].c});
+    cur=null;
+  }else{
+    spawn();
+  }
+  updateHud();
+}
+const LINE_PTS=[0,100,300,500,800];
+const PRAISE=['','Snyggt!','Dubbelrad!','Trippelrad!','FYRA RADER! Fantastiskt!'];
+function finishClear(){
+  const rows=flash.rows;flash=null;
+  grid=grid.filter((r,i)=>!rows.includes(i));
+  while(grid.length<H)grid.unshift(Array(W).fill(null));
+  const before=level;
+  lines+=rows.length;
+  score+=LINE_PTS[rows.length]*level;
+  level=DIFF[diff].start+Math.floor(lines/10);
+  say(PRAISE[rows.length]);
+  if(level>before){say('Nivå '+level+'! Nu går det lite fortare.');SFX.level();}
+  updateHud();
+  spawn();
+}
+
+function gravityMs(){
+  const g=DIFF[diff].bas*Math.pow(.85,level-1);
+  return Math.max(70,g);
+}
+
+function updateHud(){
+  $('score').textContent=score;$('lines').textContent=lines;$('level').textContent=level;
+  $('best').textContent=Math.max(best,score);
+}
+
+function start(){
+  grid=Array.from({length:H},()=>Array(W).fill(null));
+  bag=[];nextType=null;score=0;lines=0;level=DIFF[diff].start;effects=[];flash=null;
+  best=bestFor(diff);
+  state='play';dropTimer=0;
+  $('overlay').hidden=true;$('pause').disabled=false;$('pause').textContent='Paus';
+  say('Lycka till!');
+  spawn();updateHud();
+  cv.focus&&cv.focus();
+}
+
+function gameOver(){
+  state='over';cur=null;
+  SFX.over();
+  const isBest=score>bestFor(diff);
+  if(isBest){saved.best=saved.best||{};saved.best[diff]=score;persist();}
+  // Krok för den gemensamma topplistan (spelhornan.js), om den finns.
+  try{
+    if(window.Spelhornan&&typeof Spelhornan.rapportera==='function'&&score>0){
+      Spelhornan.rapportera('klossregn',DIFF[diff].namn,{poang:score});
+    }
+  }catch(e){}
+  $('ovTitle').textContent='Slut på plats!';
+  $('ovText').textContent='Du fick '+score+' poäng och tog bort '+lines+(lines===1?' rad.':' rader.');
+  const ob=$('ovBest');ob.hidden=!isBest;ob.textContent=isBest&&score>0?'Nytt rekord på '+DIFF[diff].namn.toLowerCase()+'!':'';
+  if(!isBest||score===0)ob.hidden=true;
+  $('start').textContent='Spela igen';
+  $('overlay').hidden=false;$('pause').disabled=true;
+  say('');updateHud();
+  $('start').focus();
+}
+
+function togglePause(){
+  if(state==='play'){state='pause';$('pause').textContent='Fortsätt';say('Pausat. Tryck på Fortsätt eller P.');}
+  else if(state==='pause'){state='play';$('pause').textContent='Paus';say('');lastT=performance.now();}
+}
+
+/* Rita */
+function block(c,x,y,s,type,alpha){
+  const p=PIECES[type];
+  c.globalAlpha=alpha==null?1:alpha;
+  const r=s*.22,pad=s*.05;
+  const X=x+pad,Y=y+pad,S=s-pad*2;
+  c.fillStyle=p.d;rr(c,X,Y,S,S,r);c.fill();
+  c.fillStyle=p.c;rr(c,X,Y,S,S*.88,r);c.fill();
+  c.fillStyle='rgba(255,255,255,.45)';rr(c,X+S*.16,Y+S*.12,S*.36,S*.16,S*.08);c.fill();
+  c.globalAlpha=1;
+}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+
+function draw(){
+  ctx.fillStyle='#163a56';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#1b4462';
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if((x+y)%2===0)ctx.fillRect(x*C,y*C,C,C);
+  if(!grid)return;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const t=grid[y][x];if(!t)continue;
+    if(flash&&flash.rows.includes(y)){
+      const k=Math.floor(flash.t/70)%2;
+      ctx.fillStyle=k?'#ffffff':'#fff3b0';ctx.fillRect(x*C+1,y*C+1,C-2,C-2);
+    }else block(ctx,x*C,y*C,C,t);
+  }
+  if(cur&&state!=='over'){
+    // Skugga: visar var klossen hamnar.
+    let gy=cur.y;while(!collides(cur.cells,cur.x,gy+1))gy++;
+    ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;
+    for(const [x,y] of cur.cells){
+      if(y+gy<0)continue;
+      rr(ctx,(x+cur.x)*C+4,(y+gy)*C+4,C-8,C-8,6);ctx.stroke();
+    }
+    for(const [x,y] of cur.cells){
+      if(y+cur.y<0)continue;
+      block(ctx,(x+cur.x)*C,(y+cur.y)*C,C,cur.type);
+    }
+  }
+  for(const e of effects){
+    ctx.globalAlpha=Math.max(0,1-e.t/700);ctx.fillStyle=e.c;
+    star(ctx,e.x*C,e.y*C,C*.28);
+  }
+  ctx.globalAlpha=1;
+  if(state==='pause'){
+    ctx.fillStyle='rgba(22,58,86,.75)';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.fillStyle='#fff';ctx.font='600 34px Fredoka, sans-serif';ctx.textAlign='center';ctx.fillText('Paus',cv.width/2,cv.height/2);
+  }
+}
+function star(c,x,y,r){
+  c.beginPath();
+  for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr2=i%2?r*.45:r;c.lineTo(x+Math.cos(a)*rr2,y+Math.sin(a)*rr2);}
+  c.closePath();c.fill();
+}
+function drawNext(){
+  nctx.clearRect(0,0,nx.width,nx.height);
+  if(!nextType)return;
+  const cells=PIECES[nextType].cells;
+  const xs=cells.map(p=>p[0]),ys=cells.map(p=>p[1]);
+  const w=Math.max(...xs)-Math.min(...xs)+1,h=Math.max(...ys)-Math.min(...ys)+1;
+  const s=32,ox=(nx.width-w*s)/2-Math.min(...xs)*s,oy=(nx.height-h*s)/2-Math.min(...ys)*s;
+  for(const [x,y] of cells)block(nctx,ox+x*s,oy+y*s,s,nextType);
+}
+
+function loop(t){
+  const dt=Math.min(100,t-(lastT||t));lastT=t;
+  if(state==='play'){
+    if(flash){flash.t+=dt;if(flash.t>=320)finishClear();}
+    else if(cur){
+      dropTimer+=dt;
+      const g=softDrop?Math.min(45,gravityMs()):gravityMs();
+      while(dropTimer>=g&&cur){
+        dropTimer-=g;
+        if(stepDown()){if(softDrop){score+=1;updateHud();}}
+        else break;
+      }
+      if(cur&&onGround()){
+        lockTimer+=dt;
+        if(lockTimer>=500)lock(false);
+      }else lockTimer=0;
+    }
+  }
+  if(effects.length){
+    for(const e of effects){e.t+=dt;e.x+=e.vx*dt/1000;e.y+=e.vy*dt/1000;e.vy+=14*dt/1000;}
+    effects=effects.filter(e=>e.t<700);
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* Tangentbord */
+document.addEventListener('keydown',e=>{
+  if(state==='menu'||state==='over'){
+    if((e.key==='Enter'||e.key===' ')&&document.activeElement===document.body){start();e.preventDefault();}
+    return;
+  }
+  const k=e.key;
+  if(k==='p'||k==='P'||k==='Escape'){togglePause();e.preventDefault();return;}
+  if(state!=='play')return;
+  if(k==='ArrowLeft'){move(-1);e.preventDefault();}
+  else if(k==='ArrowRight'){move(1);e.preventDefault();}
+  else if(k==='ArrowUp'||k==='x'||k==='X'){if(!e.repeat)rotate(1);e.preventDefault();}
+  else if(k==='z'||k==='Z'){if(!e.repeat)rotate(-1);e.preventDefault();}
+  else if(k==='ArrowDown'){softDrop=true;e.preventDefault();}
+  else if(k===' '){if(!e.repeat)hardDrop();e.preventDefault();}
+});
+document.addEventListener('keyup',e=>{if(e.key==='ArrowDown')softDrop=false;});
+
+/* Pekskärm: dra på planen */
+let ptr=null;
+cv.addEventListener('pointerdown',e=>{
+  if(state!=='play')return;
+  cv.setPointerCapture(e.pointerId);
+  const r=cv.getBoundingClientRect();
+  ptr={id:e.pointerId,x0:e.clientX,y0:e.clientY,lx:e.clientX,ly:e.clientY,t0:performance.now(),moved:false,cell:r.width/W};
+  e.preventDefault();
+});
+cv.addEventListener('pointermove',e=>{
+  if(!ptr||e.pointerId!==ptr.id)return;
+  const dx=e.clientX-ptr.lx;
+  if(Math.abs(dx)>=ptr.cell*.9){
+    const steps=Math.trunc(dx/(ptr.cell*.9));
+    for(let i=0;i<Math.abs(steps);i++)move(Math.sign(steps));
+    ptr.lx+=steps*ptr.cell*.9;ptr.moved=true;
+  }
+  const dy=e.clientY-ptr.ly;
+  if(dy>=ptr.cell*.9){
+    const steps=Math.floor(dy/(ptr.cell*.9));
+    for(let i=0;i<steps;i++)if(state==='play'&&cur&&!flash&&stepDown()){score+=1;}
+    ptr.ly+=steps*ptr.cell*.9;ptr.moved=true;updateHud();
+  }
+});
+cv.addEventListener('pointerup',e=>{
+  if(!ptr||e.pointerId!==ptr.id)return;
+  const dt=performance.now()-ptr.t0,dy=e.clientY-ptr.y0,dx=e.clientX-ptr.x0;
+  if(dt<250&&dy>ptr.cell*2.5&&Math.abs(dy)>Math.abs(dx)*1.5)hardDrop();
+  else if(!ptr.moved&&dt<300)rotate(1);
+  ptr=null;
+});
+cv.addEventListener('pointercancel',()=>{ptr=null;});
+
+/* Knappar under planen, med upprepning när man håller inne */
+document.querySelectorAll('.pad button').forEach(b=>{
+  let rep=null,del=null;
+  const act=()=>{
+    const a=b.dataset.a;
+    if(a==='left')move(-1);else if(a==='right')move(1);
+    else if(a==='rot')rotate(1);else if(a==='drop')hardDrop();
+    else if(a==='down'&&state==='play'&&cur&&!flash&&stepDown()){score+=1;updateHud();}
+  };
+  const stop=()=>{clearTimeout(del);clearInterval(rep);del=rep=null;};
+  b.addEventListener('pointerdown',e=>{
+    e.preventDefault();stop();act();
+    const a=b.dataset.a;
+    if(a==='left'||a==='right'||a==='down')del=setTimeout(()=>{rep=setInterval(act,a==='down'?50:90);},220);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,stop));
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+});
+
+/* Meny */
+$('levels').querySelectorAll('button').forEach(b=>{
+  b.onclick=()=>{
+    diff=+b.dataset.d;
+    $('levels').querySelectorAll('button').forEach(o=>o.setAttribute('aria-pressed',String(o===b)));
+    best=bestFor(diff);$('best').textContent=best;$('level').textContent=DIFF[diff].start;
+    saved.diff=diff;persist();
+  };
+});
+$('start').onclick=start;
+$('pause').onclick=togglePause;
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';};
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=()=>{
+  try{
+    speechSynthesis.cancel();
+    const t='Klossregn. Klossar faller ner. Flytta och vrid dem så att de fyller en hel rad från kant till kant. '+
+      'Då försvinner raden och du får poäng. Ju fler rader på en gång, desto fler poäng. Spelet tar slut när klossarna når taket.';
+    const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';u.rate=.9;speechSynthesis.speak(u);
+  }catch(e){}
+};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='play')togglePause();});
+
+if(saved.diff!=null&&DIFF[saved.diff]){$('levels').querySelector('[data-d="'+saved.diff+'"]').click();}
+best=bestFor(diff);$('best').textContent=best;$('level').textContent=DIFF[diff].start;
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
