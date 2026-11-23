@@ -301,6 +301,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   </section>
 </main>
 
+<script src="spelhornan.js"></script>
 <script>
 (function () {
   var TOTAL = 10, MAXP = 8;
@@ -697,7 +698,38 @@ button { font: inherit; color: inherit; cursor: pointer; }
       if (d && Array.isArray(d.players)) DB = { players: d.players, active: d.active || null };
     }
   } catch (e) {}
-  function saveDB() { try { localStorage.setItem("pluggis-v1", JSON.stringify(DB)); } catch (e) {} }
+  function saveDB() { try { localStorage.setItem("pluggis-v1", JSON.stringify(DB)); } catch (e) {} delarSpelare(); }
+
+  /* ---------- gemensamma spelare i Spelhörnan (spelhornan.js) ---------- */
+  var SH = window.Spelhornan || null;
+  function delarSpelare() {
+    if (!SH) return;
+    DB.players.forEach(function (p) {
+      var q = SH.hitta(p.id);
+      if (!q || q.name !== p.name || q.sym !== p.sym) SH.lagg(p.name, p.sym, p.id);
+    });
+    if (DB.active && SH.hitta(DB.active) && (!SH.aktiv() || SH.aktiv().id !== DB.active)) SH.valj(DB.active);
+  }
+  function hamtaSpelare() {
+    if (!SH) return false;
+    var andrat = false;
+    DB.players = DB.players.filter(function (p) { var bort = SH.raderad(p.id); if (bort) andrat = true; return !bort; });
+    SH.spelare().forEach(function (q) {
+      var p = null;
+      for (var i = 0; i < DB.players.length; i++) if (DB.players[i].id === q.id) p = DB.players[i];
+      if (!p) { if (DB.players.length >= MAXP) return; DB.players.push({ id: q.id, name: q.name, sym: q.sym, timed: false, last: null, best: {} }); andrat = true; }
+      else if (p.name !== q.name || p.sym !== q.sym) { p.name = q.name; p.sym = q.sym; andrat = true; }
+    });
+    var a = SH.aktiv();
+    if (a && a.id !== DB.active) { DB.active = a.id; andrat = true; }
+    if (DB.active && !DB.players.some(function (p) { return p.id === DB.active; })) { DB.active = DB.players.length ? DB.players[0].id : null; andrat = true; }
+    if (andrat) { try { localStorage.setItem("pluggis-v1", JSON.stringify(DB)); } catch (e) {} }
+    return andrat;
+  }
+  hamtaSpelare(); delarSpelare();
+  if (SH) SH.lyssna(function () {
+    if (hamtaSpelare() && !$("home").hidden) { applyLast(player()); renderHome(); show("home"); }
+  });
   function player() {
     for (var i = 0; i < DB.players.length; i++) if (DB.players[i].id === DB.active) return DB.players[i];
     return null;
@@ -846,6 +878,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   $("delP").addEventListener("click", function () {
     if (!form.confirmDel) { form.confirmDel = true; $("delP").textContent = "Tryck igen för att ta bort"; return; }
     DB.players = DB.players.filter(function (q) { return q.id !== form.id; });
+    if (SH) SH.tabort(form.id);
     DB.active = DB.players.length ? DB.players[0].id : null;
     applyLast(player()); saveDB(); goHome();
   });
@@ -1044,6 +1077,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
       var isBest = updateBest(p, n, S.ms);
       var b = p.best[bestKey()];
       if (isBest) bestLine = "Nytt rekord!";
+      if (SH && n > 0) {
+        var namn = sel().map(function (id) { for (var j = 0; j < TOPICS.length; j++) if (TOPICS[j].id === id) return TOPICS[j].name; return id; }).join(" + ");
+        var lv = LEVELS.filter(function (l) { return l.id === S.lvl; })[0];
+        SH.rapportera("pluggis", bestKey(), { poang: n, max: total, tid: p.timed ? S.ms : null, namn: namn + " · " + (lv ? lv.name : S.lvl) });
+      }
       else if (b) bestLine = "Bästa: " + b.c + " av " + TOTAL + (b.ms != null ? " på " + fmtClock(b.ms) : "");
     }
     $("r-best").textContent = bestLine;

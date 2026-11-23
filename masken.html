@@ -101,6 +101,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   <header>
     <h1>Masken</h1>
     <p class="hint">Piltangenter eller WASD. Mellanslag pausar.</p>
+    <div id="spelarplats"></div>
   </header>
   <div class="stats">
     <div class="stat"><span>Poäng</span><b id="score">0</b></div>
@@ -143,6 +144,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   </section>
 </div>
 
+<script src="spelhornan.js"></script>
 <script>
 (function () {
   var N = 20;
@@ -345,6 +347,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
       try { localStorage.setItem('masken-best-' + level, String(best)); } catch (e) {}
     }
     draw();
+    if (window.Spelhornan && score > 0) Spelhornan.rapportera('masken', level, { poang: score, namn: LEVEL_NAMES[level] });
     scoreLevel = level;
     var top = loadScores(level);
     var qualifies = score > 0 && (top.length < MAX_SCORES || score > top[MAX_SCORES - 1].score);
@@ -352,7 +355,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
       'Poäng: ' + score + ' · Längd: ' + snake.length, 'Spela igen');
     if (qualifies) {
       ovText.textContent = 'Poäng: ' + score + ' · Längd: ' + snake.length + '. Skriv ditt namn till topplistan.';
-      nameForm.hidden = false; nameInput.value = ''; nameInput.focus({ preventScroll: true });
+      nameForm.hidden = false;
+      var sp = window.Spelhornan && Spelhornan.aktiv(); nameInput.value = sp ? sp.name.slice(0, 12) : ''; nameInput.focus({ preventScroll: true });
     }
   }
 
@@ -504,4 +508,5 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 })();
 </script>
 
+<script>if(window.Spelhornan)Spelhornan.knapp(document.getElementById('spelarplats'));</script>
 </body></html>
