@@ -96,6 +96,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
   <header>
     <h1>Krypkampen 🌼 <small>Vem tar blomman först?</small></h1>
     <div class="tools">
+      <div id="spelarplats"></div>
       <a class="small-btn" href="index.html">← Alla spel</a>
       <button class="small-btn" id="speak" type="button">Läs upp</button>
       <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
@@ -178,6 +179,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
   </div>
 </div>
 
+<script src="spelhornan.js"></script>
 <script>
 (function(){
 'use strict';
@@ -512,9 +514,11 @@ function finish(){
     const how=state.byScore?'Tiden tog slut och '+PNAME[w]+' hade flest kryp vid blomman ('+Math.max(a,b)+' mot '+Math.min(a,b)+').':PNAME[w]+' fick '+NEED+' kryp runt blomman.';
     if(mode==='ai'){
       if(w===0){title='Du vann! 🎉';icon='🏆';
-        saved[tier]=(saved[tier]||0)+1;persist();
-        try{if(window.Spelhornan&&Spelhornan.rapportera)Spelhornan.rapportera('krypkampen',tier,{poang:saved[tier],namn:'Vinster mot datorn'});}catch(e){}
-        text=how+' Du har vunnit '+saved[tier]+' '+(saved[tier]===1?'gång':'gånger')+' mot datorn på '+TIERNAME[tier]+'.';
+        let pid='';try{const a=window.Spelhornan&&Spelhornan.aktiv();if(a)pid=a.id;}catch(e){}
+        const sk=pid?tier+':'+pid:tier;
+        saved[sk]=(saved[sk]||0)+1;if(pid)saved[tier]=(saved[tier]||0)+1;persist();
+        try{if(window.Spelhornan)Spelhornan.rapportera('krypkampen',tier,{poang:saved[sk],namn:TIERNAME[tier]});}catch(e){}
+        text=how+' Du har vunnit '+saved[sk]+' '+(saved[sk]===1?'gång':'gånger')+' mot datorn på '+TIERNAME[tier]+'.';
       }else{title='Datorn vann';icon='🤖';text=how+' Försök igen!';}
     }else{title=PNAME[w]+' vann! 🎉';text=how;}
     [660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle'),i*140));
@@ -567,6 +571,7 @@ sp.onclick=()=>{
 };
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sel){sel=null;render();hint();}});
 
+if(window.Spelhornan)Spelhornan.knapp($('spelarplats'));
 window.__kryp={newState,apply,legalMoves,aiMove,occ,ringCount,get state(){return state;}};
 render();showSetup();
 })();
