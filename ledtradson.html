@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Ledtrådsön</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Ledtrådsön: gå runt på en ö i 3D, hitta ledtrådar och lös fall. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82; --line:#b3d4ec;
+  --go:#22a152; --accent:#ff7a3d; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:12px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+h1 a{color:inherit; text-decoration:none}
+.tools{display:flex; flex-wrap:wrap; gap:8px}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn:active{transform:translateY(2px); box-shadow:0 1px 0 var(--shadow)}
+
+.stage{position:relative; height:min(72vh,640px); min-height:440px; border:5px solid var(--edge); border-radius:20px; overflow:hidden; background:#9fd6f5; box-shadow:0 5px 0 var(--shadow); touch-action:none; user-select:none; -webkit-user-select:none}
+.stage canvas{display:block; width:100%; height:100%; outline:none}
+.hud-top{position:absolute; top:10px; left:10px; right:10px; display:flex; gap:8px; align-items:flex-start; pointer-events:none}
+.goal{flex:1; min-width:0; background:rgba(255,255,255,.92); border:3px solid var(--edge); border-radius:14px; padding:6px 12px; font-weight:600; font-size:1rem; box-shadow:0 3px 0 var(--shadow)}
+.goal b{color:var(--accent)}
+.hud-btns{display:flex; gap:6px; pointer-events:auto}
+.hud-btn{min-height:44px; min-width:44px; padding:4px 10px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow); white-space:nowrap}
+.hud-btn .lbl{margin-left:4px}
+
+.bag{position:absolute; left:10px; bottom:10px; display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap; max-width:calc(100% - 140px)}
+.item{width:56px; height:56px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-size:1.8rem; display:grid; place-items:center; box-shadow:0 3px 0 var(--shadow); position:relative}
+.item[aria-pressed="true"]{background:#fff1e8; border-color:var(--accent); box-shadow:0 3px 0 #c4561f; transform:translateY(-4px)}
+.item small{position:absolute; bottom:-2px; left:0; right:0; font-size:.62rem; font-weight:600; text-align:center; line-height:1}
+.combine{min-height:56px; padding:4px 12px; border-radius:14px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-weight:700; font-size:1rem; box-shadow:0 3px 0 #0d5a2e}
+.combine[hidden]{display:none}
+
+.prompt{position:absolute; left:50%; bottom:84px; transform:translateX(-50%); background:rgba(18,50,74,.88); color:#fff; padding:6px 14px; border-radius:999px; font-weight:600; font-size:1rem; white-space:nowrap; pointer-events:none}
+.prompt[hidden]{display:none}
+.act{position:absolute; right:12px; bottom:12px; width:104px; height:104px; border-radius:50%; border:4px solid #7d300c; background:var(--accent); color:#2a1200; font-size:1.25rem; font-weight:700; box-shadow:0 5px 0 #7d300c; display:none}
+.act:disabled{opacity:.45}
+.touch .act{display:block}
+.joy{position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border:3px solid rgba(255,255,255,.85); background:rgba(18,50,74,.18); pointer-events:none; display:none}
+.joy i{position:absolute; left:50%; top:50%; width:52px; height:52px; margin:-26px 0 0 -26px; border-radius:50%; background:rgba(255,255,255,.9); border:3px solid var(--edge)}
+.joy-hint{position:absolute; left:14px; bottom:80px; color:#fff; font-weight:600; font-size:.9rem; text-shadow:0 1px 3px rgba(0,0,0,.6); pointer-events:none; display:none}
+.touch .joy-hint{display:block}
+
+.dialog{position:absolute; left:50%; bottom:12px; transform:translateX(-50%); width:min(620px, calc(100% - 20px)); background:var(--card); border:4px solid var(--edge); border-radius:20px; padding:12px 16px 14px; box-shadow:0 5px 0 var(--shadow); max-height:calc(100% - 80px); overflow:auto}
+.dialog[hidden]{display:none}
+.dialog .who{display:flex; align-items:center; gap:8px; font-weight:700; font-size:1.1rem; color:var(--edge)}
+.dialog .who span{font-size:1.6rem}
+.dialog p{margin:6px 0 10px; font-size:1.08rem; white-space:pre-line}
+.choices{display:flex; flex-wrap:wrap; gap:8px}
+.choice{min-height:48px; padding:6px 16px; border-radius:14px; border:3px solid var(--edge); background:#eef7ff; font-size:1.02rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.choice.main{background:var(--accent); border-color:#7d300c; color:#2a1200; box-shadow:0 3px 0 #7d300c}
+.code{display:flex; gap:10px; justify-content:center; margin:4px 0 12px}
+.wheel{display:flex; flex-direction:column; align-items:center; gap:4px}
+.wheel button{width:52px; height:40px; border-radius:10px; border:3px solid var(--edge); background:#eef7ff; font-size:1.2rem; font-weight:700}
+.wheel output{width:52px; height:60px; display:grid; place-items:center; border-radius:12px; border:3px solid var(--edge); background:#fff8e2; font-size:2rem; font-weight:700}
+
+.overlay{position:absolute; inset:0; display:grid; place-items:center; padding:14px; background:rgba(18,50,74,.55); overflow:auto}
+.overlay[hidden]{display:none}
+.card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:16px 20px; max-width:560px; width:100%; box-shadow:0 5px 0 var(--shadow)}
+.card h2{margin:0 0 4px; font-size:1.7rem}
+.card p{margin:6px 0 12px}
+.cases{display:grid; gap:10px}
+.case{display:flex; align-items:center; gap:12px; text-align:left; min-height:72px; padding:8px 14px; border-radius:18px; border:3px solid var(--edge); background:#eef7ff; box-shadow:0 4px 0 var(--shadow)}
+.case .ic{font-size:2.2rem}
+.case b{display:block; font-size:1.15rem}
+.case small{display:block; font-size:.92rem; color:var(--muted)}
+.case .st{margin-left:auto; color:var(--gold); font-size:1.3rem; -webkit-text-stroke:.8px var(--edge); white-space:nowrap}
+.case:disabled{opacity:.5}
+.stars{font-size:2.6rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:1.5px var(--edge); text-align:center}
+.stars i{font-style:normal; display:inline-block; animation:pop .5s both}
+.stars i:nth-child(2){animation-delay:.15s} .stars i:nth-child(3){animation-delay:.3s}
+.stars i.off{color:#e3edf5; animation:none}
+@keyframes pop{0%{transform:scale(0) rotate(-30deg)} 70%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1)}}
+.notes{margin:0; padding-left:1.2em}
+.notes li{margin:4px 0}
+.btnrow{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px}
+.go{background:var(--go); color:#fff; border-color:#0d5a2e}
+.help{margin:0 2px; color:var(--muted); font-size:.98rem}
+.help kbd{font-family:inherit; font-weight:600; background:#fff; border:2px solid var(--line); border-radius:6px; padding:0 5px}
+
+@media (max-width:700px){
+  h1{font-size:1.6rem}
+  .stage{height:72vh; min-height:420px}
+  .goal{font-size:.92rem; padding:5px 9px}
+  .hud-btn .lbl{display:none}
+  .item{width:48px; height:48px; font-size:1.5rem}
+  .combine{min-height:48px}
+  .act{width:88px; height:88px; font-size:1.1rem}
+  .prompt{bottom:110px; font-size:.92rem}
+  .card{padding:12px 14px}
+  .card h2{font-size:1.4rem}
+}
+@media (prefers-reduced-motion:reduce){ .stars i{animation:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><a href="index.html" title="Till Spelhörnan">Ledtrådsön</a> <small id="sub">Lös gåtorna på ön</small></h1>
+    <div class="tools" id="tools">
+      <button class="small-btn" id="menuBtn" type="button">Välj fall</button>
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+
+  <section class="stage" id="stage">
+    <div class="hud-top">
+      <div class="goal" id="goal" aria-live="polite"></div>
+      <div class="hud-btns">
+        <button class="hud-btn" id="hintBtn" type="button" title="Få en ledtråd">💡<span class="lbl">Tips</span></button>
+        <button class="hud-btn" id="notesBtn" type="button" title="Anteckningar">📓<span class="lbl">Anteckningar</span></button>
+      </div>
+    </div>
+    <div class="joy" id="joy"><i></i></div>
+    <div class="joy-hint" id="joyHint">Dra här för att gå</div>
+    <div class="prompt" id="prompt" hidden></div>
+    <div class="bag" id="bag" aria-label="Ryggsäck"></div>
+    <button class="act" id="act" type="button" disabled>Gör</button>
+    <div class="dialog" id="dialog" hidden role="dialog" aria-live="polite">
+      <div class="who" id="dWho"></div>
+      <p id="dText"></p>
+      <div id="dExtra"></div>
+      <div class="choices" id="dChoices"></div>
+    </div>
+    <div class="overlay" id="overlay">
+      <div class="card" id="ocard"></div>
+    </div>
+  </section>
+
+  <p class="help">Gå med <kbd>W A S D</kbd> eller piltangenterna. Vrid kameran med <kbd>Q</kbd> och <kbd>E</kbd> eller genom att dra med musen. Undersök saker med <kbd>Mellanslag</kbd>. På mobil: dra på vänstra sidan för att gå, dra på högra för att vrida, och tryck på <b>Gör</b>.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="spelhornan.js" onerror="this.remove()"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const stage=$('stage');
+if(!window.THREE){
+  $('ocard').innerHTML='<h2>Hoppsan!</h2><p>3D-motorn kunde inte laddas. Kontrollera internetanslutningen och ladda om sidan.</p>';
+  throw new Error('three saknas');
+}
+
+/* ---------- Sparat ---------- */
+const KEY='ledtradson-v1';
+let saved={stars:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&s.stars)saved=s;}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+/* ---------- Ljud ---------- */
+let sound=true,AC=null;
+function tone(f,d,type,vol,f2){
+  if(!sound)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    g.gain.setValueAtTime(vol||.08,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.02);
+  }catch(e){}
+}
+const sfx={
+  pick(){tone(660,.12,'triangle',.08);setTimeout(()=>tone(990,.15,'triangle',.08),90);},
+  bad(){tone(220,.25,'square',.05,150);},
+  open(){tone(392,.12,'triangle',.08);setTimeout(()=>tone(523,.12,'triangle',.08),110);setTimeout(()=>tone(784,.25,'triangle',.08),220);},
+  talk(){tone(520+Math.random()*120,.06,'sine',.04);},
+  step(){tone(120+Math.random()*30,.04,'sine',.02);},
+  win(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.3,'triangle',.09),i*140));}
+};
+
+/* ---------- Föremål ---------- */
+const ITEMS={
+  nyckel:{ic:'🗝️',namn:'Nyckel'},
+  glas:{ic:'🔹',namn:'Glasbit'},
+  ram:{ic:'⭕',namn:'Ram'},
+  lins:{ic:'🔍',namn:'Lins'}
+};
+const RECIPES=[{a:'glas',b:'ram',ut:'lins',text:'Du trycker in glaset i ramen. Klick! Nu har du en ny lins till fyren.'}];
+
+/* ---------- Tredimensionell värld ---------- */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+stage.insertBefore(renderer.domElement,stage.firstChild);
+renderer.domElement.setAttribute('tabindex','0');
+renderer.domElement.setAttribute('aria-label','Ön. Gå med piltangenterna, undersök med mellanslag.');
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(55,1,.1,400);
+const hemi=new THREE.HemisphereLight(0xdff1ff,0x5a7a3a,.75);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,.85);
+sun.position.set(30,50,20);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+Object.assign(sun.shadow.camera,{left:-50,right:50,top:50,bottom:-50,near:1,far:150});
+scene.add(sun);
+scene.fog=new THREE.Fog(0x9fd6f5,70,160);
+
+const M={};
+function mat(c,opt){const k=c+JSON.stringify(opt||{});if(!M[k])M[k]=new THREE.MeshLambertMaterial(Object.assign({color:c},opt||{}));return M[k];}
+function mesh(geo,c,x,y,z,opt){const m=new THREE.Mesh(geo,typeof c==='object'?c:mat(c,opt));m.position.set(x||0,y||0,z||0);m.castShadow=true;m.receiveShadow=true;return m;}
+function grp(x,z,ry){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry||0;scene.add(g);return g;}
+function labelTex(text,bg,fg,w,h,size){
+  const c=document.createElement('canvas');c.width=w||128;c.height=h||128;const x=c.getContext('2d');
+  if(bg){x.fillStyle=bg;x.fillRect(0,0,c.width,c.height);}
+  x.fillStyle=fg||'#fff';x.font='700 '+(size||96)+'px Fredoka, Trebuchet MS, sans-serif';x.textAlign='center';x.textBaseline='middle';
+  x.fillText(text,c.width/2,c.height/2+4);
+  const t=new THREE.CanvasTexture(c);return t;
+}
+
+// Hav, strand och gräs
+const ISLAND=36;
+const water=new THREE.Mesh(new THREE.PlaneGeometry(400,400,40,40),new THREE.MeshLambertMaterial({color:0x3aa0d8}));
+water.rotation.x=-Math.PI/2;water.position.y=-.35;water.receiveShadow=true;scene.add(water);
+const sand=mesh(new THREE.CylinderGeometry(ISLAND+4,ISLAND+6,.8,48),0xf3dc9b,0,-.4,0);scene.add(sand);
+const grass=mesh(new THREE.CylinderGeometry(ISLAND-4,ISLAND-1,.8,48),0x7cc456,0,-.25,0);scene.add(grass);
+// stig
+for(let i=0;i<34;i++){
+  const t=i/33,x=Math.sin(t*3.1)*4,z=30-t*52;
+  const s=mesh(new THREE.CylinderGeometry(1.1,1.1,.05,10),0xd9c48a,x,.17,z);s.castShadow=false;scene.add(s);
+}
+
+// Kollisioner
+const solids=[]; // {x,z,r} eller {box:[x0,x1,z0,z1]}
+function circle(x,z,r){solids.push({x,z,r});}
+function box(x0,x1,z0,z1){solids.push({box:[x0,x1,z0,z1]});}
+
+// Brygga
+const dock=grp(0,38);
+for(let i=0;i<7;i++)dock.add(mesh(new THREE.BoxGeometry(3.2,.25,1.6),0xa0703f,0,.15,-4+i*1.7));
+[[-1.4,-3],[1.4,-3],[-1.4,3],[1.4,3],[1.6,5.8]].forEach(p=>dock.add(mesh(new THREE.CylinderGeometry(.22,.22,1.8,8),0x7a5230,p[0],.3,p[1])));
+
+// Gretas röda hus
+function house(x,z,w,d,wall,roof,ry){
+  const g=grp(x,z,ry);
+  g.add(mesh(new THREE.BoxGeometry(w,3.2,d),wall,0,1.6,0));
+  const r=mesh(new THREE.CylinderGeometry(.01,w*.78,2.2,4,1),roof,0,4.3,0);r.rotation.y=Math.PI/4;r.scale.set(1,1,d/w);g.add(r);
+  return g;
+}
+const hus=house(-14,12,8,6,0xc8372d,0x3a3a46);
+hus.add(mesh(new THREE.BoxGeometry(1.3,2.2,.15),0xffffff,2,1.1,3.05));
+hus.add(mesh(new THREE.BoxGeometry(1.1,2,.18),0x6b3b1f,2,1.05,3.08));
+[[-2,1.9],[ -0.2,1.9]].forEach(p=>{hus.add(mesh(new THREE.BoxGeometry(1.2,1.1,.12),0xffffff,p[0],p[1],3.04));hus.add(mesh(new THREE.BoxGeometry(.95,.85,.14),0x9fd6f5,p[0],p[1],3.06));});
+box(-18.2,-9.8,8.8,15.2);
+// brevlåda
+const brev=grp(-5,19);
+brev.add(mesh(new THREE.CylinderGeometry(.1,.1,1.2,6),0x6b4a2a,0,.6,0));
+brev.add(mesh(new THREE.BoxGeometry(.9,.6,.6),0x2f6fd6,0,1.45,0));
+const flag=mesh(new THREE.BoxGeometry(.08,.5,.15),0xff3b2f,.5,1.6,0);brev.add(flag);
+circle(-5,19,.5);
+// kista
+const kista=grp(-20,16.5,.3);
+kista.add(mesh(new THREE.BoxGeometry(1.8,1,1.1),0x8a5a2b,0,.5,0));
+const lock=mesh(new THREE.BoxGeometry(.4,.4,.1),0xffc21a,0,.6,.58);kista.add(lock);
+const lid=new THREE.Group();lid.position.set(0,1,-.55);kista.add(lid);
+lid.add(mesh(new THREE.BoxGeometry(1.84,.35,1.14),0x9b6a36,0,.17,.55));
+circle(-20,16.5,1.1);
+
+// Fyren
+const fyr=grp(6,-27);
+const stripes=6;
+for(let i=0;i<stripes;i++){
+  const r0=3-i*.25,r1=3-(i+1)*.25;
+  fyr.add(mesh(new THREE.CylinderGeometry(r1,r0,2,20),i%2?0xffffff:0xe0332b,0,i*2+1,0));
+}
+fyr.add(mesh(new THREE.CylinderGeometry(2.1,2.1,.3,20),0x333a44,0,12.15,0));
+const lampMat=new THREE.MeshLambertMaterial({color:0x666e78,emissive:0x000000});
+const lampa=mesh(new THREE.CylinderGeometry(.9,.9,1.6,12),lampMat,0,13.1,0);fyr.add(lampa);
+fyr.add(mesh(new THREE.ConeGeometry(1.5,1.4,16),0x333a44,0,14.6,0));
+const doorF=mesh(new THREE.BoxGeometry(1.4,2.2,.2),0x5a3a20,0,1.1,2.95);fyr.add(doorF);
+const beam=new THREE.Mesh(new THREE.ConeGeometry(4,26,24,1,true),new THREE.MeshBasicMaterial({color:0xfff3a8,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false}));
+beam.rotation.z=Math.PI/2;beam.position.set(13,0,0);
+const beamPivot=new THREE.Group();beamPivot.position.y=13.1;beamPivot.add(beam);beamPivot.visible=false;fyr.add(beamPivot);
+const beamLight=new THREE.PointLight(0xfff3a8,0,22);beamLight.position.y=13.1;fyr.add(beamLight);
+circle(6,-27,3.2);
+
+// Boden
+const bod=house(19,8,5,5,0x8a5a2b,0x5a3a20);
+const bodDoor=mesh(new THREE.BoxGeometry(.15,2.3,1.5),0x5e3b1c,-2.55,1.15,0);bod.add(bodDoor);
+const bodLock=mesh(new THREE.BoxGeometry(.12,.4,.4),0xffc21a,-2.66,1.3,.5);bod.add(bodLock);
+box(16.3,21.7,5.3,10.7);
+
+// Stenar med siffror
+const STONES=[
+  {id:'rod',namn:'röda',färg:0xd8342b,hex:'#d8342b',siffra:4,x:27,z:-6},
+  {id:'gul',namn:'gula',färg:0xf2c230,hex:'#e0a800',siffra:2,x:-26,z:-6},
+  {id:'bla',namn:'blå',färg:0x2f6fd6,hex:'#2f6fd6',siffra:7,x:12,z:-8}
+];
+for(const s of STONES){
+  const g=grp(s.x,s.z,Math.atan2(-s.x,-s.z));
+  const b=mesh(new THREE.DodecahedronGeometry(1.2,0),s.färg,0,.8,0);b.scale.set(1,.85,.8);g.add(b);
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.1),new THREE.MeshBasicMaterial({map:labelTex(String(s.siffra),null,'#ffffff',128,128,110),transparent:true}));
+  p.position.set(0,.95,.95);g.add(p);
+  circle(s.x,s.z,1.2);
+}
+
+// Glasbit på stranden
+const glas=grp(-32,14);
+const glasMesh=new THREE.Mesh(new THREE.OctahedronGeometry(.35,0),new THREE.MeshLambertMaterial({color:0xa8ecff,emissive:0x2a6a80,transparent:true,opacity:.9}));
+glasMesh.position.y=.35;glas.add(glasMesh);
+
+// Picknick
+const pick=grp(-6,-10);
+const filt=mesh(new THREE.BoxGeometry(4,.06,3),new THREE.MeshLambertMaterial({map:(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');for(let i=0;i<8;i++)for(let j=0;j<8;j++){x.fillStyle=(i+j)%2?'#ffffff':'#e0332b';x.fillRect(i*8,j*8,8,8);}const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;return t;})()}),0,.2,0);
+filt.castShadow=false;pick.add(filt);
+pick.add(mesh(new THREE.CylinderGeometry(.6,.5,.08,16),0xffffff,.6,.27,.3));
+pick.add(mesh(new THREE.BoxGeometry(.9,.5,.6),0xb07a3a,-1.1,.45,-.6));
+const tagg=mesh(new THREE.ConeGeometry(.06,.45,5),0x5a3a20,1.4,.3,-1);tagg.rotation.z=Math.PI/2;pick.add(tagg);
+// staket
+const stak=grp(-14,-4,Math.PI/2);
+for(let i=0;i<5;i++)stak.add(mesh(new THREE.BoxGeometry(.2,1.2,.2),0xf5efe3,-4+i*2,.6,0));
+stak.add(mesh(new THREE.BoxGeometry(8.4,.18,.12),0xf5efe3,0,.9,0));stak.add(mesh(new THREE.BoxGeometry(8.4,.18,.12),0xf5efe3,0,.45,0));
+const tuss=mesh(new THREE.SphereGeometry(.22,8,6),0xe06a1e,1.5,.95,.1);stak.add(tuss);
+box(-14.3,-13.7,-8.3,.3);
+// lövhög
+const lov=grp(-21,-20);
+[[0,0,1.4],[1,.4,1],[-.9,.3,1.1],[.3,-.9,.9]].forEach(p=>{const m=mesh(new THREE.SphereGeometry(p[2],8,6),0xc4772a,p[0],.2,p[1]);m.scale.y=.55;lov.add(m);});
+circle(-21,-20,1.6);
+// smulspår
+const crumbs=new THREE.Group();scene.add(crumbs);
+for(let i=1;i<12;i++){
+  const t=i/12,x=-6+(-21+6)*t+Math.sin(i*1.7)*.6,z=-10+(-20+10)*t+Math.cos(i*1.3)*.6;
+  const c=mesh(new THREE.CylinderGeometry(.1,.1,.06,6),0xf0c060,x,.2,z);c.castShadow=false;crumbs.add(c);
+}
+// båt
+const bat=grp(32,22,.6);
+bat.add(mesh(new THREE.BoxGeometry(2.2,.8,5),0xffffff,0,0,0));
+bat.add(mesh(new THREE.BoxGeometry(2.3,.3,5.1),0x2f6fd6,0,.4,0));
+const korg=mesh(new THREE.CylinderGeometry(.5,.4,.5,10),0xb07a3a,0,.7,.8);bat.add(korg);
+
+// Träd och buskar (fast mönster så att ön alltid ser likadan ut)
+let seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647;}
+const KEEP=[[0,30],[0,20],[-14,12],[-9,17],[-5,19],[-20,16.5],[6,-27],[6,-21],[19,8],[14,8],[27,-6],[-26,-6],[12,-8],[-32,14],[-6,-10],[-14,-4],[-21,-20],[28,18],[0,0],[0,-10],[-3,10]];
+const trunk=new THREE.CylinderGeometry(.25,.35,1.6,6),crown=new THREE.ConeGeometry(1.5,3.2,7),crown2=new THREE.SphereGeometry(1.4,7,6);
+let trees=0;
+for(let tries=0;tries<400&&trees<46;tries++){
+  const a=rnd()*Math.PI*2,r=9+rnd()*24,x=Math.cos(a)*r,z=Math.sin(a)*r;
+  if(KEEP.some(k=>Math.hypot(k[0]-x,k[1]-z)<6))continue;
+  if(Math.abs(x-Math.sin((30-z)/52*3.1)*4)<2.5&&z<31&&z>-23)continue;
+  if(solids.some(s=>s.r&&Math.hypot(s.x-x,s.z-z)<3))continue;
+  const g=grp(x,z,rnd()*6);const s=.8+rnd()*.6;g.scale.setScalar(s);
+  g.add(mesh(trunk,0x7a5230,0,.8,0));
+  if(rnd()<.6)g.add(mesh(crown,0x2f8a3a,0,3,0));else g.add(mesh(crown2,0x4aa046,0,2.6,0));
+  circle(x,z,.6*s);trees++;
+}
+for(let i=0;i<40;i++){const a=rnd()*Math.PI*2,r=6+rnd()*27;const x=Math.cos(a)*r,z=Math.sin(a)*r;if(KEEP.some(k=>Math.hypot(k[0]-x,k[1]-z)<4))continue;
+  const f=mesh(new THREE.SphereGeometry(.18,6,4),[0xff6fa5,0xffe14a,0xffffff,0xb08cff][i%4],x,.25,z);f.castShadow=false;scene.add(f);}
+
+/* ---------- Figurer ---------- */
+function person(body,head,hat){
+  const g=new THREE.Group();
+  const legs=[mesh(new THREE.BoxGeometry(.28,.8,.3),0x2b3d5a,-.18,.4,0),mesh(new THREE.BoxGeometry(.28,.8,.3),0x2b3d5a,.18,.4,0)];
+  legs.forEach(l=>{l.geometry=l.geometry.clone();l.geometry.translate(0,-.4,0);l.position.y=.8;g.add(l);});
+  g.add(mesh(new THREE.BoxGeometry(.8,.9,.45),body,0,1.25,0));
+  g.add(mesh(new THREE.SphereGeometry(.36,12,10),head,0,1.98,0));
+  if(hat)g.add(hat);
+  g.userData.legs=legs;
+  return g;
+}
+// Spelaren: liten detektiv
+const capG=new THREE.Group();
+capG.add(mesh(new THREE.CylinderGeometry(.38,.4,.22,12),0x8a5a2b,0,2.25,0));
+capG.add(mesh(new THREE.BoxGeometry(.5,.06,.35),0x8a5a2b,0,2.16,.35));
+const player=person(0xff7a3d,0xf4c9a0,capG);scene.add(player);
+const eyes=new THREE.Group();[-.13,.13].forEach(x=>eyes.add(mesh(new THREE.SphereGeometry(.05,6,4),0x12324a,x,2.02,.33)));player.add(eyes);
+
+// Greta
+const gretaHat=new THREE.Group();gretaHat.add(mesh(new THREE.SphereGeometry(.4,10,8,0,Math.PI*2,0,Math.PI/2),0x2f6fd6,0,2.08,0));
+const greta=person(0xf2c230,0xf1c7a3,gretaHat);greta.position.set(-9,0,17.5);greta.rotation.y=.4;scene.add(greta);
+greta.add(mesh(new THREE.SphereGeometry(.15,6,4),0xffffff,0,1.75,.3));
+circle(-9,17.5,.7);
+
+// Djuren i fall 2
+function animal(color,ears,parts){
+  const g=new THREE.Group();
+  g.add(mesh(new THREE.SphereGeometry(.6,10,8),color,0,.6,0));
+  g.add(mesh(new THREE.SphereGeometry(.4,10,8),color,0,1.15,.35));
+  [-.14,.14].forEach(x=>g.add(mesh(new THREE.SphereGeometry(.06,6,4),0x12324a,x,1.25,.7)));
+  (parts||[]).forEach(p=>g.add(p));
+  scene.add(g);return g;
+}
+const mans=animal(0xf4f4f4,0,[mesh(new THREE.ConeGeometry(.12,.4,6),0xffb020,0,1.1,.85)]);
+mans.children[mans.children.length-1].rotation.x=Math.PI/2;
+mans.add(mesh(new THREE.BoxGeometry(1.4,.12,.5),0xcfd6dc,0,.75,-.1));
+mans.position.set(1.6,0,44.2);mans.scale.setScalar(.85);
+const rut=animal(0xe06a1e,1,[mesh(new THREE.ConeGeometry(.14,.35,4),0xe06a1e,-.22,1.55,.3),mesh(new THREE.ConeGeometry(.14,.35,4),0xe06a1e,.22,1.55,.3),mesh(new THREE.SphereGeometry(.12,6,4),0xffffff,0,1.05,.75),mesh(new THREE.ConeGeometry(.25,1,6),0xe06a1e,0,.7,-.9)]);
+rut.children[rut.children.length-1].rotation.x=-1.2;
+rut.position.set(27.5,0,17);rut.rotation.y=-1.6;
+const ivar=animal(0x8a6a4a,0,[]);
+for(let i=0;i<34;i++){const dir=new THREE.Vector3(rnd()*2-1,rnd()*1.1,-rnd()*1.2+.15).normalize();const sp=mesh(new THREE.ConeGeometry(.09,.55,4),0x4a3220,dir.x*.5,.6+dir.y*.5,dir.z*.5);sp.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);ivar.add(sp);}
+ivar.position.set(-18.6,0,-18.6);ivar.rotation.y=.8;ivar.scale.setScalar(.8);
+const ANIMALS=[mans,rut,ivar];
+
+// Markörer över saker man kan undersöka
+const markGeo=new THREE.OctahedronGeometry(.3,0);
+const markMat=new THREE.MeshBasicMaterial({color:0xffc21a});
+const marks=[];
+
+/* ---------- Spelets tillstånd ---------- */
+let S=null;        // aktuellt fall
+let caseNo=1;
+const pl={x:0,z:30,ry:Math.PI,vx:0,vz:0};
+let camYaw=0,camYawGoal=0;
+
+const CASES=[
+  {n:1,ic:'💡',titel:'Fyren som slocknade',text:'Fyren lyser inte och båtarna hittar inte hem. Kan du laga den innan natten?'},
+  {n:2,ic:'🍪',titel:'Kakmysteriet',text:'Gretas kakor har försvunnit från picknicken. Vem tog dem? Hitta ledtrådar och lös gåtan.'}
+];
+function has(it){return S.inv.includes(it);}
+function give(it){if(!has(it)){S.inv.push(it);sfx.pick();renderBag();}}
+function take(it){S.inv=S.inv.filter(x=>x!==it);renderBag();}
+function note(t){if(!S.notes.includes(t)){S.notes.push(t);flashNotes();}}
+function clue(id,t){if(!S.clues.includes(id)){S.clues.push(id);note('🔎 '+t);}}
+
+/* ---------- Uppdrag och tips ---------- */
+function objective(){
+  const f=S.f;
+  if(S.case===1){
+    if(!f.greta)return{k:'greta',t:'Prata med fyrvaktaren Greta vid det röda huset.',h:['Greta står utanför det röda huset till vänster om stigen. Gå fram till henne och tryck Gör eller Mellanslag.']};
+    if(!f.door){
+      if(!has('nyckel')){
+        if(!f.sawDoor)return{k:'door',t:'Gå till fyren och titta på dörren.',h:['Fyren är det höga randiga tornet längst bort på ön. Följ stigen rakt fram.']};
+        if(!f.letter)return{k:'letter',t:'Nyckeln ligger i kistan. Hitta koden! Titta i brevlådan.',h:['Den blå brevlådan står vid stigen, nära Gretas hus.']};
+        return{k:'code',t:'Hitta de tre stenarna med siffror och öppna kistan vid huset.',h:['Brevet säger: först den röda, sedan den gula, sist den blå stenen.','Sett från bryggan: den röda stenen ligger långt till höger, den gula långt till vänster och den blå till höger om stigen, på vägen mot fyren.','Varje sten har en siffra. Skriv in röd, gul, blå i den ordningen på kistan.']};
+      }
+      return{k:'unlock',t:'Du har nyckeln! Lås upp fyrdörren.',h:['Gå till dörren på fyren och tryck Gör.']};
+    }
+    if(!f.lit){
+      if(has('lins'))return{k:'place',t:'Gå upp i fyren och sätt i den nya linsen.',h:['Gå till fyrdörren och tryck Gör.']};
+      if(!f.shed&&f.sawShed)return{k:'riddle',t:'Svara på gåtan på bodens lås.',h:['Vad blir blötare ju mer den torkar? Tänk på vad du använder efter badet.','Det är något mjukt av tyg som hänger i badrummet.']};
+      return{k:'lens',t:'Gör en ny lins: hitta en ram och en bit klart glas.',h:['Ramen finns i den bruna boden till höger om stigen. Klart glas glittrar på stranden långt västerut.','När du har ram och glas: tryck på båda i ryggsäcken och sedan på Sätt ihop.']};
+    }
+    return{k:'done',t:'Fyren lyser igen!',h:['Du har löst fallet!']};
+  }
+  // fall 2
+  const n=['fat','tagg','tuss','lov'].filter(c=>S.clues.includes(c)).length;
+  if(!f.greta)return{k:'greta',t:'Greta ser ledsen ut. Prata med henne vid huset.',h:['Greta står utanför det röda huset.']};
+  if(!f.solved){
+    if(n<3)return{k:'clues'+n,t:'Hitta ledtrådar vid picknicken och prata med djuren. ('+n+' av 3 ledtrådar)',h:hintsClues()};
+    return{k:'accuse',t:'Du har nog ledtrådar! Gå till Greta och säg vem som tog kakorna.',h:['Läs dina anteckningar. Vem har taggar? Vart leder smulorna?','Måsen har fjädrar och räven har röd päls. Vem har bruna taggar?']};
+  }
+  return{k:'done',t:'Kakmysteriet är löst!',h:['Du har löst fallet!']};
+}
+function hintsClues(){
+  const h=[];
+  if(!S.clues.includes('fat'))h.push('Picknickfilten ligger mitt på ön, på gräset till vänster om stigen. Titta på fatet.');
+  if(!S.clues.includes('tagg'))h.push('Titta noga på hörnet av picknickfilten. Där ligger något litet och brunt.');
+  if(!S.clues.includes('lov'))h.push('Följ de gula smulorna från picknicken. Vart leder de?');
+  if(!S.clues.includes('tuss'))h.push('Titta på det vita staketet nära picknicken.');
+  h.push('Djuren kan också berätta saker. Måsen sitter på bryggan, räven vid båten och igelkotten vid lövhögen.');
+  return h;
+}
+let lastGoal='';
+function updateGoal(){
+  const o=objective();
+  $('goal').innerHTML='🎯 <b>Fall '+S.case+':</b> '+o.t;
+  if(o.t!==lastGoal){lastGoal=o.t;}
+}
+function hint(){
+  if(!S||dialogOpen())return;
+  const o=objective();
+  const k='c'+S.case+'-'+o.k;
+  S.hintIdx[k]=(S.hintIdx[k]||0);
+  const i=Math.min(S.hintIdx[k],o.h.length-1);
+  if(o.k!=='done'&&S.hintIdx[k]<o.h.length){S.hints++;}
+  S.hintIdx[k]++;
+  say('💡','Tips',o.h[i]+(o.k!=='done'?'\n\n(Tips använda: '+S.hints+')':''));
+}
+
+/* ---------- Dialog ---------- */
+let dlgQueue=[],dlgCur=null,dlgAt=0;
+function dialogOpen(){return !$('dialog').hidden||!$('overlay').hidden;}
+function say(ic,who,text,choices,extra){
+  dlgQueue.push({ic,who,text,choices,extra});
+  if(!dlgCur)nextDialog();
+}
+function nextDialog(){
+  dlgCur=dlgQueue.shift()||null;
+  const d=$('dialog');
+  if(!dlgCur){d.hidden=true;updateGoal();renderer.domElement.focus({preventScroll:true});return;}
+  d.hidden=false;dlgAt=performance.now();
+  $('dWho').innerHTML='<span>'+dlgCur.ic+'</span>'+dlgCur.who;
+  $('dText').textContent=dlgCur.text;
+  const ex=$('dExtra');ex.innerHTML='';if(dlgCur.extra)dlgCur.extra(ex);
+  const ch=$('dChoices');ch.innerHTML='';
+  const list=dlgCur.choices||[{t:'OK',main:true}];
+  list.forEach((c,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='choice'+(c.main||list.length===1?' main':'');b.textContent=c.t;
+    b.onclick=()=>{if(performance.now()-dlgAt<350)return;const cur=dlgCur;if(c.f){const keep=c.f();if(keep===true)return;}if(cur===dlgCur)nextDialog();};
+    ch.appendChild(b);
+  });
+  sfx.talk();
+  setTimeout(()=>{const b=ch.querySelector('button.main')||ch.querySelector('button');if(b)b.focus({preventScroll:true});},30);
+  if(autoRead)speak(dlgCur.who+'. '+dlgCur.text);
+}
+
+/* ---------- Saker att undersöka ---------- */
+// p: var man ska stå, r: avstånd, show(): syns i detta fall, label(): text i prompten, act()
+const SPOTS=[
+  {id:'greta',x:-9,z:17.5,r:2.8,obj:greta,label:()=>'Prata med Greta',show:()=>true,mark:()=>!S.f.greta||(S.case===2&&!S.f.solved&&['fat','tagg','tuss','lov'].filter(c=>S.clues.includes(c)).length>=3),act:actGreta},
+  {id:'brev',x:-5,z:19,r:2.4,obj:brev,label:()=>'Titta i brevlådan',show:()=>S.case===1,mark:()=>S.f.sawDoor&&!S.f.letter,act(){
+    S.f.letter=true;flag.rotation.z=0;
+    note('✉️ Brevet: "Reservnyckeln ligger i kistan. Koden: först den RÖDA stenen, sedan den GULA, sist den BLÅ. Hälsningar Sixten"');
+    say('✉️','Ett brev','Kära Greta!\nJag gömde reservnyckeln till fyren i kistan vid ditt hus.\nKoden står på tre stenar på ön:\nförst den RÖDA, sedan den GULA, sist den BLÅ.\n\nHälsningar Sixten');
+  }},
+  {id:'kista',x:-20,z:16.5,r:2.6,obj:kista,label:()=>S.f.chest?'Kistan är tom':'Öppna kistan',show:()=>S.case===1,mark:()=>S.f.letter&&!S.f.chest,act:actChest},
+  {id:'fyr',x:6,z:-23,r:2.8,obj:doorF,label:()=>S.f.lit?'Titta på fyren':S.f.door?'Gå upp i fyren':'Undersök dörren',show:()=>S.case===1,mark:()=>!S.f.sawDoor||(has('nyckel')&&!S.f.door)||has('lins'),act:actLighthouse},
+  {id:'bod',x:15,z:8,r:2.6,obj:bodDoor,label:()=>S.f.shed?(has('ram')||S.f.lit||has('lins')?'Boden':'Leta i boden'):'Undersök boden',show:()=>S.case===1,mark:()=>S.f.lensKnown&&!has('ram')&&!has('lins'),act:actShed},
+  {id:'glas',x:-32,z:14,r:2.2,obj:glas,label:()=>'Plocka upp det glittrande',show:()=>S.case===1&&!S.f.glas,mark:()=>S.f.lensKnown,act(){S.f.glas=true;glas.visible=false;give('glas');say('🔹','Glasbit','Ett slätt och klart glas, nött av havet. Det glittrar i solen!');}},
+  ...STONES.map(s=>({id:'sten-'+s.id,x:s.x,z:s.z,r:2.6,label:()=>'Titta på den '+s.namn+' stenen',show:()=>S.case===1,mark:()=>S.f.letter&&!S.f['sten'+s.id]&&!has('nyckel')&&!S.f.door,act(){
+    S.f['sten'+s.id]=true;note('🪨 Den '+s.namn+' stenen har siffran '+s.siffra+'.');
+    say('🪨','Den '+s.namn+' stenen','Någon har målat en siffra på stenen: '+s.siffra);
+  }})),
+  // fall 2
+  {id:'fat',x:-5.4,z:-9.7,r:2.4,obj:pick,label:()=>'Titta på fatet',show:()=>S.case===2,mark:()=>S.f.greta&&!S.clues.includes('fat'),act(){
+    clue('fat','Fatet är tomt. Gula smulor leder bort mot lövhögen i sydväst.');
+    say('🍽️','Det tomma fatet','Fatet är helt tomt! Bara några smulor är kvar.\nDet ligger fler gula smulor i gräset som leder bort från filten...');
+  }},
+  {id:'tagg',x:-4.6,z:-11,r:1.8,label:()=>'Titta på filtens hörn',show:()=>S.case===2,mark:()=>S.f.greta&&!S.clues.includes('tagg'),act(){
+    clue('tagg','En liten brun tagg låg på picknickfilten.');tagg.visible=false;
+    say('🌰','En tagg','I hörnet av filten ligger en liten, brun och vass tagg. Den kommer inte från en växt... Vem har taggar?');
+  }},
+  {id:'tuss',x:-13,z:-2.5,r:2.2,label:()=>'Titta på staketet',show:()=>S.case===2,mark:()=>S.f.greta&&!S.clues.includes('tuss'),act(){
+    clue('tuss','En röd-orange hårtuss satt fast i staketet.');tuss.visible=false;
+    say('🧶','En hårtuss','En tuss med röd-orange päls har fastnat i staketet. Någon med röd päls har gått förbi här.');
+  }},
+  {id:'lov',x:-21,z:-17.8,r:2.4,obj:lov,label:()=>'Titta i lövhögen',show:()=>S.case===2,mark:()=>S.clues.includes('fat')&&!S.clues.includes('lov'),act(){
+    clue('lov','Smulspåret slutar vid lövhögen. Där ligger kaksmulor och en bit kaka.');
+    say('🍂','Lövhögen','Smulspåret tar slut här! Under löven ligger massor av kaksmulor och en halväten kaka.');
+  }},
+  {id:'mans',x:1.6,z:42.4,r:2.6,obj:mans,label:()=>'Prata med måsen Måns',show:()=>S.case===2,mark:()=>S.f.greta&&!S.f.tMans,act(){
+    S.f.tMans=true;note('🐦 Måns satt på bryggan hela dagen och tittade på fiskarna. Han har vita fjädrar och fågelfötter.');
+    say('🐦','Måsen Måns','Kakor? Mmm, låter gott! Men jag har suttit här på bryggan hela dagen och tittat efter fisk.\nFråga räven, hon var här och fiskade en stund.');
+  }},
+  {id:'rut',x:26,z:16,r:2.6,obj:rut,label:()=>'Prata med räven Rut',show:()=>S.case===2,mark:()=>S.f.greta&&!S.f.tRut,act(){
+    S.f.tRut=true;note('🦊 Rut gick förbi staketet på väg till båten. Hon säger att hon bara äter fisk och har en korg full med fisk.');
+    say('🦊','Räven Rut','Ja, jag gick förbi picknicken på väg till båten. Jag fastnade med pälsen i staketet, aj!\nMen kakor? Usch, jag äter bara fisk. Titta i korgen, den är full!');
+  }},
+  {id:'ivar',x:-17.4,z:-17.2,r:2.6,obj:ivar,label:()=>'Prata med igelkotten Ivar',show:()=>S.case===2,mark:()=>S.f.greta&&!S.f.tIvar,act(){
+    S.f.tIvar=true;note('🦔 Ivar sov i lövhögen. Han har en rund mage och det hänger en smula i hans nos.');
+    say('🦔','Igelkotten Ivar','Va? Jag har sovit i lövhögen hela dagen! Jag har inte sett några kakor... *rap*\n(Det sitter en gul smula på hans nos.)');
+  }}
+];
+SPOTS.forEach(s=>{s.m=new THREE.Mesh(markGeo,markMat);s.m.visible=false;scene.add(s.m);s.m.position.set(s.x,0,s.z);
+  const o=s.obj?new THREE.Vector3().setFromMatrixPosition((s.obj.updateMatrixWorld(true),s.obj.matrixWorld)):null;s.mh=(o?Math.max(o.y,0):0)+2.6;if(s.id==='fyr')s.mh=3.6;});
+
+function actGreta(){
+  const f=S.f;
+  if(S.case===1){
+    if(!f.greta){
+      f.greta=true;
+      say('👵','Fyrvaktaren Greta','Hej, lilla detektiv! Vad bra att du kom.\nFyren har slocknat och snart blir det mörkt. Båtarna ute på havet hittar inte hem utan fyren!');
+      say('👵','Fyrvaktaren Greta','Jag har tappat nyckeln till fyren. Kan du gå dit och titta? Fyren är det randiga tornet längst bort.');
+      return;
+    }
+    if(f.lit)return say('👵','Greta','Tack, tack! Nu lyser fyren och alla båtar hittar hem.');
+    if(f.lensKnown)return say('👵','Greta','Linsen är trasig? Min bror Sixten har en gammal ram i boden. Och på stranden i väster hittar man ibland fint klart glas.');
+    if(f.sawDoor&&!f.letter)return say('👵','Greta','Låst? Sixten skickade ett brev om en reservnyckel. Det ligger nog kvar i brevlådan!');
+    return say('👵','Greta','Fyren är det randiga tornet längst bort på ön. Lycka till!');
+  }
+  // fall 2
+  if(!f.greta){
+    f.greta=true;
+    say('👵','Greta','Åh nej! Jag bakade kakor till picknicken, och när jag gick för att hämta saft försvann alla kakor!');
+    say('👵','Greta','Någon av djuren på ön måste ha tagit dem. Måsen Måns, räven Rut eller igelkotten Ivar. Kan du ta reda på vem? Leta ledtrådar vid picknickfilten!');
+    return;
+  }
+  const n=['fat','tagg','tuss','lov'].filter(c=>S.clues.includes(c)).length;
+  if(n<3)return say('👵','Greta','Har du hittat något? Du behöver minst tre ledtrådar innan vi kan veta säkert. Du har '+n+'.');
+  accuse();
+}
+function accuse(){
+  const pickWho=(namn,ok)=>()=>{
+    if(!ok){S.wrong++;sfx.bad();
+      say('👵','Greta',namn==='Måns'?'Måns har vita fjädrar och fågelfötter, inga taggar. Och han satt på bryggan hela tiden. Titta på ledtrådarna igen!':'Rut har röd päls, och hårtussen förklarar bara att hon gick förbi. Och hon äter ju bara fisk. Titta på ledtrådarna igen!');
+      return;}
+    say('👵','Greta','Igelkotten Ivar! Varför tror du det? Vilken ledtråd visar att det var han?',[
+      {t:'Taggen på filten',f:why(true)},
+      {t:'Hårtussen på staketet',f:why(false)},
+      {t:'Måns satt på bryggan',f:why(false)}
+    ]);
+  };
+  const why=ok=>()=>{
+    if(!ok){S.wrong++;sfx.bad();say('👵','Greta','Hmm, det säger inget om Ivar. Vad på filten kommer från en igelkott?',null);setTimeout(accuseWhy,0);return;}
+    S.f.solved=true;
+    say('🦔','Igelkotten Ivar','...Okej, det var jag. Kakorna luktade så gott! Förlåt, Greta.');
+    say('👵','Greta','Tack för att du säger förlåt, Ivar. Smulspåret ledde till lövhögen och taggen låg på filten. Bra detektivarbete!\nNu bakar vi nya kakor tillsammans, till alla djuren.',[{t:'Hurra!',main:true,f:()=>{finishCase();}}]);
+  };
+  function accuseWhy(){
+    say('👵','Greta','Vilken ledtråd visar att det var Ivar?',[
+      {t:'Taggen på filten',f:why(true)},{t:'Hårtussen på staketet',f:why(false)},{t:'Måns satt på bryggan',f:why(false)}]);
+  }
+  say('👵','Greta','Vem tror du tog kakorna?',[
+    {t:'🐦 Måsen Måns',f:pickWho('Måns',false)},
+    {t:'🦊 Räven Rut',f:pickWho('Rut',false)},
+    {t:'🦔 Igelkotten Ivar',f:pickWho('Ivar',true)},
+    {t:'Jag letar mer',f:()=>{}}
+  ]);
+}
+function actChest(){
+  if(S.f.chest)return say('📦','Kistan','Kistan är tom nu.');
+  if(!S.f.letter)return say('📦','Kistan','En gammal kista med ett kodlås med tre siffror. Vad kan koden vara?');
+  const v=[0,0,0];
+  say('📦','Kistan','Skriv koden: röd, gul, blå.',[
+    {t:'Öppna',main:true,f:()=>{
+      if(v.join('')==='427'){S.f.chest=true;sfx.open();lid.rotation.x=-1.9;give('nyckel');
+        say('🗝️','Nyckel!','Klick! Kistan öppnas. Där ligger en stor, gammal nyckel. Den passar nog i fyrdörren!');return;}
+      S.wrong++;sfx.bad();
+      $('dText').textContent='Det tog stopp. Kistan är fortfarande låst. Prova igen! (Läs i anteckningarna om du glömt siffrorna.)';
+      return true;
+    }},
+    {t:'Avbryt'}
+  ],ex=>{
+    const w=document.createElement('div');w.className='code';
+    ['röd','gul','blå'].forEach((namn,i)=>{
+      const c=document.createElement('div');c.className='wheel';
+      const up=document.createElement('button');up.type='button';up.textContent='▲';up.setAttribute('aria-label','Öka '+namn);
+      const o=document.createElement('output');o.textContent='0';o.style.borderColor=STONES[i===0?0:i===1?1:2].hex;
+      const dn=document.createElement('button');dn.type='button';dn.textContent='▼';dn.setAttribute('aria-label','Minska '+namn);
+      up.onclick=()=>{v[i]=(v[i]+1)%10;o.textContent=v[i];tone(700,.04,'square',.03);};
+      dn.onclick=()=>{v[i]=(v[i]+9)%10;o.textContent=v[i];tone(600,.04,'square',.03);};
+      c.append(up,o,dn);w.appendChild(c);
+    });
+    ex.appendChild(w);
+  });
+}
+function actLighthouse(){
+  const f=S.f;
+  if(f.lit)return say('💡','Fyren','Fyren lyser starkt. Båtarna hittar hem!');
+  if(!f.door){
+    if(!has('nyckel')){
+      f.sawDoor=true;note('🚪 Fyrdörren är låst. Det behövs en nyckel.');
+      return say('🚪','Fyrdörren','Dörren är låst med ett stort lås. Det behövs en nyckel.\nGreta kanske vet något mer?');
+    }
+    f.door=true;take('nyckel');sfx.open();doorF.position.x=1.2;doorF.rotation.y=-1.2;
+    f.lensKnown=true;note('🔦 Fyrlampans lins är krossad. Det behövs en ny lins: en ram + klart glas.');
+    say('🚪','Fyrdörren','Nyckeln passar! Dörren knarrar upp och du springer uppför den snurriga trappan.');
+    say('🔦','Fyrlampan','Högst upp sitter den stora lampan. Men glaset framför, linsen, är krossat! Utan lins lyser fyren inte så långt.\nEn lapp på väggen: "Reservram finns i boden. Klart glas finns på stranden."');
+    return;
+  }
+  if(!has('lins')){
+    if(has('glas')&&has('ram'))return say('🔦','Fyrlampan','Du har både glas och ram! Sätt ihop dem i ryggsäcken först: tryck på båda och sedan på Sätt ihop.');
+    return say('🔦','Fyrlampan','Lampan behöver en ny lins. Leta efter en ram och klart glas.');
+  }
+  take('lins');f.lit=true;sfx.win();
+  lampMat.emissive.setHex(0xffe680);lampMat.color.setHex(0xfff6c0);beamPivot.visible=true;beamLight.intensity=.8;setTime('natt');
+  say('💡','Fyren','Du sätter i linsen och tänder lampan. Fyren lyser! Ljuset sveper ut över havet.',[{t:'Hurra!',main:true,f:()=>{
+    say('👵','Greta','Tack, lilla detektiv! Där kommer båtarna in mot bryggan. Du räddade kvällen!',[{t:'Klart!',main:true,f:()=>{finishCase();}}]);
+  }}]);
+}
+function actShed(){
+  const f=S.f;
+  if(!f.shed){
+    f.sawShed=true;
+    const opts=['En regnrock','En handduk','En svamp','Solen'];
+    return say('🔒','Bodens lås','På låset sitter en gåta:\n"Vad blir blötare ju mer den torkar?"',opts.map(o=>({t:o,f:()=>{
+      if(o==='En handduk'){f.shed=true;sfx.open();bodDoor.rotation.y=1.3;bodDoor.position.z=.7;bodLock.visible=false;
+        say('🔓','Bodens lås','Rätt! En handduk blir blötare ju mer den torkar. Låset klickar upp.');
+        if(f.lensKnown)setTimeout(()=>{},0);
+        return;}
+      S.wrong++;sfx.bad();$('dText').textContent='Låset sitter kvar. Fundera en gång till:\n"Vad blir blötare ju mer den torkar?"';return true;
+    }})).concat([{t:'Avbryt'}]));
+  }
+  if(has('ram')||has('lins')||f.lit)return say('🏚️','Boden','Spadar, fiskespön och gamla nät. Inget mer du behöver här.');
+  if(!f.lensKnown)return say('🏚️','Boden','Fiskespön, nät och en gammal mässingsring i ett hörn. Vad kan den vara till?\nDu låter den ligga kvar så länge.');
+  give('ram');
+  say('⭕','En ram','I ett hörn hänger en rund mässingsram. Den ser ut att passa i fyrlampan, men glaset saknas.');
+}
+
+/* ---------- Ryggsäck ---------- */
+let sel=[];
+function renderBag(){
+  const b=$('bag');b.innerHTML='';
+  sel=sel.filter(x=>S.inv.includes(x));
+  S.inv.forEach(it=>{
+    const d=ITEMS[it];if(!d)return;
+    const e=document.createElement('button');e.type='button';e.className='item';e.title=d.namn;e.setAttribute('aria-label',d.namn);
+    e.setAttribute('aria-pressed',sel.includes(it)?'true':'false');
+    e.innerHTML=d.ic+'<small>'+d.namn+'</small>';
+    e.onclick=()=>{if(sel.includes(it))sel=sel.filter(x=>x!==it);else{sel.push(it);if(sel.length>2)sel.shift();}tone(500,.05,'sine',.04);renderBag();};
+    b.appendChild(e);
+  });
+  if(sel.length===2){
+    const c=document.createElement('button');c.type='button';c.className='combine';c.textContent='Sätt ihop';
+    c.onclick=combine;b.appendChild(c);
+  }else if(sel.length===1){
+    const d=ITEMS[sel[0]];
+    const c=document.createElement('button');c.type='button';c.className='combine';c.style.background='#fff';c.style.color='#12324a';c.style.borderColor='#2b5d82';c.textContent='Titta';
+    c.onclick=()=>{const it=sel[0];sel=[];renderBag();say(d.ic,d.namn,{nyckel:'En stor gammal järnnyckel.',glas:'Ett runt och klart glas från stranden.',ram:'En rund ram av mässing. Det saknas glas i den.',lins:'En ny lins till fyrlampan.'}[it]||d.namn);};
+    b.appendChild(c);
+  }
+}
+function combine(){
+  const [a,b]=sel;
+  const r=RECIPES.find(r=>(r.a===a&&r.b===b)||(r.a===b&&r.b===a));
+  sel=[];
+  if(!r){sfx.bad();renderBag();say('🎒','Ryggsäcken','De där två går inte att sätta ihop.');return;}
+  S.inv=S.inv.filter(x=>x!==a&&x!==b);give(r.ut);
+  say(ITEMS[r.ut].ic,ITEMS[r.ut].namn,r.text);
+}
+
+/* ---------- Anteckningar ---------- */
+function flashNotes(){const b=$('notesBtn');b.animate&&b.animate([{transform:'scale(1)'},{transform:'scale(1.25)'},{transform:'scale(1)'}],{duration:500});}
+function showNotes(){
+  if(!S||dialogOpen())return;
+  say('📓','Anteckningar','',null,ex=>{
+    if(!S.notes.length){ex.innerHTML='<p>Inget antecknat än. Undersök saker på ön!</p>';return;}
+    const ul=document.createElement('ul');ul.className='notes';
+    S.notes.forEach(n=>{const li=document.createElement('li');li.textContent=n;ul.appendChild(li);});
+    ex.appendChild(ul);
+  });
+}
+
+/* ---------- Fall: starta och avsluta ---------- */
+function setTime(night){
+  if(night==='natt'){scene.background=new THREE.Color(0x24345e);scene.fog.color.setHex(0x24345e);hemi.intensity=.4;sun.intensity=.3;sun.color.setHex(0x9fb0ff);water.material.color.setHex(0x1f4a7a);}
+  else if(night){scene.background=new THREE.Color(0xf0a070);scene.fog.color.setHex(0xf0a070);hemi.intensity=.55;sun.intensity=.65;sun.color.setHex(0xffc890);water.material.color.setHex(0x3a7ab8);}
+  else{scene.background=new THREE.Color(0x9fd6f5);scene.fog.color.setHex(0x9fd6f5);hemi.intensity=.75;sun.intensity=.85;sun.color.setHex(0xffffff);water.material.color.setHex(0x3aa0d8);}
+}
+function startCase(n){
+  resetWorld(n);
+  S={case:n,f:{},inv:[],notes:[],clues:[],hints:0,hintIdx:{},wrong:0,t0:performance.now(),done:false};
+  $('sub').textContent='Fall '+n+': '+CASES[n-1].titel;
+  $('overlay').hidden=true;renderBag();updateGoal();
+  say(CASES[n-1].ic,CASES[n-1].titel,CASES[n-1].text+'\n\nBörja med att prata med Greta vid det röda huset. De gula markeringarna visar vad du kan undersöka.');
+}
+function resetWorld(n){
+  caseNo=n;
+  sel=[];dlgQueue=[];dlgCur=null;$('dialog').hidden=true;$('bag').innerHTML='';
+  pl.x=0;pl.z=31;pl.ry=Math.PI;camYaw=camYawGoal=0;
+  // återställ världen
+  lid.rotation.x=0;flag.rotation.z=0;doorF.position.x=0;doorF.rotation.y=0;bodDoor.rotation.y=0;bodDoor.position.z=0;bodLock.visible=true;
+  glas.visible=n===1;lampMat.emissive.setHex(0);lampMat.color.setHex(0x666e78);beamPivot.visible=false;beamLight.intensity=0;
+  tagg.visible=tuss.visible=n===2;crumbs.visible=n===2;pick.visible=n===2;korg.visible=n===2;
+  ANIMALS.forEach(a=>a.visible=n===2);
+  setTime(n===1);
+}
+function starsFor(){const p=S.hints+S.wrong;return p===0?3:p<=3?2:1;}
+function finishCase(){
+  if(S.done)return;S.done=true;
+  const st=starsFor(),tid=Math.round(performance.now()-S.t0);
+  const k='fall-'+S.case;
+  saved.stars[k]=Math.max(saved.stars[k]||0,st);save();
+  try{if(window.Spelhornan&&typeof Spelhornan.rapportera==='function')Spelhornan.rapportera('ledtradson',k,{poang:st,max:3,tid,namn:'Fall '+S.case+': '+CASES[S.case-1].titel});}catch(e){}
+  sfx.win();
+  const next=CASES[S.case];
+  showCard('<h2>Fallet är löst! 🎉</h2><div class="stars">'+[0,1,2].map(i=>'<i class="'+(i<st?'':'off')+'">★</i>').join('')+'</div>'+
+    '<p style="text-align:center">Tips: '+S.hints+' · Fel svar: '+S.wrong+' · Tid: '+Math.floor(tid/60000)+':'+String(Math.round(tid/1000)%60).padStart(2,'0')+'<br>'+(st<3?'Lös fallet utan tips och fel svar för tre stjärnor!':'Perfekt detektivarbete!')+'</p>'+
+    '<div class="btnrow">'+(next?'<button class="small-btn go" id="cNext" type="button">Nästa fall: '+next.titel+'</button>':'')+'<button class="small-btn" id="cMenu" type="button">Välj fall</button></div>');
+  if(next)$('cNext').onclick=()=>startCase(next.n);
+  $('cMenu').onclick=menu;
+}
+function showCard(html){$('ocard').innerHTML=html;$('overlay').hidden=false;setTimeout(()=>{const b=$('ocard').querySelector('button');if(b)b.focus({preventScroll:true});},30);}
+function menu(){
+  let h='<h2>Ledtrådsön 🔎</h2><p>Du är detektiv på en liten ö. Gå runt, undersök saker, prata med alla och lös fallen. Fastnar du? Tryck på 💡 för ett tips.</p><div class="cases">';
+  CASES.forEach(c=>{const s=saved.stars['fall-'+c.n]||0;
+    h+='<button class="case" type="button" data-n="'+c.n+'"><span class="ic">'+c.ic+'</span><span><b>Fall '+c.n+': '+c.titel+'</b><small>'+c.text+'</small></span><span class="st">'+(s?'★'.repeat(s)+'☆'.repeat(3-s):'')+'</span></button>';});
+  h+='</div>';
+  showCard(h);
+  $('ocard').querySelectorAll('.case').forEach(b=>b.onclick=()=>startCase(+b.dataset.n));
+}
+
+/* ---------- Styrning ---------- */
+const keys={};
+const isTouch=matchMedia('(pointer:coarse)').matches;
+if(isTouch)stage.classList.add('touch');
+addEventListener('keydown',e=>{
+  if(e.target.tagName==='BUTTON'&&(e.key===' '||e.key==='Enter'))return;
+  const k=e.key.toLowerCase();
+  if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d','q','e',' '].includes(k)&&document.activeElement&&(document.activeElement===document.body||document.activeElement===renderer.domElement||stage.contains(document.activeElement)))e.preventDefault();
+  if(dialogOpen())return;
+  keys[k]=true;
+  if(k===' '||k==='enter')doAct();
+  if(k==='h')hint();
+});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
+
+let joy=null,look=null;
+const joyEl=$('joy');
+renderer.domElement.addEventListener('pointerdown',e=>{
+  renderer.domElement.focus({preventScroll:true});
+  if(dialogOpen())return;
+  const r=stage.getBoundingClientRect();
+  const x=e.clientX-r.left,y=e.clientY-r.top;
+  if(e.pointerType!=='mouse'&&x<r.width*.5){
+    joy={id:e.pointerId,x0:x,y0:y,dx:0,dy:0};joyEl.style.left=x+'px';joyEl.style.top=y+'px';joyEl.style.display='block';$('joyHint').style.display='none';
+  }else look={id:e.pointerId,x:e.clientX};
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+  if(joy&&e.pointerId===joy.id){const r=stage.getBoundingClientRect();let dx=e.clientX-r.left-joy.x0,dy=e.clientY-r.top-joy.y0;const l=Math.hypot(dx,dy);if(l>50){dx*=50/l;dy*=50/l;}joy.dx=dx/50;joy.dy=dy/50;joyEl.firstChild.style.transform='translate('+dx+'px,'+dy+'px)';}
+  if(look&&e.pointerId===look.id){camYawGoal-=(e.clientX-look.x)*.008;look.x=e.clientX;}
+});
+function endPtr(e){if(joy&&e.pointerId===joy.id){joy=null;joyEl.style.display='none';joyEl.firstChild.style.transform='';}if(look&&e.pointerId===look.id)look=null;}
+renderer.domElement.addEventListener('pointerup',endPtr);
+renderer.domElement.addEventListener('pointercancel',endPtr);
+$('act').onclick=doAct;
+$('hintBtn').onclick=hint;
+$('notesBtn').onclick=showNotes;
+$('menuBtn').onclick=()=>{dlgQueue=[];dlgCur=null;$('dialog').hidden=true;menu();};
+
+let near=null;
+function doAct(){if(!S||dialogOpen()||!near)return;near.act();updateGoal();}
+
+function collide(){
+  for(const s of solids){
+    if(s.box){
+      const [x0,x1,z0,z1]=s.box,R=.45;
+      if(pl.x>x0-R&&pl.x<x1+R&&pl.z>z0-R&&pl.z<z1+R){
+        const d=[pl.x-(x0-R),(x1+R)-pl.x,pl.z-(z0-R),(z1+R)-pl.z];const m=Math.min(...d);
+        if(m===d[0])pl.x=x0-R;else if(m===d[1])pl.x=x1+R;else if(m===d[2])pl.z=z0-R;else pl.z=z1+R;
+      }
+    }else{
+      const dx=pl.x-s.x,dz=pl.z-s.z,l=Math.hypot(dx,dz),R=s.r+.45;
+      if(l<R&&l>0){pl.x=s.x+dx/l*R;pl.z=s.z+dz/l*R;}
+    }
+  }
+  const onDock=Math.abs(pl.x)<1.4&&pl.z>33&&pl.z<44.5;
+  const d=Math.hypot(pl.x,pl.z);
+  if(!onDock&&d>ISLAND-.5){
+    if(Math.abs(pl.x)<1.4&&pl.z>33){pl.z=Math.min(pl.z,44.5);}
+    else{pl.x*= (ISLAND-.5)/d;pl.z*=(ISLAND-.5)/d;}
+  }
+  if(onDock)pl.z=Math.min(pl.z,44.5);
+}
+
+/* ---------- Spel-loop ---------- */
+let last=performance.now(),walkT=0,stepT=0;
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(S){
+    // rörelse
+    let ix=0,iz=0;
+    if(!dialogOpen()){
+      if(keys.w||keys.arrowup)iz+=1;if(keys.s||keys.arrowdown)iz-=1;
+      if(keys.a||keys.arrowleft)ix-=1;if(keys.d||keys.arrowright)ix+=1;
+      if(keys.q)camYawGoal+=1.8*dt;if(keys.e)camYawGoal-=1.8*dt;
+      if(joy){ix+=joy.dx;iz-=joy.dy;}
+    }
+    let l=Math.hypot(ix,iz);if(l>1){ix/=l;iz/=l;l=1;}
+    const fx=-Math.sin(camYaw),fz=-Math.cos(camYaw),rx=Math.cos(camYaw),rz=-Math.sin(camYaw);
+    const mx=(fx*iz+rx*ix),mz=(fz*iz+rz*ix);
+    const speed=7.5;
+    if(l>.05){
+      pl.x+=mx*speed*dt;pl.z+=mz*speed*dt;
+      const want=Math.atan2(mx,mz);let d=want-pl.ry;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;pl.ry+=d*Math.min(1,dt*12);
+      walkT+=dt*10*l;stepT+=dt*l;if(stepT>.32){stepT=0;sfx.step();}
+    }else walkT*=.8;
+    collide();
+    player.position.set(pl.x,pl.z>33&&Math.abs(pl.x)<1.6?.28:.15,pl.z);player.rotation.y=pl.ry;
+    const sw=Math.sin(walkT)*.6*(l>.05?1:0);player.userData.legs[0].rotation.x=sw;player.userData.legs[1].rotation.x=-sw;
+    // kamera
+    camYaw+=(camYawGoal-camYaw)*Math.min(1,dt*8);
+    const D=11,P=.5;
+    camera.position.set(pl.x+Math.sin(camYaw)*D*Math.cos(P),1+D*Math.sin(P),pl.z+Math.cos(camYaw)*D*Math.cos(P));
+    camera.lookAt(pl.x,2.2,pl.z);
+    // närmaste sak
+    let best=null,bd=1e9;
+    for(const s of SPOTS){
+      const vis=s.show();
+      const want=vis&&s.mark&&s.mark();
+      s.m.visible=!!want;
+      if(want){s.m.position.y=s.mh+Math.sin(now/300)*.2;s.m.rotation.y=now/500;}
+      if(!vis)continue;
+      const d=Math.hypot(s.x-pl.x,s.z-pl.z);
+      if(d<s.r&&d<bd){bd=d;best=s;}
+    }
+    near=best;
+    const pr=$('prompt');
+    if(near&&!dialogOpen()){pr.hidden=false;pr.textContent=(isTouch?'Gör: ':'Mellanslag: ')+near.label();$('act').disabled=false;}
+    else{pr.hidden=true;$('act').disabled=true;}
+    // Greta tittar på spelaren
+    greta.rotation.y=Math.atan2(pl.x-greta.position.x,pl.z-greta.position.z);
+  }
+  else{const a=now/7000;camera.position.set(Math.sin(a)*48,26,Math.cos(a)*48);camera.lookAt(0,2,0);}
+  // animationer
+  beamPivot.rotation.y=now/900;
+  glasMesh.rotation.y=now/400;glasMesh.position.y=.35+Math.sin(now/300)*.08;
+  mans.position.y=Math.abs(Math.sin(now/500))*.1;
+  ivar.rotation.y=.8+Math.sin(now/1200)*.3;
+  bat.position.y=Math.sin(now/800)*.12;bat.rotation.z=Math.sin(now/1000)*.04;
+  sun.position.set(pl.x+30,50,pl.z+20);sun.target.position.set(pl.x,0,pl.z);sun.target.updateMatrixWorld();
+  renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+function fit(){
+  const w=stage.clientWidth,h=stage.clientHeight;
+  renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<600?65:55;camera.updateProjectionMatrix();
+}
+addEventListener('resize',fit);
+if(window.ResizeObserver)new ResizeObserver(fit).observe(stage);
+
+/* ---------- Knappar i sidhuvudet ---------- */
+let autoRead=false;
+function speak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/[^\p{L}\p{N}\s.,!?:;'"-]/gu,''));u.lang='sv-SE';u.rate=.95;speechSynthesis.speak(u);}catch(e){}}
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=()=>{
+  if(dlgCur)speak(dlgCur.who+'. '+dlgCur.text);
+  else if(S)speak('Uppdrag. '+objective().t);
+};
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';};
+if(window.Spelhornan&&typeof Spelhornan.knapp==='function'){try{Spelhornan.knapp($('tools'));}catch(e){}}
+
+// testkrok
+window.__lt={get S(){return S;},pl,spots:SPOTS,go(id){const s=SPOTS.find(s=>s.id===id);pl.x=s.x+(s.x>0?-1:1)*.8;pl.z=s.z+1;},act:doAct,startCase,next:()=>{const b=document.querySelector('#dChoices button.main')||document.querySelector('#dChoices button');b&&b.click();}};
+
+fit();
+resetWorld(1);menu();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
