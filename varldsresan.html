@@ -132,6 +132,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
     <div class="tools">
       <button class="small-btn" id="speak" type="button">Läs upp</button>
       <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+      <span id="spelarplats"></span>
     </div>
   </header>
 
@@ -498,6 +499,7 @@ function roundOver(){
   const s=stars(right,Q.length);
   const k=cont+'-'+mode;
   if(s>(saved[k]||0)){saved[k]=s;persist();}
+  if(window.Spelhornan){const C=CONTS.find(c=>c.id===cont),M=MODES.find(m=>m.id===mode);Spelhornan.rapportera('varldsresan',k,{poang:right,max:Q.length,namn:C.namn+' · '+M.namn});}
   buildPickers();
   if(s>0)[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.25,'triangle',.08),i*130));
   $('wt').textContent=s===3?'Fantastiskt!':s>0?'Bra jobbat!':'Bra kämpat!';
@@ -544,5 +546,7 @@ start_();
 })();
 </script>
 
+<script src="spelhornan.js"></script>
+<script>if(window.Spelhornan)Spelhornan.knapp(document.getElementById('spelarplats'));</script>
 </body>
 </html>
