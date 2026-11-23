@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Bilbanan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Bilbanan: kör runt banan med piltangenterna (eller knapparna på skärmen). */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --go:#22a152; --accent:#ff7a3d; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:1000px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 a{color:inherit; text-decoration:none}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+.tools{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn:active{transform:translateY(2px); box-shadow:0 1px 0 var(--shadow)}
+
+.levels{display:flex; flex-wrap:wrap; gap:8px}
+.lvl{min-width:92px; min-height:60px; padding:4px 10px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-weight:700; font-size:1rem; line-height:1.15; box-shadow:0 3px 0 var(--shadow); text-align:center}
+.lvl em{display:block; font-style:normal; font-size:.75rem; font-weight:600; color:var(--muted)}
+.lvl span{display:block; font-size:.9rem; color:var(--gold); letter-spacing:.08em; min-height:1.1em; -webkit-text-stroke:.5px var(--edge)}
+.lvl[aria-current="true"]{background:var(--accent); color:#2a1200}
+.lvl[aria-current="true"] em{color:#2a1200}
+.lvl[aria-current="true"] span{color:#fff}
+
+.opts{display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; font-weight:600}
+.colors{display:flex; gap:8px; align-items:center}
+.sw{width:40px; height:40px; border-radius:50%; border:3px solid var(--edge); box-shadow:0 3px 0 var(--shadow)}
+.sw[aria-pressed="true"]{outline:4px solid var(--accent); outline-offset:2px}
+
+.stage{position:relative}
+#cv{display:block; width:100%; aspect-ratio:16/10; max-height:68vh; border:5px solid var(--edge); border-radius:20px; background:#7ccf6a; box-shadow:0 5px 0 var(--shadow); touch-action:none}
+.hud{position:absolute; left:14px; top:12px; display:flex; gap:8px; flex-wrap:wrap; pointer-events:none}
+.hud.r{left:auto; right:14px}
+.pill{background:rgba(255,255,255,.92); border:3px solid var(--edge); border-radius:999px; padding:2px 12px; font-weight:700; font-size:1.05rem; font-variant-numeric:tabular-nums}
+.pill small{font-weight:500; color:var(--muted)}
+.big{position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:clamp(2.6rem,9vw,5.5rem); font-weight:700; color:#fff; -webkit-text-stroke:3px var(--edge); text-shadow:0 5px 0 var(--shadow)}
+.big.warn{color:#ffd23a; font-size:clamp(1.8rem,6vw,3.4rem)}
+.big.lap{color:#fff; font-size:clamp(1.6rem,5vw,3rem)}
+
+.card-wrap{position:absolute; inset:0; display:grid; place-items:center; padding:14px; background:rgba(18,50,74,.5); border-radius:20px}
+.card-wrap[hidden]{display:none}
+.card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:18px 20px; text-align:center; max-width:400px; width:100%}
+.card h2{margin:0; font-size:1.7rem}
+.card p{margin:6px 0 12px; font-size:1.05rem}
+.card .times{font-variant-numeric:tabular-nums}
+.stars{font-size:2.6rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:1.5px var(--edge); margin:4px 0}
+.stars i{font-style:normal; display:inline-block; animation:pop .5s both}
+.stars i:nth-child(2){animation-delay:.15s} .stars i:nth-child(3){animation-delay:.3s}
+.stars i.off{color:#e3edf5; animation:none}
+@keyframes pop{0%{transform:scale(0) rotate(-30deg)} 70%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1)}}
+.btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.go{min-height:56px; padding:6px 22px; border-radius:16px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-size:1.3rem; font-weight:700; box-shadow:0 4px 0 #0d5a2e}
+.go:active{transform:translateY(3px); box-shadow:0 1px 0 #0d5a2e}
+
+/* Knappar för pekskärm */
+.pad{display:none; justify-content:space-between; gap:12px; user-select:none; -webkit-user-select:none}
+.pad.on{display:flex}
+.pad .grp{display:flex; gap:10px}
+.pb{width:84px; height:84px; border-radius:22px; border:4px solid var(--edge); background:var(--card); box-shadow:0 5px 0 var(--shadow); display:grid; place-items:center; touch-action:none; -webkit-touch-callout:none}
+.pb svg{width:42px; height:42px; pointer-events:none}
+.pb.down{background:var(--accent); transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
+.pb.gas{background:#e6f7ec; border-color:#0d5a2e}
+.pb.gas.down{background:var(--go)}
+
+.help{margin:0; color:var(--muted); font-size:1rem}
+kbd{font-family:inherit; font-weight:700; background:#fff; border:2px solid var(--edge); border-bottom-width:4px; border-radius:8px; padding:0 6px; color:var(--ink)}
+
+@media (max-width:640px){
+  h1{font-size:1.6rem}
+  #cv{aspect-ratio:1/1; max-height:60vh}
+  .pb{width:72px; height:72px}
+  .lvl{min-width:0; flex:1 1 30%}
+}
+@media (prefers-reduced-motion:reduce){ .stars i{animation:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><a href="index.html" title="Till Spelhörnan">Bilbanan</a> <small id="tname"></small></h1>
+    <div class="tools">
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+  <nav class="levels" id="levels" aria-label="Välj bana"></nav>
+  <div class="opts">
+    <div class="colors" id="colors" aria-label="Välj färg på bilen"><span>Bil:</span></div>
+    <button class="small-btn" id="auto" type="button" aria-pressed="false">Bilen gasar själv</button>
+  </div>
+
+  <section class="stage" id="stage">
+    <canvas id="cv" aria-label="Bilbanan. Styr bilen med piltangenterna."></canvas>
+    <div class="hud"><div class="pill" id="hlap">Varv 1/3</div><div class="pill" id="htime">0,0 s</div></div>
+    <div class="hud r"><div class="pill" id="hbest"><small>Bästa varv</small> –</div></div>
+    <div class="big" id="big" aria-live="polite"></div>
+    <div class="card-wrap" id="cardw">
+      <div class="card" role="dialog" aria-labelledby="ctitle">
+        <h2 id="ctitle">Ovalen</h2>
+        <div class="stars" id="cstars" hidden></div>
+        <p id="ctext"></p>
+        <div class="btns" id="cbtns"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="pad" id="pad">
+    <div class="grp">
+      <button class="pb" type="button" data-k="left" aria-label="Sväng vänster"><svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" fill="none" stroke="#12324a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="pb" type="button" data-k="right" aria-label="Sväng höger"><svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8" fill="none" stroke="#12324a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="grp">
+      <button class="pb" type="button" data-k="down" aria-label="Broms och back"><svg viewBox="0 0 24 24"><path d="m4 9 8 8 8-8" fill="none" stroke="#12324a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="pb gas" type="button" data-k="up" aria-label="Gasa"><svg viewBox="0 0 24 24"><path d="m4 15 8-8 8 8" fill="none" stroke="#12324a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  </div>
+
+  <p class="help" id="help"><kbd>↑</kbd> gasa &nbsp; <kbd>↓</kbd> bromsa och backa &nbsp; <kbd>←</kbd> <kbd>→</kbd> svänga &nbsp; <kbd>Mellanslag</kbd> starta. Kör tre varv så fort du kan och håll dig på vägen!</p>
+</div>
+
+<script src="spelhornan.js"></script>
+<script>
+'use strict';
+/* ---------- Banor ----------
+   Varje bana är en sluten kurva genom punkterna i "p" (i ordning, bilen kör i den riktningen).
+   b = vägens bredd, tre = tid i sekunder för tre stjärnor (3 varv), två = tid för två stjärnor. */
+const W=1600, H=1000, LAPS=3;
+const TRACKS=[
+  {id:'ovalen', namn:'Ovalen', niva:'Lätt', b:160, tre:28, två:40,
+   p:[[800,840],[420,800],[230,560],[330,300],[620,190],[980,190],[1270,300],[1370,560],[1180,800]]},
+  {id:'bonan', namn:'Bönan', niva:'Lätt', b:140, tre:32, två:46,
+   p:[[800,860],[420,850],[200,640],[250,330],[520,210],[800,380],[1080,210],[1350,330],[1400,640],[1180,850]]},
+  {id:'slingan', namn:'Slingan', niva:'Medel', b:120, tre:46, två:66,
+   p:[[700,880],[300,870],[150,650],[260,450],[520,500],[640,320],[450,160],[800,110],[1150,140],[1400,260],[1460,520],[1250,640],[1080,520],[960,700],[1080,860]]},
+  {id:'ormen', namn:'Ormen', niva:'Medel', b:110, tre:47, två:68,
+   p:[[800,900],[400,900],[180,800],[150,560],[300,420],[480,560],[640,700],[800,560],[820,330],[640,200],[820,100],[1100,110],[1300,200],[1170,380],[1300,520],[1460,620],[1450,830],[1200,900]]},
+  {id:'bergsvagen', namn:'Bergsvägen', niva:'Svår', b:96, tre:60, två:88,
+   p:[[620,920],[260,900],[120,720],[260,600],[480,640],[560,500],[300,420],[140,300],[260,120],[560,110],[700,280],[860,420],[1000,250],[940,100],[1240,90],[1470,180],[1480,420],[1260,470],[1240,620],[1460,700],[1450,900],[1080,930],[900,780]]}
+];
+
+/* ---------- Bilens fysik (enheter per sekund) ---------- */
+const CAR={len:44, wid:24, acc:300, brake:520, rev:140, revMax:150, drag:150, max:460, grass:170, steer:3.1};
+const COLORS=[['#e8392b','Röd'],['#2f7de1','Blå'],['#ffc21a','Gul'],['#22a152','Grön'],['#a24fd6','Lila']];
+
+/* ---------- Spara ---------- */
+const KEY='bilbanan-v1';
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+saved.best=saved.best||{}; saved.ghost=saved.ghost||{};
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+/* ---------- Ljud ---------- */
+let ac=null, sound=saved.sound!==false, eng=null;
+function audio(){
+  if(!sound) return null;
+  try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); }catch(e){ ac=null; }
+  return ac;
+}
+function beep(f,d,type,vol,when){
+  const a=audio(); if(!a) return;
+  const t=a.currentTime+(when||0), o=a.createOscillator(), g=a.createGain();
+  o.type=type||'square'; o.frequency.value=f;
+  g.gain.setValueAtTime(vol||.08,t); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t+d+.02);
+}
+function engineOn(){
+  const a=audio(); if(!a||eng) return;
+  const o=a.createOscillator(), f=a.createBiquadFilter(), g=a.createGain();
+  o.type='sawtooth'; o.frequency.value=55; f.type='lowpass'; f.frequency.value=420; g.gain.value=0;
+  o.connect(f).connect(g).connect(a.destination); o.start();
+  eng={o,g};
+}
+function engineSet(v,on){
+  if(!eng||!ac) return;
+  const t=ac.currentTime;
+  eng.o.frequency.setTargetAtTime(48+Math.abs(v)*.32,t,.05);
+  eng.g.gain.setTargetAtTime(on&&sound?.035:0,t,.08);
+}
+
+/* ---------- Banans geometri ---------- */
+function buildTrack(T){
+  const P=T.p, n=P.length, raw=[];
+  for(let i=0;i<n;i++){
+    const p0=P[(i-1+n)%n],p1=P[i],p2=P[(i+1)%n],p3=P[(i+2)%n];
+    for(let s=0;s<30;s++){
+      const t=s/30,t2=t*t,t3=t2*t;
+      raw.push([
+        .5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        .5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)
+      ]);
+    }
+  }
+  // Jämna avstånd längs vägen
+  const STEP=8, pts=[]; let carry=0, len=0;
+  pts.push(raw[0]);
+  for(let i=0;i<raw.length;i++){
+    const a=raw[i], b=raw[(i+1)%raw.length], d=Math.hypot(b[0]-a[0],b[1]-a[1]);
+    len+=d; let pos=STEP-carry;
+    while(pos<=d){ const f=pos/d; pts.push([a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f]); pos+=STEP; }
+    carry=d-(pos-STEP);
+  }
+  if(Math.hypot(pts[pts.length-1][0]-pts[0][0],pts[pts.length-1][1]-pts[0][1])<STEP*.5) pts.pop();
+  const N=pts.length, tan=pts.map((p,i)=>{const a=pts[(i-1+N)%N],b=pts[(i+1)%N],d=Math.hypot(b[0]-a[0],b[1]-a[1]);return [(b[0]-a[0])/d,(b[1]-a[1])/d];});
+  // Träd och buskar en bit från vägen (samma varje gång)
+  let seed=7; for(const c of T.id) seed=seed*31+c.charCodeAt(0);
+  const rnd=()=>{seed=(seed*16807)%2147483647; return seed/2147483647;};
+  const trees=[], deco=[];
+  for(let k=0;k<400&&trees.length<34;k++){
+    const x=40+rnd()*(W-80), y=40+rnd()*(H-80), r=22+rnd()*16;
+    if(nearestRaw(pts,x,y).d < T.b/2+r+46) continue;
+    if(trees.some(t=>Math.hypot(t.x-x,t.y-y)<t.r+r+20)) continue;
+    trees.push({x,y,r,shade:rnd()});
+  }
+  for(let k=0;k<300&&deco.length<40;k++){
+    const x=rnd()*W, y=rnd()*H;
+    if(nearestRaw(pts,x,y).d < T.b/2+30) continue;
+    deco.push({x,y,c:['#ff6fa1','#fff36b','#ffffff','#ff9f43'][Math.floor(rnd()*4)]});
+  }
+  return {T,pts,tan,N,len,trees,deco};
+}
+function nearestRaw(pts,x,y){
+  let bi=0,bd=1e18;
+  for(let i=0;i<pts.length;i++){const dx=pts[i][0]-x,dy=pts[i][1]-y,d=dx*dx+dy*dy; if(d<bd){bd=d;bi=i;}}
+  return {i:bi,d:Math.sqrt(bd)};
+}
+
+/* ---------- Tillstånd ---------- */
+const $=id=>document.getElementById(id);
+const cv=$('cv'), cx=cv.getContext('2d');
+let cur=Math.min(saved.cur||0,TRACKS.length-1), TR=null;
+let colorIdx=saved.color||0, autoGas=!!saved.auto;
+const keys={up:false,down:false,left:false,right:false};
+let car, state='intro', count=0, race=null, ghost=null, rec=null, cam={x:W/2,y:H/2,k:1};
+let wrongT=0, msgT=0, msgText='', msgCls='';
+const CP=10; // kontrollpunkter per varv
+
+function resetCar(){
+  const s=TR.pts[(TR.N-6)%TR.N], t=TR.tan[(TR.N-6)%TR.N];
+  car={x:s[0],y:s[1],a:Math.atan2(t[1],t[0]),v:0,idx:TR.N-6,on:true,bump:0};
+}
+function loadTrack(i){
+  cur=i; saved.cur=i; persist();
+  TR=buildTrack(TRACKS[i]);
+  resetCar(); state='intro'; race=null; wrongT=0; msgT=0;
+  const g=saved.ghost[TRACKS[i].id]; ghost=g&&g.length?g:null;
+  $('tname').textContent=TRACKS[i].namn+' · '+TRACKS[i].niva;
+  renderLevels(); updateHud(); showIntro();
+  camSnap();
+}
+
+/* ---------- Spelets gång ---------- */
+function showIntro(){
+  const T=TRACKS[cur], b=saved.best[T.id];
+  $('ctitle').textContent=T.namn;
+  $('cstars').hidden=true;
+  $('ctext').innerHTML='Kör '+LAPS+' varv runt banan. Följ pilarna på vägen och håll dig på asfalten, i gräset går det långsamt.'+
+    (b?'<br><b>Ditt rekord: '+fmt(b.tid)+'</b>':'<br>Tre stjärnor om du klarar det på under '+T.tre+' sekunder.');
+  setButtons([['Kör!','go',startCountdown]]);
+  $('cardw').hidden=false;
+}
+function setButtons(list){
+  const c=$('cbtns'); c.textContent='';
+  for(const [txt,cls,fn] of list){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=txt;b.onclick=fn;c.appendChild(b);}
+  const first=c.querySelector('button'); if(first) setTimeout(()=>first.focus({preventScroll:true}),30);
+}
+function startCountdown(){
+  audio(); engineOn();
+  $('cardw').hidden=true;
+  resetCar();
+  race={t:0,lap:1,lapStart:0,laps:[],next:1,done:false};
+  rec=[]; state='count'; count=3.0; lastBeep=4;
+  // på små skärmar: se till att banan och knapparna syns
+  const st=$('stage').getBoundingClientRect(), bot=pad.classList.contains('on')?pad.getBoundingClientRect().bottom:st.bottom;
+  if(st.top<0||bot>innerHeight) scrollTo({top:scrollY+st.top-8,behavior:'smooth'});
+  cv.focus({preventScroll:true});
+}
+let lastBeep=4;
+function finish(){
+  state='done'; race.done=true; engineSet(0,false);
+  const T=TRACKS[cur], tot=race.t;
+  const stars=tot<=T.tre?3:tot<=T.två?2:1;
+  const best=Math.min(...race.laps);
+  const old=saved.best[T.id];
+  const rekord=!old||tot<old.tid;
+  if(rekord) saved.best[T.id]={tid:tot,varv:best,stars:Math.max(stars,old?old.stars:0)};
+  else { old.stars=Math.max(old.stars||0,stars); if(best<(old.varv||1e9)) old.varv=best; }
+  persist(); renderLevels();
+  [523,659,784,1047].forEach((f,i)=>beep(f,.18,'triangle',.1,i*.12));
+  $('ctitle').textContent=rekord&&old?'Nytt rekord!':stars===3?'Superbra!':'I mål!';
+  const st=$('cstars'); st.hidden=false; st.innerHTML='';
+  for(let i=0;i<3;i++){const s=document.createElement('i');s.textContent='★';if(i>=stars)s.className='off';st.appendChild(s);}
+  $('ctext').innerHTML='<span class="times">Tid: <b>'+fmt(tot)+'</b> · Bästa varv: <b>'+fmt(best)+'</b></span><br>'+
+    (stars<3?'Klarar du '+(stars===1?T.två:T.tre)+' sekunder? Då får du '+(stars+1)+' stjärnor.':'Du fick alla tre stjärnorna!');
+  const btn=[['Kör igen','go',startCountdown]];
+  if(cur<TRACKS.length-1) btn.push(['Nästa bana','small-btn',()=>loadTrack(cur+1)]);
+  setButtons(btn);
+  $('cardw').hidden=false;
+  // Krok för den gemensamma topplistan (spelhornan.js), om den finns.
+  try{
+    if(window.Spelhornan&&typeof Spelhornan.rapportera==='function')
+      Spelhornan.rapportera('bilbanan','bana-'+T.id,{poang:stars,max:3,tid:Math.round(tot*1000),namn:T.namn});
+  }catch(e){}
+}
+function lapDone(){
+  const lt=race.t-race.lapStart;
+  race.laps.push(lt);
+  const T=TRACKS[cur], gb=saved.best[T.id];
+  const bestLap=Math.min(...race.laps, gb&&gb.varv?gb.varv:1e9);
+  if(lt<=bestLap+1e-9 && rec.length>4){ saved.ghost[T.id]=rec; ghost=rec; if(gb) gb.varv=Math.min(gb.varv||1e9,lt); persist(); }
+  rec=[]; race.lapStart=race.t;
+  if(race.laps.length>=LAPS){ finish(); return; }
+  race.lap++;
+  beep(784,.12,'triangle',.1); beep(1047,.2,'triangle',.1,.12);
+  flash(race.lap===LAPS?'Sista varvet!':'Varv '+race.lap+' · '+fmt(lt),'lap',1.6);
+}
+function flash(t,cls,s){msgText=t;msgCls=cls;msgT=s;}
+
+/* ---------- Fysik ---------- */
+function step(dt){
+  if(state==='count'){
+    count-=dt;
+    const n=Math.ceil(count);
+    if(n<lastBeep&&n>0){lastBeep=n; beep(440,.15,'square',.07);}
+    if(count<=0){state='race'; beep(880,.35,'square',.08); flash('KÖR!','',.8);}
+  }
+  const racing=state==='race';
+  const up=racing&&(keys.up||(autoGas&&!keys.down)), down=racing&&keys.down;
+  const steer=racing?(keys.right?1:0)-(keys.left?1:0):0;
+  const n=nearestRaw(TR.pts,car.x,car.y);
+  car.on=n.d<TRACKS[cur].b/2+4;
+  // gas och broms
+  if(up&&car.v>=0) car.v+=CAR.acc*dt*(1-car.v/(CAR.max*1.15));
+  else if(down){ if(car.v>0) car.v=Math.max(0,car.v-CAR.brake*dt); else car.v=Math.max(-CAR.revMax,car.v-CAR.rev*dt); }
+  else if(up&&car.v<0) car.v=Math.min(0,car.v+CAR.brake*dt);
+  else { const d=CAR.drag*dt; car.v=Math.abs(car.v)<d?0:car.v-Math.sign(car.v)*d; }
+  const vmax=car.on?CAR.max:CAR.grass;
+  if(car.v>vmax) car.v-=(car.v-vmax)*Math.min(1,3.5*dt);
+  // styrning: svänger mer när bilen rullar, lite mindre i full fart
+  const sp=Math.abs(car.v), grip=Math.min(1,sp/70)*(1-.25*Math.min(1,sp/CAR.max));
+  car.a+=steer*CAR.steer*grip*Math.sign(car.v||1)*dt;
+  car.x+=Math.cos(car.a)*car.v*dt; car.y+=Math.sin(car.a)*car.v*dt;
+  // staket runt kanten
+  const m=CAR.len/2;
+  if(car.x<m||car.x>W-m||car.y<m||car.y>H-m){
+    car.x=Math.max(m,Math.min(W-m,car.x)); car.y=Math.max(m,Math.min(H-m,car.y));
+    if(Math.abs(car.v)>60){bump();} car.v*=-.3;
+  }
+  // träd
+  for(const t of TR.trees){
+    const dx=car.x-t.x, dy=car.y-t.y, d=Math.hypot(dx,dy), min=t.r*.75+CAR.wid*.6;
+    if(d<min){ car.x=t.x+dx/d*min; car.y=t.y+dy/d*min; if(Math.abs(car.v)>60) bump(); car.v*=-.25; }
+  }
+  if(car.bump>0) car.bump-=dt;
+  if(!racing) return;
+  race.t+=dt;
+  // kontrollpunkter i ordning, mållinjen räknas bara när alla är passerade
+  car.idx=n.i;
+  const N=TR.N, win=Math.floor(N/CP/2), on=n.d<TRACKS[cur].b*1.2;
+  if(on){
+    const target=race.next<CP?Math.floor(race.next*N/CP):0;
+    const rel=(n.i-target+N)%N;
+    if(rel<win){ if(race.next<CP) race.next++; else { race.next=1; lapDone(); } }
+  }
+  // fel håll?
+  const t=TR.tan[n.i], dir=Math.cos(car.a)*t[0]+Math.sin(car.a)*t[1];
+  if(car.v*dir< -30) wrongT+=dt; else wrongT=Math.max(0,wrongT-dt*2);
+  // spöke
+  if(rec&&state==='race'){ const lt=race.t-race.lapStart; if(!rec.length||lt-rec[rec.length-1][0]>=.05) rec.push([+lt.toFixed(3),Math.round(car.x),Math.round(car.y),+car.a.toFixed(2)]); }
+}
+function bump(){ if(car.bump>0) return; car.bump=.3; beep(110,.15,'square',.09); if(navigator.vibrate) try{navigator.vibrate(40);}catch(e){} }
+
+/* ---------- Ritning ---------- */
+let dpr=1, cw=0, ch=0;
+function resize(){
+  const r=cv.getBoundingClientRect(); dpr=Math.min(2,window.devicePixelRatio||1);
+  cw=r.width; ch=r.height; cv.width=Math.round(cw*dpr); cv.height=Math.round(ch*dpr);
+}
+function camTarget(){
+  const fit=Math.min(cw/(W+40),ch/(H+40)), minK=cw<520?.5:.62;
+  const k=window.Bilbanan&&Bilbanan.fit?fit:Math.max(fit,minK);
+  let x=car.x+Math.cos(car.a)*car.v*.35, y=car.y+Math.sin(car.a)*car.v*.35;
+  const hw=cw/k/2, hh=ch/k/2;
+  x=hw*2>=W+40?W/2:Math.max(hw-20,Math.min(W+20-hw,x));
+  y=hh*2>=H+40?H/2:Math.max(hh-20,Math.min(H+20-hh,y));
+  return {x,y,k};
+}
+function camSnap(){ if(cw) cam=camTarget(); }
+function path(ctx,pts){ ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.closePath(); }
+function drawCar(x,y,a,color,alpha){
+  cx.save(); cx.translate(x,y); cx.rotate(a); cx.globalAlpha=alpha;
+  const L=CAR.len, Wd=CAR.wid;
+  cx.fillStyle='rgba(0,0,0,.25)'; rr(-L/2+3,-Wd/2+4,L,Wd,7); cx.fill();
+  cx.fillStyle='#1d2730';
+  for(const [wx,wy] of [[L*.28,-Wd/2-2],[L*.28,Wd/2-4],[-L*.3,-Wd/2-2],[-L*.3,Wd/2-4]]){ rr(wx-6,wy,12,6,2); cx.fill(); }
+  cx.fillStyle=color; cx.strokeStyle='#12324a'; cx.lineWidth=2.5;
+  rr(-L/2,-Wd/2,L,Wd,8); cx.fill(); cx.stroke();
+  cx.fillStyle='#bfe6ff'; rr(L*.05,-Wd/2+4,L*.2,Wd-8,3); cx.fill();
+  cx.fillStyle='rgba(255,255,255,.35)'; rr(-L*.3,-Wd/2+5,L*.3,Wd-10,3); cx.fill();
+  cx.fillStyle='#fff7b0'; cx.fillRect(L/2-4,-Wd/2+2,3,5); cx.fillRect(L/2-4,Wd/2-7,3,5);
+  cx.restore();
+}
+function rr(x,y,w,h,r){ cx.beginPath(); cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r); cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath(); }
+function draw(){
+  const T=TRACKS[cur], P=TR.pts, B=T.b;
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  cx.fillStyle='#5fae52'; cx.fillRect(0,0,cw,ch);
+  cx.save();
+  cx.translate(cw/2,ch/2); cx.scale(cam.k,cam.k); cx.translate(-cam.x,-cam.y);
+  // gräs med ränder
+  cx.fillStyle='#7ccf6a'; cx.fillRect(0,0,W,H);
+  cx.fillStyle='#74c662'; for(let x=0;x<W;x+=160) cx.fillRect(x,0,80,H);
+  cx.strokeStyle='#8a6a3f'; cx.lineWidth=6; cx.setLineDash([]); cx.strokeRect(3,3,W-6,H-6);
+  for(const d of TR.deco){ cx.fillStyle=d.c; cx.beginPath(); cx.arc(d.x,d.y,4,0,7); cx.fill(); }
+  // vägen
+  cx.lineJoin='round'; cx.lineCap='round';
+  path(cx,P); cx.strokeStyle='#ffffff'; cx.lineWidth=B+22; cx.stroke();
+  cx.setLineDash([22,22]); cx.strokeStyle='#e8392b'; cx.stroke(); cx.setLineDash([]);
+  cx.strokeStyle='#5d6a75'; cx.lineWidth=B; cx.stroke();
+  cx.setLineDash([26,30]); cx.strokeStyle='rgba(255,255,255,.55)'; cx.lineWidth=4; cx.stroke(); cx.setLineDash([]);
+  // pilar som visar åt vilket håll man kör
+  cx.strokeStyle='rgba(255,255,255,.35)'; cx.lineWidth=7;
+  for(let i=40;i<TR.N-20;i+=45){
+    const p=P[i], t=TR.tan[i], nx=-t[1], ny=t[0], s=B*.18;
+    cx.beginPath(); cx.moveTo(p[0]-t[0]*s+nx*s,p[1]-t[1]*s+ny*s); cx.lineTo(p[0]+t[0]*s*.4,p[1]+t[1]*s*.4); cx.lineTo(p[0]-t[0]*s-nx*s,p[1]-t[1]*s-ny*s); cx.stroke();
+  }
+  // mållinje (rutig)
+  { const p=P[0], t=TR.tan[0], nx=-t[1], ny=t[0], sq=B/10;
+    for(let r=0;r<2;r++) for(let c=0;c<10;c++){
+      cx.fillStyle=(r+c)%2?'#12324a':'#ffffff';
+      const ox=p[0]+nx*(-B/2+c*sq)+t[0]*(r*sq), oy=p[1]+ny*(-B/2+c*sq)+t[1]*(r*sq);
+      cx.beginPath(); cx.moveTo(ox,oy); cx.lineTo(ox+nx*sq,oy+ny*sq); cx.lineTo(ox+nx*sq+t[0]*sq,oy+ny*sq+t[1]*sq); cx.lineTo(ox+t[0]*sq,oy+t[1]*sq); cx.closePath(); cx.fill();
+    }
+  }
+  // spöke (ditt bästa varv)
+  if(ghost&&state==='race'){
+    const lt=race.t-race.lapStart; let j=0; while(j<ghost.length-1&&ghost[j+1][0]<lt) j++;
+    if(lt<=ghost[ghost.length-1][0]+.5){
+      const a=ghost[j], b=ghost[Math.min(j+1,ghost.length-1)], f=b[0]>a[0]?Math.min(1,(lt-a[0])/(b[0]-a[0])):0;
+      let da=b[3]-a[3]; if(da>Math.PI) da-=2*Math.PI; if(da<-Math.PI) da+=2*Math.PI;
+      drawCar(a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f,a[3]+da*f,'#ffffff',.38);
+    }
+  }
+  // bilen
+  const shake=car.bump>0?Math.sin(car.bump*60)*2:0;
+  drawCar(car.x+shake,car.y,car.a,COLORS[colorIdx][0],1);
+  // träd ovanpå
+  for(const t of TR.trees){
+    cx.fillStyle='rgba(0,0,0,.18)'; cx.beginPath(); cx.arc(t.x+6,t.y+8,t.r,0,7); cx.fill();
+    cx.fillStyle=t.shade<.5?'#2f8f3e':'#3a9e48'; cx.beginPath(); cx.arc(t.x,t.y,t.r,0,7); cx.fill();
+    cx.fillStyle='rgba(255,255,255,.15)'; cx.beginPath(); cx.arc(t.x-t.r*.3,t.y-t.r*.3,t.r*.45,0,7); cx.fill();
+  }
+  cx.restore();
+  drawMini();
+}
+function drawMini(){
+  const mw=Math.min(150,cw*.28), k=mw/W, mh=H*k, x0=cw-mw-12, y0=ch-mh-12;
+  cx.fillStyle='rgba(255,255,255,.75)'; cx.strokeStyle='#2b5d82'; cx.lineWidth=2;
+  cx.beginPath(); cx.roundRect?cx.roundRect(x0-4,y0-4,mw+8,mh+8,10):cx.rect(x0-4,y0-4,mw+8,mh+8); cx.fill(); cx.stroke();
+  cx.save(); cx.translate(x0,y0); cx.scale(k,k);
+  path(cx,TR.pts); cx.strokeStyle='#5d6a75'; cx.lineWidth=Math.max(TRACKS[cur].b*.6,30); cx.stroke();
+  cx.fillStyle=COLORS[colorIdx][0]; cx.strokeStyle='#12324a'; cx.lineWidth=12;
+  cx.beginPath(); cx.arc(car.x,car.y,40,0,7); cx.fill(); cx.stroke();
+  cx.restore();
+}
+
+/* ---------- HUD ---------- */
+function fmt(s){ if(s==null) return '–'; const m=Math.floor(s/60), r=s-m*60; const t=r.toFixed(1).replace('.',','); return m?m+':'+(r<10?'0':'')+t:t+' s'; }
+let hudCache='';
+function updateHud(){
+  const T=TRACKS[cur], b=saved.best[T.id];
+  const lap=race?Math.min(race.lap,LAPS):1, t=race?race.t:0;
+  const best=Math.min(race&&race.laps.length?Math.min(...race.laps):1e9, b&&b.varv?b.varv:1e9);
+  const s='Varv '+lap+'/'+LAPS+'|'+fmt(t)+'|'+(best<1e9?fmt(best):'–');
+  if(s===hudCache) return; hudCache=s;
+  const [a,c,d]=s.split('|'); $('hlap').textContent=a; $('htime').textContent=c;
+  $('hbest').innerHTML='<small>Bästa varv</small> '+d;
+}
+function updateBig(dt){
+  const el=$('big'); let txt='', cls='big';
+  if(state==='count'){ txt=String(Math.max(1,Math.ceil(count))); }
+  else if(msgT>0){ msgT-=dt; txt=msgText; if(msgCls) cls+=' '+msgCls; }
+  else if(state==='race'&&wrongT>.8){ txt='Fel håll! Vänd!'; cls+=' warn'; }
+  else if(state==='race'&&!car.on&&Math.abs(car.v)<CAR.grass+5&&race.t>2){ txt='Tillbaka till vägen!'; cls+=' warn'; }
+  if(el.textContent!==txt) el.textContent=txt;
+  if(el.className!==cls) el.className=cls;
+}
+function renderLevels(){
+  const nav=$('levels'); nav.textContent='';
+  TRACKS.forEach((T,i)=>{
+    const b=document.createElement('button'); b.type='button'; b.className='lvl';
+    const s=saved.best[T.id]?saved.best[T.id].stars:0;
+    b.innerHTML=(i+1)+'. '+T.namn+'<em>'+T.niva+'</em><span>'+'★'.repeat(s)+'</span>';
+    b.setAttribute('aria-label','Bana '+(i+1)+', '+T.namn+', '+T.niva+(s?', '+s+' stjärnor':''));
+    if(i===cur) b.setAttribute('aria-current','true');
+    b.onclick=()=>{ loadTrack(i); };
+    nav.appendChild(b);
+  });
+}
+
+/* ---------- Huvudloop ---------- */
+let last=performance.now(), acc=0;
+function frame(now){
+  let dt=Math.min(.05,(now-last)/1000); last=now; acc+=dt;
+  const h=1/120; while(acc>=h){ step(h); acc-=h; }
+  const tg=camTarget(), f=Math.min(1,dt*5);
+  cam.x+=(tg.x-cam.x)*f; cam.y+=(tg.y-cam.y)*f; cam.k=tg.k;
+  engineSet(car.v,state==='race'||state==='count');
+  draw(); updateHud(); updateBig(dt);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Kontroller ---------- */
+const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'up',KeyS:'down',KeyA:'left',KeyD:'right'};
+addEventListener('keydown',e=>{
+  const k=KEYMAP[e.code];
+  if(k){ keys[k]=true; e.preventDefault(); if(state==='intro'&&k==='up') startCountdown(); }
+  else if((e.code==='Space'||e.code==='Enter')&&!$('cardw').hidden&&document.activeElement.tagName!=='BUTTON'){ e.preventDefault(); $('cbtns').querySelector('button').click(); }
+  else if(e.code==='Space') e.preventDefault();
+});
+addEventListener('keyup',e=>{ const k=KEYMAP[e.code]; if(k){ keys[k]=false; e.preventDefault(); } });
+addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; });
+cv.tabIndex=0;
+
+const pad=$('pad');
+for(const b of pad.querySelectorAll('.pb')){
+  const k=b.dataset.k;
+  const on=e=>{ e.preventDefault(); keys[k]=true; b.classList.add('down'); audio(); if(state==='intro'&&k==='up') startCountdown(); };
+  const off=e=>{ keys[k]=false; b.classList.remove('down'); };
+  b.addEventListener('pointerdown',on); b.addEventListener('pointerup',off);
+  b.addEventListener('pointercancel',off); b.addEventListener('pointerleave',off);
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+}
+function showPad(){ pad.classList.add('on'); $('help').textContent='Tryck på den gröna pilen för att gasa, pil ner för att bromsa och vänster och höger för att svänga. Kör tre varv så fort du kan!'; }
+if(matchMedia('(pointer:coarse)').matches) showPad();
+addEventListener('touchstart',showPad,{once:true,passive:true});
+
+// färg på bilen
+COLORS.forEach(([c,n],i)=>{
+  const b=document.createElement('button'); b.type='button'; b.className='sw'; b.style.background=c;
+  b.setAttribute('aria-label',n+' bil'); b.setAttribute('aria-pressed',i===colorIdx);
+  b.onclick=()=>{ colorIdx=i; saved.color=i; persist(); document.querySelectorAll('.sw').forEach((x,j)=>x.setAttribute('aria-pressed',j===i)); };
+  $('colors').appendChild(b);
+});
+const autoBtn=$('auto');
+autoBtn.setAttribute('aria-pressed',autoGas);
+autoBtn.onclick=()=>{ autoGas=!autoGas; saved.auto=autoGas; persist(); autoBtn.setAttribute('aria-pressed',autoGas); };
+
+const sndBtn=$('snd');
+function sndUi(){ sndBtn.setAttribute('aria-pressed',sound); sndBtn.textContent=sound?'Ljud på':'Ljud av'; }
+sndUi();
+sndBtn.onclick=()=>{ sound=!sound; saved.sound=sound; persist(); sndUi(); if(!sound) engineSet(0,false); };
+const sp=$('speak');
+if(!('speechSynthesis' in window)) sp.hidden=true;
+sp.onclick=()=>{
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance('Kör runt banan '+LAPS+' gånger så fort du kan. Pil upp gasar, pil ner bromsar, och vänster och höger svänger. Håll dig på vägen, i gräset går det långsamt. Följ pilarna på vägen.');
+    u.lang='sv-SE'; u.rate=.95; speechSynthesis.speak(u);
+  }catch(e){}
+};
+if(window.Spelhornan&&Spelhornan.knapp) try{ Spelhornan.knapp(document.querySelector('.tools')); }catch(e){}
+
+new ResizeObserver(()=>{ resize(); camSnap(); }).observe(cv);
+resize();
+loadTrack(cur);
+requestAnimationFrame(frame);
+// För test: window.Bilbanan ger åtkomst till spelets tillstånd.
+window.Bilbanan={keys,get car(){return car;},get race(){return race;},get state(){return state;},get TR(){return TR;},TRACKS,loadTrack,start:startCountdown,step,CAR};
+</script>
+</body>
+</html>
