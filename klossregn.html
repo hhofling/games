@@ -133,7 +133,8 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
   </div>
 </div>
 
-<script src="spelhornan.js" onerror="this.remove()"></script>
+<script src="spelhornan.js"></script>
+<script>if(window.Spelhornan)Spelhornan.knapp(document.querySelector('.tools'));</script>
 <script>
 (function(){
 'use strict';
@@ -144,9 +145,9 @@ const nx=$('next'),nctx=nx.getContext('2d');
 const C=30; // cellstorlek i canvas-pixlar (300x600)
 const KEY='klossregn-v1';
 const DIFF=[
-  {namn:'Lätt', start:1, bas:1000},
-  {namn:'Medel',start:3, bas:800},
-  {namn:'Svår', start:6, bas:700}
+  {id:'easy',  namn:'Lätt', start:1, bas:1000},
+  {id:'medium',namn:'Medel',start:3, bas:800},
+  {id:'hard',  namn:'Svår', start:6, bas:700}
 ];
 
 /* Klossarna: egna färger och namn. Varje form är en lista med rutor i en 4x4-ruta. */
@@ -168,7 +169,7 @@ function rotateCells(cells,type,dir){
 }
 
 let grid,cur,nextType,bag=[],score,lines,level,diff=0,state='menu',dropTimer=0,lastT=0;
-let lockTimer=0,lockMoves=0,flash=null,softDrop=false,sound=true,best=0,effects=[];
+let overAt=0,lockTimer=0,lockMoves=0,flash=null,softDrop=false,sound=true,best=0,effects=[];
 
 let saved={};
 try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
@@ -314,7 +315,7 @@ function gameOver(){
   // Krok för den gemensamma topplistan (spelhornan.js), om den finns.
   try{
     if(window.Spelhornan&&typeof Spelhornan.rapportera==='function'&&score>0){
-      Spelhornan.rapportera('klossregn',DIFF[diff].namn,{poang:score});
+      Spelhornan.rapportera('klossregn',DIFF[diff].id,{poang:score,namn:DIFF[diff].namn});
     }
   }catch(e){}
   $('ovTitle').textContent='Slut på plats!';
@@ -324,7 +325,8 @@ function gameOver(){
   $('start').textContent='Spela igen';
   $('overlay').hidden=false;$('pause').disabled=true;
   say('');updateHud();
-  $('start').focus();
+  overAt=performance.now();
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
 }
 
 function togglePause(){
@@ -424,7 +426,8 @@ function loop(t){
 /* Tangentbord */
 document.addEventListener('keydown',e=>{
   if(state==='menu'||state==='over'){
-    if((e.key==='Enter'||e.key===' ')&&document.activeElement===document.body){start();e.preventDefault();}
+    // Vänta en stund efter förlust så att ett sista tryck på mellanslag inte startar om direkt.
+    if((e.key==='Enter'||e.key===' ')&&document.activeElement===document.body&&performance.now()-overAt>1200){start();e.preventDefault();}
     return;
   }
   const k=e.key;
