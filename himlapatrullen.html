@@ -83,6 +83,9 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted); tex
 #rubrik{position:absolute; left:50%; top:22%; transform:translateX(-50%); font-size:2rem; font-weight:700; color:#fff; text-shadow:0 2px 0 var(--edge),0 0 8px rgba(18,50,74,.6); text-align:center; transition:opacity .4s; white-space:nowrap}
 #varning{position:absolute; left:50%; top:34%; transform:translateX(-50%); font-size:1.3rem; font-weight:700; color:#fff; background:var(--bad); border:3px solid #7d1f0e; border-radius:14px; padding:4px 14px}
 #varning[hidden]{display:none}
+#info{position:absolute; left:50%; bottom:max(10px,env(safe-area-inset-bottom)); transform:translateX(-50%); white-space:nowrap; font-size:.95rem}
+#hjalpTxt{position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 48px); transform:translateX(-50%); width:max-content; max-width:min(520px,60vw); text-align:center; background:#fff4d6; border:3px solid var(--gold); border-radius:14px; padding:4px 12px; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+#hjalpTxt[hidden]{display:none}
 #trafflash{position:absolute; inset:0; box-shadow:inset 0 0 90px rgba(217,68,43,.0); transition:box-shadow .25s}
 
 /* ---------- touch ---------- */
@@ -92,7 +95,12 @@ body.touch #touch{display:block}
 #spak b{position:absolute; left:50%; top:50%; width:54px; height:54px; margin:-27px; border-radius:50%; background:rgba(255,255,255,.9); border:3px solid var(--edge)}
 .tk{position:absolute; border-radius:50%; border:4px solid var(--edge); background:rgba(255,255,255,.85); font-weight:700; box-shadow:0 4px 0 var(--shadow); display:grid; place-items:center; text-align:center; line-height:1.1}
 #tSkjut{width:100px; height:100px; right:max(24px,calc(env(safe-area-inset-right) + 16px)); bottom:max(26px,env(safe-area-inset-bottom)); background:rgba(255,122,61,.9); color:#2a1200; font-size:1.05rem}
-#tTurbo{width:72px; height:72px; right:max(140px,calc(env(safe-area-inset-right) + 132px)); bottom:max(40px,env(safe-area-inset-bottom)); font-size:.85rem}
+#tBomb{width:76px; height:76px; right:max(140px,calc(env(safe-area-inset-right) + 132px)); bottom:max(34px,env(safe-area-inset-bottom)); background:rgba(255,194,26,.92); font-size:.95rem}
+#tHjul{width:64px; height:64px; right:max(150px,calc(env(safe-area-inset-right) + 142px)); bottom:126px; font-size:.85rem}
+#tHjul.ute{background:#bff0cf}
+#tGas{position:absolute; right:max(36px,calc(env(safe-area-inset-right) + 28px)); bottom:150px; width:62px; height:clamp(90px,calc(100vh - 270px),150px); border-radius:16px; border:4px solid var(--edge); background:rgba(255,255,255,.85); box-shadow:0 4px 0 var(--shadow)}
+#tGas b{position:absolute; left:4px; right:4px; bottom:4px; border-radius:10px; background:var(--accent)}
+#tGas span{position:absolute; left:0; right:0; top:4px; text-align:center; font-weight:700; font-size:.85rem; z-index:1}
 .tk.pa{transform:scale(.93); filter:brightness(.9)}
 #tHint{position:absolute; left:18px; bottom:120px; color:#fff; font-weight:600; text-shadow:0 1px 2px #12324a; font-size:.95rem; max-width:40vw}
 #fel{position:fixed; inset:auto 16px 16px; z-index:50; background:#fff; border:3px solid var(--bad); border-radius:14px; padding:10px 14px}
@@ -102,9 +110,11 @@ body.touch #touch{display:block}
   #rubrik{font-size:1.5rem}
   #karta{width:110px; height:110px}
 }
-body.touch #karta{bottom:auto; top:calc(max(10px,env(safe-area-inset-top)) + 62px); width:110px; height:110px}
+body.touch #karta{right:auto; left:max(10px,env(safe-area-inset-left)); bottom:auto; top:calc(max(10px,env(safe-area-inset-top)) + 76px); width:100px; height:100px}
+body.touch #info{bottom:auto; top:max(10px,env(safe-area-inset-top))}
+body.touch #hjalpTxt{bottom:auto; top:calc(max(10px,env(safe-area-inset-top)) + 46px)}
 body.touch .matare{width:min(200px,34vw)}
-body.touch #tHint{bottom:auto; top:45%}
+body.touch #tHint{bottom:auto; top:58%; left:130px}
 </style>
 </head>
 <body>
@@ -128,15 +138,19 @@ body.touch #tHint{bottom:auto; top:45%}
     <div class="bar" id="barSkepp" hidden>Måsen <i><b id="skeppB"></b></i></div>
     <div class="bar" id="barMal" hidden><span id="malNamn">Jätteplanet</span> <i><b id="malB" style="background:var(--bad)"></b></i></div>
     <div class="bar">Ditt plan <i><b id="halsaB"></b></i></div>
-    <div class="bar">Turbo <i><b id="turboB" style="background:var(--accent)"></b></i></div>
+    <div class="bar">Gas <i><b id="gasB" style="background:var(--accent)"></b></i></div>
   </div>
+  <div class="chip" id="info"></div>
+  <div id="hjalpTxt" hidden></div>
   <canvas id="karta" width="280" height="280" aria-hidden="true"></canvas>
 </div>
 
 <div id="touch" aria-hidden="true">
   <div id="spak"><b></b></div>
   <div id="tHint">Dra med tummen här för att styra</div>
-  <div class="tk" id="tTurbo">Turbo</div>
+  <div id="tGas"><span>Gas</span><b></b></div>
+  <div class="tk" id="tHjul">Hjul</div>
+  <div class="tk" id="tBomb">Bomb</div>
   <div class="tk" id="tSkjut">Skjut</div>
 </div>
 
@@ -153,10 +167,11 @@ body.touch #tHint{bottom:auto; top:45%}
     </header>
     <div class="grid" id="lista"></div>
     <div class="kort hjalp">
-      <b>Så styr du:</b> piltangenterna eller W A S D styr planet, <b>mellanslag</b> skjuter, <b>Shift</b> ger turbo och <b>P</b> pausar.
-      På mobil och surfplatta drar du med tummen till vänster och trycker på <b>Skjut</b> till höger.
+      <b>Så styr du:</b> <b>piltangenterna</b> styr planet, <b>W</b> ger mer gas och <b>S</b> mindre, <b>mellanslag</b> skjuter, <b>B</b> släpper en bomb, <b>G</b> fäller ut och in hjulen och <b>P</b> pausar.
+      På mobil och surfplatta styr du med tummen till vänster och har gasreglaget och knapparna till höger.<br>
+      <b>Så landar du:</b> fäll ut hjulen, dra ner gasen och sjunk lugnt ner mot en landningsbana. När planet står still på banan lagas det och du får nya bomber.
       Piraterna har fallskärm, så när ett plan går poff hoppar piloten ut och seglar ner i vattnet.
-      <br><label><input type="checkbox" id="omvand"> Flygarstyrning (pil upp = dyk, pil ner = stig)</label>
+      <br><label><input type="checkbox" id="omvand"> Flygarstyrning (pil upp eller tummen uppåt = dyk)</label>
     </div>
   </div>
 </div>
@@ -229,16 +244,32 @@ function sparaNu(){ try{ localStorage.setItem(SPAR,JSON.stringify(spar)); }catch
 /* ================= Uppdragen =================
    typ styr vad som räknas som klart. Alla positioner är i meter ungefär: planet flyger ca 46 m/s. */
 const HAMN={x:620, z:0};
+/* Landningsbanor. rot är banans riktning (samma som planets h), len och bred i meter, h = höjden på banan. */
+const ZONER={
+  hemmabasen:{namn:'Hemmabasen', x:0, z:600, rot:0, len:180, bred:22, h:2, typ:'falt'},
+  fyron:{namn:'Fyröns flygfält', x:-760, z:-520, rot:Math.PI/2, len:160, bred:22, h:2, typ:'falt'},
+  albatrossen:{namn:'Albatrossen', x:560, z:-640, rot:.6, len:100, bred:22, h:9, typ:'skepp'}
+};
+const PIRATON={x:-500, z:380, r:110};
 const UPPDRAG=[
   {id:'flygskolan', namn:'Flygskolan', ikon:'🎯', par:75,
    text:'Välkommen till Himlapatrullen! Först ska du lära dig flyga. Flyg genom alla gula ringar. Ingen skjuter på dig här.',
    mal:'Flyg genom 8 ringar.', typ:'ringar',
    start:{x:0,y:60,z:320,h:0},
    ringar:[[0,62,170],[-20,75,20],[-110,95,-110],[-250,90,-160],[-380,70,-90],[-420,55,60],[-330,70,190],[-170,80,250]]},
+  {id:'postflyget', namn:'Postflyget', ikon:'✉️', par:110,
+   text:'Brevlådorna på Fyrön är tomma! Starta från Hemmabasen med posten. Ge gas med W och dra upp med pil upp när du har fått fart. Flyg till Fyröns flygfält, fäll ut hjulen med G och landa.',
+   mal:'Starta, flyg till Fyrön och landa där.', typ:'flyg', landa:'fyron',
+   start:{zon:'hemmabasen'}},
   {id:'patrull', namn:'Första patrullen', ikon:'✈️', par:110, sikte:.6, skada:4,
    text:'Fyra luftpirater flyger runt över öarna. Jaga dem och skjut tills de går poff! Följ de röda pilarna på skärmen.',
    mal:'Skjut ner 4 piratplan.', typ:'fiender', vagor:[4],
    start:{x:0,y:80,z:300,h:0}},
+  {id:'piratfortet', namn:'Piratfortet', ikon:'💣', par:110, bomber:8,
+   text:'Piraterna har byggt tomma utkikstorn och båtar vid Piratön. Släpp bomber med B och träffa alla fyra målen. Den orange ringen på marken visar var bomben kommer att landa.',
+   mal:'Bomba 2 piratorn och 2 piratbåtar.', typ:'bomba',
+   markmal:[['torn',-530,340],['torn',-450,430],['bat',-360,250],['bat',-640,500]],
+   start:{x:-60,y:90,z:420,h:1.2}},
   {id:'ballonger', namn:'Ballongjakten', ikon:'🎈', par:120, tid:200, sikte:.5, skada:4,
    text:'Piraterna spanar efter skatter från stora ballonger. Skjut sönder alla åtta ballonger innan tiden tar slut. Två piratplan vaktar.',
    mal:'Spräck 8 ballonger på 200 sekunder.', typ:'ballonger', vagor:[2],
@@ -247,10 +278,19 @@ const UPPDRAG=[
    text:'Fraktbåten Måsen är på väg till hamnen med mat till ön. Piraterna vill skjuta på den. Skydda båten tills den är framme i hamnen!',
    mal:'Håll Måsen hel hela vägen till hamnen.', typ:'skepp', vagor:[3,3,3,3],
    start:{x:-560,y:70,z:200,h:0}},
+  {id:'albatrossen', namn:'Landa på Albatrossen', ikon:'⚓', par:120, sikte:.5, skada:4,
+   text:'Två pirater jagar runt hangarfartyget Albatrossen. Skjut ner dem och landa sedan på fartygets däck. Däcket är kort, så kom in långsamt med hjulen ute!',
+   mal:'Skjut ner 2 pirater och landa på Albatrossen.', typ:'fiender', vagor:[2], landa:'albatrossen',
+   start:{x:250,y:90,z:-150,h:0}},
   {id:'jatten', namn:'Jätteplanet', ikon:'🛩️', par:100, sikte:.4, skada:5,
    text:'Piraternas jätteplan flyger mot hamnen för att sno hela godislagret! Två vaktplan skyddar det. Skjut ner jätteplanet innan det kommer fram.',
    mal:'Stoppa jätteplanet innan det når hamnen.', typ:'jatte', vagor:[2,2],
    start:{x:300,y:90,z:300,h:0}},
+  {id:'raden', namn:'Stora räden', ikon:'🏴', par:190, bomber:6, sikte:.4, skada:5,
+   text:'Piraterna gömmer allt de har snott i en hangar på Piratön. Starta från Hemmabasen, bomba hangaren och de två tornen, och flyg sedan hem och landa. Tre piratplan försvarar ön.',
+   mal:'Bomba hangaren och tornen, landa sedan hemma.', typ:'bomba', vagor:[3], landa:'hemmabasen',
+   markmal:[['hangar',-500,385],['torn',-570,320],['torn',-430,440]],
+   start:{zon:'hemmabasen'}},
   {id:'storstriden', namn:'Stora luftstriden', ikon:'⭐', par:200, sikte:.35, skada:5,
    text:'Nu kommer alla luftpirater på en gång, i tre vågor. Sist kommer deras bästa pilot, Kapten Rost, i sitt guldplan. Klarar du alla?',
    mal:'Klara tre vågor och Kapten Rost.', typ:'fiender', vagor:[3,4,'ess'],
@@ -291,6 +331,44 @@ hav.rotation.x=-Math.PI/2; scene.add(hav);
 
 /* Öar */
 const OAR=[];
+function lagFalt(q){
+  // platt ö med landningsbana, hangar och torn
+  const g=new THREE.Group(), r=q.len/2+34;
+  const on=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.06,2,28),M(0x8fd47a)); on.position.y=1; g.add(on);
+  const strand=new THREE.Mesh(new THREE.CylinderGeometry(r*1.06,r*1.12,1.2,28),M(0xf3dc96)); strand.position.y=.4; g.add(strand);
+  const bana=new THREE.Group(); bana.rotation.y=q.rot; g.add(bana);
+  const asf=new THREE.Mesh(new THREE.BoxGeometry(q.bred,.3,q.len),M(0x5d6b75)); asf.position.y=2.1; bana.add(asf);
+  for(let i=-q.len/2+14;i<q.len/2-10;i+=16){ const st=new THREE.Mesh(new THREE.BoxGeometry(1,.32,7),MB(0xffffff)); st.position.set(0,2.15,i); bana.add(st); }
+  for(const e of [-1,1]) for(let k=-3;k<=3;k++){ const st=new THREE.Mesh(new THREE.BoxGeometry(1.4,.32,4),MB(0xffffff)); st.position.set(k*2.6,2.15,e*(q.len/2-4)); bana.add(st); }
+  const hangar=new THREE.Mesh(new THREE.CylinderGeometry(9,9,22,14,1,false,0,Math.PI),M(0x9aa8b4)); hangar.rotation.z=Math.PI/2; hangar.rotation.y=Math.PI/2; hangar.position.set(q.bred/2+20,2,10); bana.add(hangar);
+  const torn=new THREE.Mesh(new THREE.BoxGeometry(5,14,5),M(0xffffff)); torn.position.set(q.bred/2+16,9,-30); bana.add(torn);
+  const hytt=new THREE.Mesh(new THREE.BoxGeometry(7,4,7),M(0x58b0ff)); hytt.position.set(q.bred/2+16,18,-30); bana.add(hytt);
+  const strumpa=new THREE.Mesh(new THREE.ConeGeometry(1.2,5,8),M(0xff7a3d)); strumpa.rotation.z=Math.PI/2; strumpa.position.set(-q.bred/2-8,10,-q.len/2+20); bana.add(strumpa);
+  const stang=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,9,5),M(0xffffff)); stang.position.set(-q.bred/2-8,6,-q.len/2+22.5); bana.add(stang);
+  g.position.set(q.x,0,q.z); scene.add(g);
+  OAR.push({x:q.x,z:q.z,r,h:0,flat:true,typ:'falt'});
+}
+function lagFartyg(q){
+  const g=new THREE.Group();
+  const skrov=new THREE.Mesh(new THREE.BoxGeometry(q.bred-2,8,q.len+6),M(0x6f7f8c)); skrov.position.y=4; g.add(skrov);
+  const for_=new THREE.Mesh(new THREE.CylinderGeometry(0,(q.bred-2)/2,14,4,1),M(0x6f7f8c)); for_.rotation.x=-Math.PI/2; for_.rotation.y=Math.PI/4; for_.scale.set(1,1,.55); for_.position.set(0,4,-q.len/2-9); g.add(for_);
+  const dack=new THREE.Mesh(new THREE.BoxGeometry(q.bred,.6,q.len+8),M(0x4b5660)); dack.position.y=q.h-.1; g.add(dack);
+  for(let i=-q.len/2+8;i<q.len/2;i+=14){ const st=new THREE.Mesh(new THREE.BoxGeometry(.9,.62,6),MB(0xffffff)); st.position.set(0,q.h,i); g.add(st); }
+  const kant=new THREE.Mesh(new THREE.BoxGeometry(q.bred,.64,1.4),MB(0xffc21a)); kant.position.set(0,q.h,q.len/2-2); g.add(kant);
+  const o=new THREE.Mesh(new THREE.BoxGeometry(5,12,16),M(0x8d9ba6)); o.position.set(q.bred/2+2,q.h+6,8); g.add(o);
+  const mast=new THREE.Mesh(new THREE.CylinderGeometry(.4,.4,8,6),M(0x333333)); mast.position.set(q.bred/2+2,q.h+16,8); g.add(mast);
+  g.position.set(q.x,0,q.z); g.rotation.y=q.rot; scene.add(g);
+}
+function lagPiraton(){
+  const g=new THREE.Group(), r=PIRATON.r;
+  const on=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.06,2,24),M(0xc9b37a)); on.position.y=1; g.add(on);
+  const rr=rng(5);
+  for(let i=0;i<10;i++){ const a=rr()*Math.PI*2, d=r*(.75+rr()*.2);
+    const stam=new THREE.Mesh(new THREE.CylinderGeometry(.5,.7,7,6),M(0x8a5a2b)); stam.position.set(Math.cos(a)*d,5,Math.sin(a)*d);
+    const kron=new THREE.Mesh(new THREE.ConeGeometry(3,5,7),M(0x2f9a45)); kron.position.set(Math.cos(a)*d,10,Math.sin(a)*d); g.add(stam,kron); }
+  g.position.set(PIRATON.x,0,PIRATON.z); scene.add(g);
+  OAR.push({x:PIRATON.x,z:PIRATON.z,r,h:0,flat:true,typ:'pirat'});
+}
 function lagOn(x,z,r,h,hamn){
   const g=new THREE.Group();
   const sand=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.08,2,20),M(0xf3dc96)); sand.position.y=0.6; g.add(sand);
@@ -317,9 +395,10 @@ function lagOn(x,z,r,h,hamn){
     g.add(fyr,fyrtopp);
   }
   g.position.set(x,0,z); scene.add(g);
-  OAR.push({x,z,r,h:hamn?14:h});
+  OAR.push({x,z,r,h:hamn?14:h,typ:hamn?'hamn':'vanlig'});
 }
 lagOn(HAMN.x,HAMN.z,80,10,true);
+lagFalt(ZONER.hemmabasen); lagFalt(ZONER.fyron); lagFartyg(ZONER.albatrossen); lagPiraton();
 {
   const r=rng(42); let n=0, f=0;
   while(n<16 && f<400){
@@ -329,14 +408,22 @@ lagOn(HAMN.x,HAMN.z,80,10,true);
     if(Math.hypot(x-HAMN.x,z-HAMN.z)<220) continue;
     if(Math.abs(z-40)<60 && x<560) continue;          // båtens väg ska vara fri
     if(OAR.some(o=>Math.hypot(o.x-x,o.z-z)<o.r+rad+60)) continue;
+    if(Math.hypot(x-ZONER.albatrossen.x,z-ZONER.albatrossen.z)<rad+140) continue;
     lagOn(x,z,rad,12+r()*20,false); n++;
   }
 }
 function markHojd(x,z){ // höjden på marken under en punkt (0 = hav)
   let h=0;
-  for(const o of OAR){ const d=Math.hypot(x-o.x,z-o.z); if(d<o.r) h=Math.max(h,1.6+o.h*(1-d/(o.r*.85))); }
+  for(const o of OAR){ const d=Math.hypot(x-o.x,z-o.z); if(d<o.r) h=Math.max(h,o.flat?2:1.6+o.h*(1-d/(o.r*.85))); }
+  const f=ZONER.albatrossen; if(iZon(f,x,z,1)) h=Math.max(h,f.h);
   return h;
 }
+function iZon(q,x,z,marg){
+  const dx=x-q.x, dz=z-q.z, s=Math.sin(q.rot), c=Math.cos(q.rot);
+  const fram=-dx*s-dz*c, sida=dx*c-dz*s;
+  return Math.abs(fram)<q.len/2+(marg||0)&&Math.abs(sida)<q.bred/2+(marg||0);
+}
+function zonVid(x,z,marg){ for(const k in ZONER) if(iZon(ZONER[k],x,z,marg)) return ZONER[k]; return null; }
 
 /* Moln */
 {
@@ -369,8 +456,17 @@ function lagPlan(kropp,vinge,detalj,skala){
   const huv=new THREE.Mesh(new THREE.SphereGeometry(.75,10,8),new THREE.MeshLambertMaterial({color:0x9fe0ff, transparent:true, opacity:.85}));
   huv.scale.set(1,.9,1.7); huv.position.set(0,.75,-.3); p.add(huv);
   const pilot=new THREE.Mesh(new THREE.SphereGeometry(.38,8,6),M(0x7a4a22)); pilot.position.set(0,.85,-.2); p.add(pilot);
+  // landningsställ (fälls ut och in genom att skalas i höjdled)
+  const hjul=new THREE.Group(); hjul.position.y=-.5;
+  const hjulGeo=new THREE.CylinderGeometry(.55,.55,.4,12), svart=M(0x222222), stagM=M(0xbfc7cf);
+  for(const sx of [-1.7,1.7]){
+    const stag=new THREE.Mesh(new THREE.BoxGeometry(.22,1.3,.22),stagM); stag.position.set(sx,-.65,-1.3); hjul.add(stag);
+    const h=new THREE.Mesh(hjulGeo,svart); h.rotation.z=Math.PI/2; h.position.set(sx,-1.3,-1.3); hjul.add(h);
+  }
+  const sp=new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,.2,8),svart); sp.rotation.z=Math.PI/2; sp.position.set(0,-.35,3.4); hjul.add(sp);
+  hjul.visible=false; hjul.scale.y=.01; p.add(hjul);
   g.add(p); g.scale.setScalar(skala||1);
-  g.userData.prop=prop;
+  g.userData.prop=prop; g.userData.hjul=hjul;
   return g;
 }
 function lagJatte(){
@@ -412,6 +508,28 @@ function lagRing(){
   return g;
 }
 
+function lagMal(typ){
+  const g=new THREE.Group();
+  if(typ==='torn'){
+    for(const [x,z] of [[-3,-3],[3,-3],[-3,3],[3,3]]){ const b=new THREE.Mesh(new THREE.BoxGeometry(.8,12,.8),M(0x8a5a2b)); b.position.set(x,6,z); g.add(b); }
+    const golv=new THREE.Mesh(new THREE.BoxGeometry(8,1,8),M(0xa9733a)); golv.position.y=12; g.add(golv);
+    const hus=new THREE.Mesh(new THREE.BoxGeometry(6,4,6),M(0xc58c4a)); hus.position.y=14.5; g.add(hus);
+    const tak=new THREE.Mesh(new THREE.ConeGeometry(5,3,4),M(0x5a2a2a)); tak.position.y=18; tak.rotation.y=Math.PI/4; g.add(tak);
+    const st=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,6,5),M(0x333333)); st.position.y=22; g.add(st);
+    const fl=new THREE.Mesh(new THREE.BoxGeometry(3.4,2,.1),M(0x1d1d1d)); fl.position.set(1.7,24,0); g.add(fl);
+  }else if(typ==='bat'){
+    const skrov=new THREE.Mesh(new THREE.BoxGeometry(6,3,16),M(0x6b4220)); skrov.position.y=1; g.add(skrov);
+    const for_=new THREE.Mesh(new THREE.ConeGeometry(3,5,4),M(0x6b4220)); for_.rotation.x=-Math.PI/2; for_.rotation.y=Math.PI/4; for_.scale.set(1,1,.6); for_.position.set(0,1,-10); g.add(for_);
+    const mast=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,12,6),M(0x3a2a1a)); mast.position.y=8; g.add(mast);
+    const segel=new THREE.Mesh(new THREE.BoxGeometry(.2,7,8),M(0x1d1d1d)); segel.position.set(0,8.5,1); g.add(segel);
+    const prick=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,.3,12),MB(0xffffff)); prick.rotation.z=Math.PI/2; prick.position.set(.2,9,1); g.add(prick);
+  }else{ // hangar
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(11,11,30,16,1,false,0,Math.PI),M(0x8e3b2b)); h.rotation.z=Math.PI/2; h.rotation.y=Math.PI/2; g.add(h);
+    const dorr=new THREE.Mesh(new THREE.BoxGeometry(12,8,.4),M(0x3a2a1a)); dorr.position.set(0,4,-15.1); g.add(dorr);
+    const skylt=new THREE.Mesh(new THREE.BoxGeometry(8,2.4,.3),M(0x1d1d1d)); skylt.position.set(0,12.5,-14.6); g.add(skylt);
+  }
+  return g;
+}
 /* "POFF!"-text som sprite */
 const poffTex=(()=>{
   const c=document.createElement('canvas'); c.width=256; c.height=128; const x=c.getContext('2d');
@@ -421,14 +539,16 @@ const poffTex=(()=>{
 })();
 
 /* ================= Spelets tillstånd ================= */
-const spelare={obj:lagPlan(0x3d8fe0,0xffc21a,0xffffff,1), x:0,y:60,z:300, h:0,p:0,b:0, fart:46, halsa:100, turbo:100, kyla:0, kanon:0, skakning:0};
+const spelare={obj:lagPlan(0x3d8fe0,0xffc21a,0xffffff,1), x:0,y:60,z:300, h:0,p:0,b:0, fart:46, halsa:100, gas:.55, hjul:false, hjulGrad:0, mark:false, zon:null, vy:0,
+  bomber:4, maxBomber:4, bombKyla:0, lagTid:0, kyla:0, kanon:0, skakning:0};
 scene.add(spelare.obj);
 let lage='meny';         // meny | genomgang | spel | paus | slut
 let U=null;              // aktuellt uppdrag
 let tid=0, poang=0, nedskjutna=0, vag=0, vagPaus=0, avslutasOm=0, resultat=null;
-const fiender=[], kulor=[], fkulor=[], effekter=[], ballonger=[], ringar=[];
+const fiender=[], kulor=[], fkulor=[], effekter=[], ballonger=[], ringar=[], bomber=[], markmal=[];
+let steg=0, klarText='';
 let skepp=null, jatte=null, nastaRing=0;
-const inp={x:0,y:0,skjut:false,turbo:false};
+const inp={x:0,y:0,skjut:false,bomb:false,gas:null};
 const tangent={};
 
 /* ================= Ljud ================= */
@@ -506,15 +626,24 @@ if(window.Spelhornan&&typeof Spelhornan.knapp==='function'){ try{ Spelhornan.kna
 
 /* ================= Starta ett uppdrag ================= */
 function rensa(){
-  for(const a of [fiender,kulor,fkulor,effekter,ballonger,ringar]){ for(const o of a) scene.remove(o.obj); a.length=0; }
+  for(const a of [fiender,kulor,fkulor,effekter,ballonger,ringar,bomber,markmal]){ for(const o of a) scene.remove(o.obj); a.length=0; }
   if(skepp){ scene.remove(skepp.obj); skepp=null; }
   if(jatte){ scene.remove(jatte.obj); jatte=null; }
 }
 function startaUppdrag(){
   rensa();
   const s=U.start;
-  Object.assign(spelare,{x:s.x,y:s.y,z:s.z,h:s.h,p:0,b:0,halsa:100,turbo:100,kyla:0,skakning:0});
+  Object.assign(spelare,{halsa:100,kyla:0,skakning:0,gas:.55,fart:46,hjul:false,hjulGrad:0,mark:false,zon:null,vy:0,
+    bomber:U.bomber||4,maxBomber:U.bomber||4,bombKyla:0,lagTid:0});
+  if(s.zon) placeraPaZon(ZONER[s.zon]);
+  else Object.assign(spelare,{x:s.x,y:s.y,z:s.z,h:s.h,p:0,b:0});
   spelare.obj.visible=true;
+  spelare.lyft=-99; steg=U.typ==='flyg'?1:0; klarText=U.typ==='flyg'?'Posten kom fram till Fyrön och alla får brev!':'';
+  for(const [typ,x,z] of (U.markmal||[])){
+    const o=lagMal(typ), y=typ==='bat'?0:markHojd(x,z);
+    o.position.set(x,y,z); o.rotation.y=rnd()*Math.PI*2; scene.add(o);
+    markmal.push({obj:o,typ,x,y:y+(typ==='bat'?3:typ==='torn'?12:8),z,bas:y,liv:typ==='hangar'?2:1,fas:rnd()*6});
+  }
   tid=0; poang=0; nedskjutna=0; vag=0; vagPaus=2; avslutasOm=0; resultat=null; nastaRing=0;
   if(U.typ==='ringar'){
     U.ringar.forEach((r,i)=>{
@@ -526,7 +655,7 @@ function startaUppdrag(){
     });
   }
   if(U.typ==='ballonger'){
-    const kand=OAR.slice(1).sort((a,b)=>Math.hypot(a.x,a.z-300)-Math.hypot(b.x,b.z-300)).slice(0,8);
+    const kand=OAR.filter(o=>o.typ==='vanlig').sort((a,b)=>Math.hypot(a.x,a.z-300)-Math.hypot(b.x,b.z-300)).slice(0,8);
     kand.forEach((o,i)=>{
       const b=lagBallong(); const y=55+(i%3)*18;
       b.position.set(o.x,y,o.z); scene.add(b);
@@ -548,6 +677,11 @@ function startaUppdrag(){
   $('barMal').hidden=U.typ!=='jatte';
   if(U.typ==='jatte') $('malNamn').textContent='Jätteplanet';
   lage='spel'; visa('spel'); visaRubrik(U.namn,2.2);
+  framat(spelare,V); kamPos.set(spelare.x-V.x*20,spelare.y+6.5,spelare.z-V.z*20);
+}
+function placeraPaZon(q){
+  const a=-q.len/2+12, s=spelare;
+  Object.assign(s,{x:q.x-Math.sin(q.rot)*a, z:q.z-Math.cos(q.rot)*a, y:q.h+1.9, h:q.rot, p:0, b:0, gas:0, fart:0, vy:0, hjul:true, hjulGrad:1, mark:true, zon:q});
 }
 
 function nyFiende(typ,roll){
@@ -602,11 +736,29 @@ function uppdateraSpelare(dt){
   const s=spelare;
   let ix=inp.x, iy=inp.y;
   if(tangent.ArrowLeft||tangent.KeyA) ix-=1; if(tangent.ArrowRight||tangent.KeyD) ix+=1;
-  if(tangent.ArrowUp||tangent.KeyW) iy+=1; if(tangent.ArrowDown||tangent.KeyS) iy-=1;
+  if(tangent.ArrowUp) iy+=1; if(tangent.ArrowDown) iy-=1;
   ix=clamp(ix,-1,1); iy=clamp(iy,-1,1);
   if(spar.omvand) iy=-iy;
-  const skjut=inp.skjut||tangent.Space, turbo=(inp.turbo||tangent.ShiftLeft||tangent.ShiftRight)&&s.turbo>1;
-
+  if(tangent.KeyW) s.gas+=.7*dt; if(tangent.KeyS) s.gas-=.7*dt;
+  if(inp.gas!==null) s.gas=inp.gas;
+  s.gas=clamp(s.gas,0,1);
+  const skjut=inp.skjut||tangent.Space;
+  // landningsstället fälls ut och in mjukt
+  s.hjulGrad=lerp(s.hjulGrad,s.hjul?1:0,Math.min(1,dt*3));
+  const hj=s.obj.userData.hjul; hj.scale.y=Math.max(.01,s.hjulGrad); hj.visible=s.hjulGrad>.03;
+  // farten följer gasen. Utfällda hjul bromsar lite i luften.
+  const fartMal=(s.mark?s.gas*60:14+s.gas*62)*(s.hjul&&!s.mark?.88:1);
+  const acc=s.fart<fartMal?(s.mark?10:14):(s.mark&&s.gas<.08?16:8);
+  s.fart=s.fart<fartMal?Math.min(fartMal,s.fart+acc*dt):Math.max(fartMal,s.fart-acc*dt);
+  if(s.mark) markRull(s,ix,iy,dt); else luftFlyg(s,ix,iy,dt);
+  s.kyla-=dt;
+  if(skjut&&s.kyla<=0){ s.kyla=.11; skjutSpelare(); }
+  s.bombKyla-=dt;
+  if((tangent.KeyB||inp.bomb)&&s.bombKyla<=0){ s.bombKyla=.45; slappBomb(); }
+  s.obj.userData.prop.rotation.z+=dt*(8+s.gas*70+s.fart*.5);
+  placera(s);
+}
+function luftFlyg(s,ix,iy,dt){
   // utanför spelplanen: planet vänder själv tillbaka
   const ut=Math.hypot(s.x,s.z)>1400;
   $('varning').hidden=!ut;
@@ -615,22 +767,105 @@ function uppdateraSpelare(dt){
   s.b=lerp(s.b,malB,Math.min(1,dt*3));
   s.h=wrapA(s.h+s.b*1.15*dt);
   if(Math.abs(iy)>.05) s.p+=iy*1.05*dt; else s.p=lerp(s.p,0,Math.min(1,dt*.8));
+  // för låg fart: planet tappar höjd och nosen sjunker
+  const sjunk=s.fart<26?(26-s.fart)*.9:0;
+  if(sjunk>0) s.p-=sjunk*.03*dt;
   s.p=clamp(s.p,-1,1);
   if(s.y>480) s.p=Math.min(s.p,0);
-  s.turbo=clamp(s.turbo+(turbo?-32:14)*dt,0,100);
-  s.fart=lerp(s.fart,turbo?74:46,Math.min(1,dt*2));
   framat(s,V);
-  s.x+=V.x*s.fart*dt; s.y+=V.y*s.fart*dt; s.z+=V.z*s.fart*dt;
-  // krock med hav eller ö: planet studsar upp och tar skada
-  const mark=markHojd(s.x,s.z);
-  if(s.y<mark+2.2){
-    s.y=mark+3; s.p=.55; skadaSpelare(25); poff(s.x,mark+1,s.z,.6,true);
-    visaRubrik(mark>0?'Akta ön!':'Plask! Upp igen!',1.4);
+  s.vy=V.y*s.fart-sjunk;
+  s.x+=V.x*s.fart*dt; s.y+=s.vy*dt; s.z+=V.z*s.fart*dt;
+  const mark=markHojd(s.x,s.z), hh=s.hjul?1.9:1.1;
+  if(s.y>=mark+hh) return;
+  const z=zonVid(s.x,s.z,4);
+  if(z&&mark>=z.h-.5&&s.y>z.h-1){
+    if(s.hjul&&s.vy>-9&&s.fart<46&&s.p>-.35&&s.p<.45){
+      const mjuk=s.vy>-4;
+      Object.assign(s,{mark:true,zon:z,y:z.h+1.9,p:0,vy:0,lagTid:0}); s.fart*=.85;
+      ton(220,.15,'triangle',.12); ton(330,.2,'triangle',.12,.08);
+      visaRubrik(mjuk?'Mjuk landning!':'Landat på '+z.namn+'!',1.6);
+      return;
+    }
+    const tp=document.body.classList.contains('touch');
+    const varfor=!s.hjul?'Hjulen var inne! Tryck '+(tp?'på Hjul':'G'):s.fart>=46?'För fort! Ta ner gasen':'För brant! Sjunk lugnare';
+    s.y=mark+4; s.p=.45; skadaSpelare(s.hjul?12:20); poff(s.x,mark+1,s.z,.5,true); visaRubrik(varfor,2);
+    return;
   }
-  s.kyla-=dt;
-  if(skjut&&s.kyla<=0){ s.kyla=.11; skjutSpelare(); }
-  s.obj.userData.prop.rotation.z+=dt*(40+s.fart);
-  placera(s);
+  // krock med hav eller ö: planet studsar upp och tar skada
+  s.y=mark+3; s.p=.55; skadaSpelare(25); poff(s.x,mark+1,s.z,.6,true);
+  visaRubrik(mark>5?'Akta fartyget!':mark>0?'Akta ön!':'Plask! Upp igen!',1.4);
+}
+function markRull(s,ix,iy,dt){
+  $('varning').hidden=true;
+  s.b=lerp(s.b,0,Math.min(1,dt*4)); s.p=lerp(s.p,0,Math.min(1,dt*4));
+  s.h=wrapA(s.h-ix*.8*dt*clamp(s.fart/10,.15,1));
+  s.x-=Math.sin(s.h)*s.fart*dt; s.z-=Math.cos(s.h)*s.fart*dt;
+  const z=zonVid(s.x,s.z,6);
+  if(!z){
+    poff(s.x,1,s.z,.6,true); skadaSpelare(15); visaRubrik('Plask! Du åkte av banan.',1.8);
+    placeraPaZon(s.zon||ZONER.hemmabasen); return;
+  }
+  s.zon=z; s.y=z.h+1.9; s.vy=0;
+  if((s.fart>27&&iy>.2)||s.fart>44){ s.mark=false; s.p=.2; s.lyft=tid; visaRubrik('Lyft!',1); return; }
+  // står planet still på en bana lagas det och får nya bomber
+  if(s.fart<4&&!resultat){
+    const behov=s.halsa<100||s.bomber<s.maxBomber;
+    if(behov&&s.lagTid<=0) visaRubrik('Planet lagas och får nya bomber',1.6);
+    s.lagTid+=dt;
+    s.halsa=Math.min(100,s.halsa+20*dt);
+    if(s.lagTid>.6&&s.bomber<s.maxBomber){ s.bomber++; s.lagTid=.01; }
+  }
+}
+
+/* ================= Bomber ================= */
+const bombGeo=new THREE.CylinderGeometry(.5,.5,2.2,8), bombMat=M(0x39424a), fenMat=M(0xffc21a);
+function slappBomb(){
+  const s=spelare;
+  if(s.mark||lage!=='spel'||resultat) return;
+  if(s.bomber<=0){ visaRubrik('Bomberna är slut. Landa på en bana för att få nya!',1.6); return; }
+  s.bomber--; framat(s,V);
+  const o=new THREE.Group();
+  const k=new THREE.Mesh(bombGeo,bombMat); k.rotation.x=Math.PI/2; o.add(k);
+  const f=new THREE.Mesh(new THREE.BoxGeometry(1.6,.1,.6),fenMat); f.position.z=1.1; o.add(f);
+  const f2=f.clone(); f2.rotation.z=Math.PI/2; o.add(f2);
+  const b={obj:o,x:s.x,y:s.y-1.6,z:s.z,vx:V.x*s.fart,vy:V.y*s.fart-2,vz:V.z*s.fart};
+  o.position.set(b.x,b.y,b.z); scene.add(o); bomber.push(b);
+  if(ac&&ljud){ const t=ac.currentTime, o2=ac.createOscillator(), g=ac.createGain(); o2.type='triangle'; o2.frequency.setValueAtTime(900,t); o2.frequency.exponentialRampToValueAtTime(250,t+.8); g.gain.setValueAtTime(.07,t); g.gain.exponentialRampToValueAtTime(.001,t+.8); o2.connect(g); g.connect(ac.destination); o2.start(t); o2.stop(t+.85); }
+}
+const BOMB_G=22;
+function uppdateraBomber(dt){
+  for(let i=bomber.length-1;i>=0;i--){
+    const b=bomber[i];
+    b.vy-=BOMB_G*dt; b.x+=b.vx*dt; b.y+=b.vy*dt; b.z+=b.vz*dt;
+    b.obj.position.set(b.x,b.y,b.z); b.obj.lookAt(b.x+b.vx,b.y+b.vy,b.z+b.vz);
+    const g=markHojd(b.x,b.z);
+    let traff=null;
+    for(const m of markmal) if(Math.hypot(m.x-b.x,m.z-b.z)<(m.typ==='hangar'?16:11)&&b.y<m.y+6){ traff=m; break; }
+    if(traff||b.y<=g){
+      scene.remove(b.obj); bomber.splice(i,1);
+      poff(b.x,Math.max(g,b.y)+1,b.z,1.1,true);
+      // målen nära nedslaget tar skada
+      for(const m of markmal.slice()) if(Math.hypot(m.x-b.x,m.z-b.z)<(m.typ==='hangar'?18:13)) traffaMal(m);
+    }
+  }
+}
+function traffaMal(m){
+  m.liv--;
+  if(m.liv>0){ visaRubrik('Träff! En bomb till!',1.2); ljudTraff(); return; }
+  const i=markmal.indexOf(m); if(i<0) return;
+  markmal.splice(i,1); scene.remove(m.obj);
+  poff(m.x,m.y,m.z,m.typ==='hangar'?2.2:1.5,false); poang+=m.typ==='hangar'?300:150;
+}
+// orange ring på marken som visar var en bomb skulle landa
+const siktRing=new THREE.Mesh(new THREE.RingGeometry(5,7.5,28),new THREE.MeshBasicMaterial({color:0xff7a3d,transparent:true,opacity:.9,side:THREE.DoubleSide}));
+siktRing.rotation.x=-Math.PI/2; siktRing.renderOrder=5; siktRing.visible=false; scene.add(siktRing);
+function uppdateraSiktring(){
+  const s=spelare;
+  if(lage!=='spel'||!U||U.typ!=='bomba'||s.mark||s.bomber<=0||!s.obj.visible){ siktRing.visible=false; return; }
+  framat(s,V);
+  let x=s.x,y=s.y-1.6,z=s.z,vx=V.x*s.fart,vy=V.y*s.fart-2,vz=V.z*s.fart,g=0;
+  for(let i=0;i<300;i++){ const d=.04; vy-=BOMB_G*d; x+=vx*d; y+=vy*d; z+=vz*d; g=markHojd(x,z); if(y<=g) break; }
+  siktRing.visible=true; siktRing.position.set(x,g+.4,z);
 }
 
 function skadaSpelare(n){
@@ -843,7 +1078,11 @@ function uppdateraUppdrag(dt){
     }
   }
   let malText='';
-  if(U.typ==='ringar'){
+  if(steg===1){
+    const q=ZONER[U.landa];
+    malText='Landa på '+q.namn+(spelare.mark&&spelare.zon===q?' och stanna':'');
+    if(spelare.mark&&spelare.zon===q&&spelare.fart<6&&!resultat){ poang+=200; avsluta(true,klarText+' Snygg landning på '+q.namn+'!'); }
+  }else if(U.typ==='ringar'){
     const r=ringar[nastaRing];
     if(r&&Math.hypot(spelare.x-r.x,spelare.y-r.y,spelare.z-r.z)<14){
       r.klar=true; r.obj.material.opacity=.15; ljudRing(); poang+=50; nastaRing++;
@@ -855,12 +1094,16 @@ function uppdateraUppdrag(dt){
   }else if(U.typ==='fiender'){
     const tot=U.vagor.reduce((a,v)=>a+(v==='ess'?3:v),0);
     malText='Pirater: '+nedskjutna+' av '+tot+(U.vagor.length>1?' · våg '+Math.max(1,vag)+' av '+U.vagor.length:'');
-    if(vag>=U.vagor.length&&fiender.length===0&&!resultat) avsluta(true,U.vagor.includes('ess')?'Du besegrade alla luftpirater och Kapten Rost! Du är himlens hjälte.':'Alla piratplan gick poff och piloterna seglar ner i fallskärm.');
+    if(vag>=U.vagor.length&&fiender.length===0&&!resultat) klart(U.vagor.includes('ess')?'Du besegrade alla luftpirater och Kapten Rost! Du är himlens hjälte.':'Alla piratplan gick poff och piloterna seglar ner i fallskärm.');
+  }else if(U.typ==='bomba'){
+    malText='Mål kvar att bomba: '+markmal.length+' · 💣 '+spelare.bomber;
+    for(const m of markmal) if(m.typ==='bat'){ m.fas+=dt; m.obj.position.y=Math.sin(m.fas*1.4)*.4; m.obj.rotation.z=Math.sin(m.fas)*.05; }
+    if(markmal.length===0&&!resultat) klart(U.landa?'Alla mål gick poff!':'Alla piratmål gick poff! Piraterna får bygga om allt från början.');
   }else if(U.typ==='ballonger'){
     const kvarTid=Math.max(0,U.tid-tid);
     malText='Ballonger kvar: '+ballonger.length+' · '+Math.ceil(kvarTid)+' s';
     if(ballonger.length===0&&!resultat) avsluta(true,'Alla ballonger är spräckta. Piraterna hittar inga skatter i dag!');
-    else if(kvarTid<=0&&!resultat) avsluta(false,'Tiden tog slut. Försök igen och använd turbo mellan ballongerna!');
+    else if(kvarTid<=0&&!resultat) avsluta(false,'Tiden tog slut. Försök igen och ge full gas mellan ballongerna!');
     for(const b of ballonger){ b.fas+=dt; b.y+=Math.sin(b.fas*.8)*dt*1.5; b.obj.position.y=b.y; b.obj.rotation.y+=dt*.3; }
   }else if(U.typ==='skepp'&&skepp){
     skepp.x+=9*dt; skepp.obj.position.set(skepp.x,Math.sin(tid*1.3)*.4,skepp.z); skepp.obj.rotation.z=Math.sin(tid)*.03;
@@ -876,16 +1119,43 @@ function uppdateraUppdrag(dt){
   $('poangTxt').textContent=poang+' p';
   $('halsaB').style.width=spelare.halsa+'%';
   $('halsaB').style.background=spelare.halsa<35?'var(--bad)':'var(--go)';
-  $('turboB').style.width=spelare.turbo+'%';
+  $('gasB').style.width=(spelare.gas*100)+'%';
+  ritaInfo();
 }
 
+function klart(text){
+  if(U.landa&&steg===0){ steg=1; klarText=text; const q=ZONER[U.landa]; visaRubrik('Bra! Landa nu på '+q.namn,2.6); ljudRing(); }
+  else avsluta(true,text);
+}
+function ritaInfo(){
+  const s=spelare, tp=document.body.classList.contains('touch');
+  const hojd=Math.max(0,Math.round(s.y-markHojd(s.x,s.z)-1.9));
+  $('info').textContent=Math.round(s.fart*3.6)+' km/h · '+hojd+' m · '+(s.hjul?'hjul ute':'hjul inne')+' · 💣 '+s.bomber;
+  $('tHjul').classList.toggle('ute',s.hjul);
+  $('tGas').lastElementChild.style.height='calc('+(s.gas*100)+'% - 8px)';
+  let h='';
+  if(s.mark){
+    if(s.fart<27&&!(steg===1&&s.zon===ZONER[U.landa])) h=tp?'Dra gasen uppåt och sedan tummen uppåt för att lyfta':'Ge gas med W och håll pil upp för att lyfta';
+  }else{
+    let nar=null, d=1e9;
+    for(const k in ZONER){ const q=ZONER[k], dd=Math.hypot(q.x-s.x,q.z-s.z); if(dd<d&&(steg===1?q===ZONER[U.landa]:s.hjul)){ d=dd; nar=q; } }
+    const nyss=tid-(s.lyft||-99)<8;
+    if(nyss&&s.hjul&&steg===0) h=tp?'Fäll in hjulen med Hjul, då går det fortare':'Fäll in hjulen med G, då går det fortare';
+    else if(!nyss&&nar&&d<450&&hojd<160){
+      if(!s.hjul) h=tp?'Tryck på Hjul för att fälla ut hjulen':'Tryck G för att fälla ut hjulen';
+      else if(s.fart>=44) h=tp?'För fort för att landa. Dra ner gasen':'För fort för att landa. Ta ner gasen med S';
+      else h='Bra fart! Sikta på banan och sjunk lugnt ner';
+    }
+  }
+  const e=$('hjalpTxt'); e.hidden=!h; if(h) e.textContent=h;
+}
 function avsluta(vann,text){
   if(resultat) return;
   resultat={vann,text}; avslutasOm=vann?1.6:2.4;
   if(vann){ ljudVinst(); visaRubrik('Uppdraget klart!',2); } else { ljudForlust(); visaRubrik('Oj då!',2); }
 }
 function visaSlut(){
-  lage='slut'; visa('slut'); for(const k in tangent) tangent[k]=false; inp.skjut=false; inp.turbo=false;
+  lage='slut'; visa('slut'); for(const k in tangent) tangent[k]=false; inp.skjut=false; inp.bomb=false;
   const r=resultat; let stj=0, ny='';
   if(r.vann){
     poang+=300+Math.round(spelare.halsa*3)+Math.max(0,Math.round((U.par-tid)*5));
@@ -942,6 +1212,8 @@ function ritaMarkorer(){
   if(jatte) lista.push([jatte,'#c79bff']);
   if(U&&U.typ==='ringar'&&ringar[nastaRing]) lista.push([ringar[nastaRing],'#ffc21a']);
   if(skepp) lista.push([{x:skepp.x,y:8,z:skepp.z},'#58b0ff']);
+  for(const m of markmal) lista.push([m,'#ff9f1a']);
+  if(U&&steg===1&&U.landa){ const q=ZONER[U.landa]; lista.push([{x:q.x,y:q.h+2,z:q.z},'#3ddc6e']); }
   for(const [o,farg] of lista){
     P.set(o.x,o.y,o.z); const avst=P.distanceTo(camera.position); P.project(camera);
     const d=markor(n++); d.style.display='block'; d.style.color=farg;
@@ -976,6 +1248,9 @@ function ritaKarta(){
   for(const o of OAR){ const [x,y]=pos(o.x,o.z); kc.beginPath(); kc.arc(x,y,Math.max(3,o.r*skala),0,Math.PI*2); kc.fill(); }
   const prick=(x,z,f,r)=>{ let [px,py]=pos(x,z); const dx=px-R, dy=py-R, dd=Math.hypot(dx,dy); if(dd>R-8){ px=R+dx/dd*(R-8); py=R+dy/dd*(R-8); } kc.fillStyle=f; kc.beginPath(); kc.arc(px,py,r,0,Math.PI*2); kc.fill(); kc.strokeStyle='#12324a'; kc.lineWidth=2; kc.stroke(); };
   if(U&&(U.typ==='skepp'||U.typ==='jatte')) prick(HAMN.x,HAMN.z,'#ffffff',8);
+  for(const k in ZONER){ const q=ZONER[k], [x,y]=pos(q.x,q.z); const a=q.rot-s.h;
+    kc.save(); kc.translate(x,y); kc.rotate(-a); kc.fillStyle=U&&steg===1&&ZONER[U.landa]===q?'#3ddc6e':'#5d6b75'; kc.fillRect(-4,-q.len*skala/2,8,q.len*skala); kc.restore(); }
+  for(const m of markmal) prick(m.x,m.z,'#ff9f1a',7);
   if(U&&U.typ==='ringar') ringar.forEach((r,i)=>{ if(!r.klar) prick(r.x,r.z,i===nastaRing?'#ffc21a':'#fff3c4',i===nastaRing?9:5); });
   for(const b of ballonger) prick(b.x,b.z,'#ff8fb0',7);
   if(skepp) prick(skepp.x,skepp.z,'#2b5d82',9);
@@ -1006,16 +1281,18 @@ function loop(nu){
   const dt=Math.min(.05,(nu-forra)/1000); forra=nu;
   if(lage==='spel'){
     if(!resultat||spelare.obj.visible) uppdateraSpelare(dt);
-    uppdateraFiender(dt); uppdateraKulor(dt); uppdateraEffekter(dt);
+    uppdateraFiender(dt); uppdateraKulor(dt); uppdateraBomber(dt); uppdateraEffekter(dt); uppdateraSiktring();
     if(!resultat) uppdateraUppdrag(dt);
     else { avslutasOm-=dt; if(U.typ==='skepp'&&skepp){ skepp.x+=9*dt; skepp.obj.position.x=skepp.x; } if(avslutasOm<=0) visaSlut(); }
     uppdateraKamera(dt); ritaMarkorer(); ritaKarta();
-    if(motor&&ljud){ motor.o.frequency.value=40+spelare.fart*.9; motor.g.gain.value=spelare.obj.visible?.05:0; }
+    if(motor&&ljud){ motor.o.frequency.value=34+spelare.gas*40+spelare.fart*.5; motor.g.gain.value=spelare.obj.visible?.03+spelare.gas*.03:0; }
   }else if(lage==='meny'||lage==='genomgang'){
+    siktRing.visible=false; spelare.obj.userData.hjul.visible=false;
     menyFlyg(dt); uppdateraEffekter(dt);
     if(motor) motor.g.gain.value=0;
   }else{
     if(motor) motor.g.gain.value=0;
+    siktRing.visible=false;
     if(lage==='slut') uppdateraEffekter(dt);
   }
   if(rubrikTid>0){ rubrikTid-=dt; if(rubrikTid<=0) $('rubrik').style.opacity=0; }
@@ -1024,14 +1301,16 @@ function loop(nu){
 }
 
 /* ================= Tangentbord ================= */
-const SPEL_TANGENTER=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight'];
+const SPEL_TANGENTER=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyW','KeyA','KeyS','KeyD','KeyB'];
+function vaxlaHjul(){ const s=spelare; if(lage!=='spel'||s.mark) return; s.hjul=!s.hjul; ton(s.hjul?260:380,.12,'square',.05); visaRubrik(s.hjul?'Hjulen ute':'Hjulen inne',.9); }
 window.addEventListener('keydown',e=>{
   if(lage==='spel'&&SPEL_TANGENTER.includes(e.code)){ tangent[e.code]=true; e.preventDefault(); startaLjud(); }
+  if(e.code==='KeyG'&&lage==='spel'&&!e.repeat){ vaxlaHjul(); e.preventDefault(); }
   if((e.code==='KeyP'||e.code==='Escape')&&lage==='spel'){ pausa(); e.preventDefault(); }
   else if((e.code==='KeyP'||e.code==='Escape')&&lage==='paus'){ lage='spel'; visa('spel'); e.preventDefault(); }
 });
 window.addEventListener('keyup',e=>{ tangent[e.code]=false; });
-window.addEventListener('blur',()=>{ for(const k in tangent) tangent[k]=false; inp.skjut=false; inp.turbo=false; pausa(); });
+window.addEventListener('blur',()=>{ for(const k in tangent) tangent[k]=false; inp.skjut=false; inp.bomb=false; pausa(); });
 
 /* ================= Touch ================= */
 const arTouch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
@@ -1041,7 +1320,7 @@ const spak=$('spak'), spakB=spak.firstElementChild;
 let spakId=null, spakX=0, spakY=0;
 const touchYta=$('touch');
 touchYta.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.tk')) return;
+  if(e.target.closest('.tk,#tGas')) return;
   if(e.clientX>window.innerWidth*.6||spakId!==null) return;
   spakId=e.pointerId; spakX=e.clientX; spakY=e.clientY;
   spak.style.display='block'; spak.style.left=spakX+'px'; spak.style.top=spakY+'px'; spakB.style.transform='';
@@ -1063,7 +1342,16 @@ function knappTouch(el,nyckel){
   const upp=()=>{ inp[nyckel]=false; el.classList.remove('pa'); };
   el.addEventListener('pointerup',upp); el.addEventListener('pointercancel',upp); el.addEventListener('lostpointercapture',upp);
 }
-knappTouch($('tSkjut'),'skjut'); knappTouch($('tTurbo'),'turbo');
+knappTouch($('tSkjut'),'skjut'); knappTouch($('tBomb'),'bomb');
+$('tHjul').addEventListener('pointerdown',e=>{ vaxlaHjul(); e.preventDefault(); });
+{ // gasreglaget: dra uppåt för mer gas
+  const g=$('tGas'); let id=null;
+  const satt=e=>{ const r=g.getBoundingClientRect(); inp.gas=clamp(1-(e.clientY-r.top-8)/(r.height-16),0,1); spelare.gas=inp.gas; };
+  g.addEventListener('pointerdown',e=>{ id=e.pointerId; try{ g.setPointerCapture(id); }catch(_){} satt(e); startaLjud(); e.preventDefault(); });
+  g.addEventListener('pointermove',e=>{ if(e.pointerId===id) satt(e); });
+  const slapp=e=>{ if(e.pointerId===id){ id=null; inp.gas=null; } };
+  g.addEventListener('pointerup',slapp); g.addEventListener('pointercancel',slapp);
+}
 // touchkontrollerna syns bara under själva flygningen
 const visaOrg=visa;
 visa=function(id){ visaOrg(id); touchYta.style.visibility=id==='spel'?'visible':'hidden'; };
@@ -1072,7 +1360,7 @@ ritaMeny(); visa('meny');
 requestAnimationFrame(loop);
 
 // Testkrok: gör det möjligt att styra spelet från automatiska tester.
-window.__himla={get lage(){return lage;}, spelare, fiender, ballonger, ringar, get skepp(){return skepp;}, get jatte(){return jatte;}, get poang(){return poang;}, get tid(){return tid;}, get nasta(){return nastaRing;}, inp, startaUppdrag:i=>{U=Object.assign({index:i},UPPDRAG[i]); startaUppdrag();}, traffa};
+window.__himla={get lage(){return lage;}, get steg(){return steg;}, get sikt(){return siktRing.visible?siktRing.position:null;}, markmal, ZONER, spelare, fiender, ballonger, ringar, get skepp(){return skepp;}, get jatte(){return jatte;}, get poang(){return poang;}, get tid(){return tid;}, get nasta(){return nastaRing;}, inp, startaUppdrag:i=>{U=Object.assign({index:i},UPPDRAG[i]); startaUppdrag();}, traffa};
 </script>
 </body>
 </html>
