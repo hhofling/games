@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Hojhoppet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: banväljare överst, spelytan i mitten och stora styrknappar under. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --go:#22a152; --accent:#ff7a3d; --gold:#ffc21a; --stop:#d9442b; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:12px 24px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible,a:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:1040px; margin:0 auto; display:flex; flex-direction:column; gap:12px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+.back{font-size:.95rem; color:var(--muted); font-weight:600; text-decoration:none}
+.tools{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn:active{transform:translateY(2px); box-shadow:0 1px 0 var(--shadow)}
+.levels{display:flex; flex-wrap:wrap; gap:8px}
+.lvl{min-width:56px; min-height:56px; padding:4px 8px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-weight:700; font-size:1.15rem; line-height:1.1; box-shadow:0 3px 0 var(--shadow)}
+.lvl span{display:block; font-size:.78rem; color:var(--gold); letter-spacing:.08em; min-height:1em; -webkit-text-stroke:.5px var(--edge)}
+.lvl[aria-current="true"]{background:var(--accent); color:#2a1200}
+.lvl[aria-current="true"] span{color:#fff}
+
+.stage{position:relative; border:5px solid var(--edge); border-radius:20px; overflow:hidden; box-shadow:0 5px 0 var(--shadow); background:#bfe6ff;
+  height:clamp(220px, min(56vw, calc(100svh - 290px)), 580px)}
+canvas{display:block; width:100%; height:100%; touch-action:none}
+.over{position:absolute; inset:0; display:grid; place-items:center; padding:12px; background:rgba(18,50,74,.55)}
+.over[hidden]{display:none}
+.card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:16px 20px; text-align:center; max-width:400px; width:100%}
+.card h2{margin:0; font-size:1.7rem}
+.card p{margin:6px 0 12px; font-size:1.05rem}
+.stars{font-size:2.6rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:1.5px var(--edge); margin:2px 0}
+.stars i{font-style:normal; display:inline-block; animation:pop .5s both}
+.stars i:nth-child(2){animation-delay:.15s} .stars i:nth-child(3){animation-delay:.3s}
+.stars i.off{color:#e3edf5; animation:none}
+@keyframes pop{0%{transform:scale(0) rotate(-30deg)} 70%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1)}}
+.btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.btns .go{background:var(--go); color:#fff; border-color:#0d5a2e}
+
+.pad{display:grid; grid-template-columns:1fr 1fr 1fr 1.5fr; gap:10px; user-select:none; -webkit-user-select:none}
+.ctl{min-height:78px; border-radius:18px; border:3px solid var(--edge); background:var(--card); font-size:1.05rem; font-weight:600;
+  box-shadow:0 5px 0 var(--shadow); touch-action:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1;
+  -webkit-touch-callout:none}
+.ctl b{font-size:1.9rem; line-height:1}
+.ctl.on{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow); background:#ffe3d3}
+.ctl.gas{background:var(--go); color:#fff; border-color:#0d5a2e; box-shadow:0 5px 0 #0d5a2e; font-size:1.35rem}
+.ctl.gas.on{background:#1a8443; box-shadow:0 2px 0 #0d5a2e}
+.ctl.brake{background:#ffe0da; border-color:#7d1f0e}
+.ctl.brake.on{background:#ffc3b8}
+.keys{margin:0; color:var(--muted); font-size:.95rem}
+kbd{font-family:inherit; font-weight:600; background:var(--card); border:2px solid var(--edge); border-radius:6px; padding:0 6px}
+@media (max-width:640px){
+  h1{font-size:1.6rem}
+  .stage{height:clamp(220px, min(100vw, calc(100svh - 330px)), 520px)}
+  .ctl{min-height:70px; font-size:.95rem}
+  .keys{display:none}
+}
+@media (hover:none){.keys{display:none}}
+@media (prefers-reduced-motion:reduce){.stars i{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <a class="back" href="index.html">← Alla spel</a>
+      <h1>Hojhoppet <small id="lvlname"></small></h1>
+    </div>
+    <div class="tools" id="tools">
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+      <button class="small-btn" id="restart" type="button">Börja om</button>
+    </div>
+  </header>
+  <nav class="levels" id="levels" aria-label="Välj bana"></nav>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Spelplan: en motorcykel som kör över backar och hinder"></canvas>
+    <div class="over" id="ready">
+      <div class="card">
+        <h2 id="rtitle">Bana 1</h2>
+        <p id="rhint"></p>
+        <div class="btns"><button class="small-btn go" id="rgo" type="button">Kör!</button></div>
+      </div>
+    </div>
+    <div class="over" id="win" hidden>
+      <div class="card" role="dialog" aria-labelledby="wt">
+        <h2 id="wt">I mål!</h2>
+        <div class="stars" id="wstars"></div>
+        <p id="wtext"></p>
+        <div class="btns">
+          <button class="small-btn go" id="wnext" type="button">Nästa bana</button>
+          <button class="small-btn" id="wagain" type="button">Kör igen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pad" aria-label="Styrknappar">
+    <button class="ctl" type="button" data-k="back" aria-label="Luta bakåt"><b>↺</b>Luta bakåt</button>
+    <button class="ctl" type="button" data-k="fwd" aria-label="Luta framåt"><b>↻</b>Luta framåt</button>
+    <button class="ctl brake" type="button" data-k="brake" aria-label="Bromsa"><b>■</b>Broms</button>
+    <button class="ctl gas" type="button" data-k="gas" aria-label="Gasa"><b>▶</b>Gasa</button>
+  </div>
+  <p class="keys">Tangenter: <kbd>↑</kbd> gasa, <kbd>↓</kbd> bromsa, <kbd>←</kbd> <kbd>→</kbd> luta bakåt och framåt, <kbd>R</kbd> börja om.</p>
+</div>
+
+<script src="spelhornan.js"></script>
+<script>
+/*PURE-START*/
+/* ---------- Banor ----------
+   Varje bana byggs av en lista med bitar som läggs efter varandra från vänster till höger.
+   flat(längd)  slope(längd, dy)  hill(längd, höjd)  waves(antal, längd, höjd)
+   ramp(längd, höjd) = hoppramp uppåt   gap(bredd, dy) = grop med vatten, dy = landningens höjdskillnad
+   log(bredd, höjd) = stock   box(bredd, höjd) = trälåda   stairs(antal, bredd, höjd) (negativ höjd = nedför)
+   cp = kontrollflagga   sign(text) = skylt   goal = målet
+   Mått: hjulen har radien 15 och hojen är 56 lång. Uppåt är negativt y. */
+const LEVELS=[
+ {id:'forsta',name:'Första turen',hint:'Håll in Gasa för att köra. Kör över backarna till målflaggan!',par:13,ops:[
+  ['flat',350],['hill',320,30],['flat',150],['hill',420,55],['flat',120],['cp'],['hill',260,25],['hill',300,45],['flat',200],
+  ['waves',2,300,35],['flat',150],['cp'],['hill',500,80],['flat',200],['slope',300,-40],['flat',100],['slope',300,40],['flat',200],['goal']]},
+ {id:'gungor',name:'Gungbacken',hint:'Många backar i rad. Luta framåt eller bakåt så att hojen landar på hjulen.',par:19,ops:[
+  ['flat',300],['waves',4,200,28],['flat',120],['cp'],['waves',4,240,48],['flat',100],['hill',380,90],['flat',150],['cp'],
+  ['waves',3,160,30],['flat',100],['waves',3,260,60],['flat',200],['goal']]},
+ {id:'hopp',name:'Första hoppet',hint:'Kör upp på rampen med fart och hoppa över vattnet!',par:11,ops:[
+  ['flat',350],['sign','Hoppa!'],['flat',150],['ramp',160,38],['gap',90,6],['slope',200,32],['flat',200],['cp'],
+  ['hill',300,40],['flat',250],['ramp',160,42],['gap',120,8],['slope',220,34],['flat',200],['cp'],
+  ['sign','Hoppa!'],['flat',150],['ramp',170,45],['gap',140,10],['slope',240,35],['flat',200],['hill',300,40],['flat',150],['goal']]},
+ {id:'stockar',name:'Stockar och lådor',hint:'Kör över stockarna och lådorna. Släpp gasen lite om hojen studsar.',par:18,ops:[
+  ['flat',350],['log',36,12],['flat',160],['log',40,14],['flat',120],['log',36,12],['flat',180],['cp'],
+  ['box',70,18],['flat',140],['box',90,24],['flat',180],['stairs',4,60,10],['flat',80],['stairs',4,60,-10],['flat',150],['cp'],
+  ['log',40,14],['flat',70],['log',40,14],['flat',160],['box',80,22],['flat',160],['waves',2,200,30],['log',40,14],['flat',100],['box',100,26],['flat',200],['goal']]},
+ {id:'branta',name:'Branta backen',hint:'Luta framåt när det går brant uppför, annars tippar hojen bakåt.',par:12,ops:[
+  ['flat',300],['hill',360,90],['flat',100],['slope',260,-110],['flat',80],['slope',220,110],['flat',150],['cp'],
+  ['hill',300,120],['flat',80],['slope',300,-150],['flat',60],['slope',160,70],['slope',160,80],['flat',160],['cp'],
+  ['hill',420,170],['flat',200],['goal']]},
+ {id:'storahopp',name:'Stora hoppet',hint:'Ta mycket fart innan rampen. Luta så att båda hjulen landar samtidigt.',par:13,ops:[
+  ['flat',450],['sign','Fart!'],['flat',200],['ramp',200,60],['gap',170,10],['slope',260,50],['flat',250],['cp'],
+  ['slope',220,-40],['flat',200],['ramp',180,55],['gap',170,15],['slope',280,30],['flat',250],['cp'],
+  ['waves',2,200,40],['flat',250],['ramp',220,70],['gap',200,25],['slope',300,45],['flat',150],['goal']]},
+ {id:'trappan',name:'Trappan',hint:'Kör lugnt uppför trappan. Ta sedan fart och hoppa över groparna.',par:15,ops:[
+  ['flat',300],['stairs',6,55,12],['flat',250],['ramp',140,28],['gap',110,0],['flat',100],['cp'],
+  ['stairs',6,55,-12],['flat',150],['box',70,22],['flat',100],['box',70,22],['flat',180],['cp'],
+  ['stairs',5,50,14],['flat',280],['ramp',160,35],['gap',130,-5],['slope',200,40],['stairs',4,60,-10],['flat',150],['goal']]},
+ {id:'mastar',name:'Mästarbanan',hint:'Allt på en gång! Backar, stockar, trappor och stora hopp.',par:26,ops:[
+  ['flat',350],['waves',3,220,45],['flat',100],['log',40,14],['flat',200],['ramp',180,50],['gap',160,10],['slope',240,40],['flat',150],['cp'],
+  ['hill',420,110],['flat',100],['box',80,22],['flat',120],['stairs',5,55,12],['flat',250],['ramp',150,35],['gap',150,5],['slope',260,90],['flat',150],['cp'],
+  ['slope',280,-120],['flat',200],['ramp',200,50],['gap',180,30],['slope',300,40],['log',40,14],['flat',90],['log',40,14],['flat',150],['cp'],
+  ['hill',380,90],['flat',300],['ramp',220,65],['gap',190,20],['slope',300,45],['flat',150],['goal']]}
+];
+
+function buildLevel(L){
+  const P=[];let x=-500,y=0;
+  const pits=[],cps=[],signs=[],deco=[];let goal=0;
+  const pt=(px,py)=>{P.push({x:px,y:py});x=px;y=py;};
+  pt(x,y);
+  const curve=(len,f,step)=>{const n=Math.max(2,Math.ceil(len/(step||10)));const x0=x,y0=y;for(let i=1;i<=n;i++){const t=i/n;pt(x0+len*t,y0+f(t));}};
+  const ops={
+    flat:len=>pt(x+len,y),
+    slope:(len,dy)=>curve(len,t=>dy*(1-Math.cos(Math.PI*t))/2,12),
+    hill:(len,h)=>curve(len,t=>-h*(1-Math.cos(2*Math.PI*t))/2),
+    waves:(n,len,h)=>{for(let i=0;i<n;i++)ops.hill(len,h);},
+    ramp:(len,h)=>curve(len,t=>-h*t*t),
+    gap:(w,dy)=>{const x0=x,y0=y,y1=y+dy,bot=Math.max(y0,y1)+260;
+      pt(x0+1,bot);pt(x0+w-1,bot);pt(x0+w,y1);pits.push({x1:x0,x2:x0+w,w:Math.max(y0,y1)+55});},
+    log:(w,h)=>{deco.push({t:'log',x:x,w:w,h:h,y:y});curve(w,t=>-h*Math.sin(Math.PI*t),5);},
+    box:(w,h)=>{deco.push({t:'box',x:x,w:w,h:h,y:y});const b=Math.round(h*.9);pt(x+b,y-h);pt(x+w-2*b,y);pt(x+b,y+h);},
+    stairs:(n,w,h)=>{const b=Math.max(10,Math.abs(h)*1.5);for(let i=0;i<n;i++){pt(x+b,y-h);pt(x+w-b,y);}},
+    cp:()=>cps.push(x),
+    sign:txt=>signs.push({x:x,y:y,text:txt}),
+    goal:()=>{goal=x;}
+  };
+  ops.flat(500);
+  for(const o of L.ops)ops[o[0]](...o.slice(1));
+  pt(x+1400,y);
+  return {P,pits,cps,signs,deco,goal,start:0};
+}
+
+/* ---------- Fysik ----------
+   Hojen är tre punkter (bakhjul, framhjul, förarens huvud) som hålls ihop av stänger.
+   Hjulen är cirklar som rullar mot marken. Om huvudet nuddar marken blir det vurpa. */
+const PH={G:900,WR:15,HALF:28,UP:44,BACK:6,HR:11,ENGINE:1150,MAXV:560,BRAKE:.09,REV:-140,LEAN:1700,DT:1/120,IT:8};
+
+function nearest(T,cx,cy){
+  // Närmaste markpunkt: returnerar signerat avstånd s (negativt = inne i marken) och normal ut från marken.
+  const P=T.P;let lo=0,hi=P.length-1;const xmin=cx-45;
+  while(lo<hi){const m=(lo+hi)>>1;if(P[m+1].x<xmin)lo=m+1;else hi=m;}
+  let best=null,bd=1e9,bs=0;
+  for(let i=Math.max(0,lo-1);i<P.length-1&&P[i].x<=cx+45;i++){
+    const a=P[i],b=P[i+1],dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2<1e-9)continue;
+    let u=((cx-a.x)*dx+(cy-a.y)*dy)/l2;u=u<0?0:u>1?1:u;
+    const qx=a.x+u*dx,qy=a.y+u*dy,ex=cx-qx,ey=cy-qy,d=Math.hypot(ex,ey);
+    const l=Math.sqrt(l2),nx=dy/l,ny=-dx/l,side=(cx-a.x)*nx+(cy-a.y)*ny;
+    const s=side>=0?d:-d;
+    if(d<bd-1e-6||(Math.abs(d-bd)<=1e-6&&s>bs)){
+      bd=d;bs=s;
+      if(d>1e-6){const k=s>=0?1:-1;best={s,nx:k*ex/d,ny:k*ey/d};}else best={s:0,nx,ny};
+    }
+  }
+  return best||{s:1e9,nx:0,ny:-1};
+}
+function groundY(T,x){
+  let y=1e9;const P=T.P;
+  for(let i=0;i<P.length-1;i++){const a=P[i],b=P[i+1];if(b.x-a.x<.5)continue;
+    if(a.x<=x&&b.x>=x){const t=(x-a.x)/(b.x-a.x);y=Math.min(y,a.y+t*(b.y-a.y));}}
+  return y;
+}
+function makeBike(T,x){
+  const yr=groundY(T,x-PH.HALF)-PH.WR-1,yf=groundY(T,x+PH.HALF)-PH.WR-1;
+  const dx=2*PH.HALF,dy=yf-yr,l=Math.hypot(dx,dy),ux=dx/l,uy=dy/l;
+  const mx=x,my=(yr+yf)/2,nx=uy,ny=-ux; // nx,ny pekar uppåt från hojen
+  const pR={x:mx-ux*PH.HALF,y:my-uy*PH.HALF},pF={x:mx+ux*PH.HALF,y:my+uy*PH.HALF};
+  const pH={x:mx+nx*PH.UP-ux*PH.BACK,y:my+ny*PH.UP-uy*PH.BACK};
+  const pts=[pR,pF,pH].map((p,i)=>({x:p.x,y:p.y,px:p.x,py:p.y,m:i===2?1.6:1}));
+  const L=[[0,1],[0,2],[1,2]].map(([a,b])=>({a,b,len:Math.hypot(pts[a].x-pts[b].x,pts[a].y-pts[b].y)}));
+  return {p:pts,L,spin:[0,0],con:[null,null],air:0};
+}
+function stepBike(b,T,inp){
+  const dt=PH.DT,dt2=dt*dt,[R,F,H]=b.p;
+  for(const q of b.p){const vx=(q.x-q.px)*.9993,vy=(q.y-q.py)*.9993;q.px=q.x;q.py=q.y;q.x+=vx;q.y+=vy+PH.G*dt2;}
+  let ax=F.x-R.x,ay=F.y-R.y;const al=Math.hypot(ax,ay);ax/=al;ay/=al;
+  const px=-ay,py=ax; // pekar "nedåt" från hojen
+  // motor och broms verkar bara när hjulet nuddar marken
+  for(let w=0;w<2;w++){
+    const c=b.con[w];if(!c)continue;const q=b.p[w];
+    let tx=-c.ny,ty=c.nx;if(tx*ax+ty*ay<0){tx=-tx;ty=-ty;}
+    const vt=((q.x-q.px)*tx+(q.y-q.py)*ty)/dt;
+    let acc=0;
+    if(w===0&&inp.gas&&vt<PH.MAXV)acc+=PH.ENGINE*Math.min(1,(PH.MAXV-vt)/120);
+    if(inp.brake){
+      if(vt>40)acc-=vt*PH.BRAKE/dt;
+      else if(w===0&&!inp.gas&&vt>PH.REV)acc-=PH.ENGINE*.35;
+    }
+    if(!inp.gas&&!inp.brake)acc-=vt*.25; // rullmotstånd
+    // en del av motorkraften skjuter hela hojen framåt, så att den inte stegrar sig för lätt
+    const own=w===0&&inp.gas?.45:1;
+    q.x+=tx*acc*own*dt2;q.y+=ty*acc*own*dt2;
+    if(own<1)for(const o of [F,H]){o.x+=tx*acc*(1-own)*dt2;o.y+=ty*acc*(1-own)*dt2;}
+  }
+  if(inp.lean){
+    const k=inp.lean*PH.LEAN*dt2*(b.con[0]||b.con[1]?.8:1);
+    F.x+=px*k;F.y+=py*k;R.x-=px*k;R.y-=py*k;
+    H.x+=ax*k*.4;H.y+=ay*k*.4;
+  }
+  b.con=[null,null];
+  for(let it=0;it<PH.IT;it++){
+    for(const c of b.L){
+      const A=b.p[c.a],B=b.p[c.b],dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy)||1e-6;
+      const diff=(d-c.len)/d,wa=1/A.m,wb=1/B.m,sum=wa+wb;
+      A.x+=dx*diff*wa/sum;A.y+=dy*diff*wa/sum;B.x-=dx*diff*wb/sum;B.y-=dy*diff*wb/sum;
+    }
+    for(let w=0;w<2;w++){
+      const q=b.p[w],n=nearest(T,q.x,q.y);
+      if(n.s<PH.WR){
+        const pen=PH.WR-n.s,vx=q.x-q.px,vy=q.y-q.py,vn=vx*n.nx+vy*n.ny;
+        q.x+=n.nx*pen;q.y+=n.ny*pen;
+        const tvx=vx-vn*n.nx,tvy=vy-vn*n.ny,bounce=vn<0?-vn*.12:vn;
+        q.px=q.x-(tvx+bounce*n.nx);q.py=q.y-(tvy+bounce*n.ny);
+        b.con[w]=n;
+      }else if(n.s<PH.WR+1.5&&!b.con[w])b.con[w]=n;
+    }
+  }
+  // hjulens snurr (bara för utseendet)
+  for(let w=0;w<2;w++){const q=b.p[w];b.spin[w]+=((q.x-q.px)*ax+(q.y-q.py)*ay)/PH.WR;}
+  b.air=b.con[0]||b.con[1]?0:b.air+dt;
+  const h=nearest(T,H.x,H.y);
+  if(h.s<PH.HR)return 'crash';
+  for(const pt of b.p)for(const pit of T.pits)if(pt.x>pit.x1&&pt.x<pit.x2&&pt.y>pit.w)return 'splash';
+  if(R.x>T.goal+8)return 'goal';
+  return null;
+}
+function bikeAngle(b){return Math.atan2(b.p[1].y-b.p[0].y,b.p[1].x-b.p[0].x);}
+function bikeVel(b){const R=b.p[0];return {x:(R.x-R.px)/PH.DT,y:(R.y-R.py)/PH.DT};}
+function slopeAt(T,x){return Math.atan2(groundY(T,x+12)-groundY(T,x-12),24);}
+function starsFor(L,ms){const s=ms/1000;return s<=L.par?3:s<=L.par*1.35?2:1;}
+/*PURE-END*/
+
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const KEY='hojhoppet-v1';
+const cv=$('cv'),ctx=cv.getContext('2d');
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+let cur=0,T=null,bike=null,state='ready',simT=0,acc=0,last=0,cpIdx=-1,crashT=0,crashMsg='',flash=0;
+let cam={x:0,y:0},sound=true,startX=0;
+const inp={gas:false,brake:false,back:false,fwd:false};
+
+/* ---------- Ljud ---------- */
+let ac=null,eng=null;
+function audio(){
+  if(!sound)return null;
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();}catch(e){ac=null;}
+  return ac;
+}
+function tone(f,d,type,v,delay){
+  const a=audio();if(!a)return;
+  try{
+    const o=a.createOscillator(),g=a.createGain(),t0=a.currentTime+(delay||0);
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t0);g.gain.setValueAtTime(v||.07,t0);
+    o.connect(g);g.connect(a.destination);o.start(t0);
+    g.gain.exponentialRampToValueAtTime(.0001,t0+(d||.12));o.stop(t0+(d||.12)+.02);
+  }catch(e){}
+}
+function noise(d,v){
+  const a=audio();if(!a)return;
+  try{
+    const n=a.sampleRate*d,buf=a.createBuffer(1,n,a.sampleRate),ch=buf.getChannelData(0);
+    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);
+    const s=a.createBufferSource(),g=a.createGain();g.gain.value=v||.12;s.buffer=buf;s.connect(g);g.connect(a.destination);s.start();
+  }catch(e){}
+}
+function engine(on,speed){
+  if(!on||!sound||!ac){if(eng){eng.g.gain.setTargetAtTime(0,ac.currentTime,.05);}return;}
+  if(!eng){
+    try{
+      const o=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain();
+      o.type='sawtooth';f.type='lowpass';f.frequency.value=500;g.gain.value=0;
+      o.connect(f);f.connect(g);g.connect(ac.destination);o.start();eng={o,g};
+    }catch(e){return;}
+  }
+  const t=ac.currentTime;
+  eng.o.frequency.setTargetAtTime(48+Math.abs(speed)*.16+(inp.gas?22:0),t,.08);
+  eng.g.gain.setTargetAtTime(inp.gas?.05:.025,t,.08);
+}
+
+/* ---------- Banval ---------- */
+function buildLevelBar(){
+  const bar=$('levels');bar.innerHTML='';
+  LEVELS.forEach((L,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='lvl';
+    const s=(saved[L.id]&&saved[L.id].s)||0;
+    b.innerHTML=(i+1)+'<span>'+'★'.repeat(s)+'☆'.repeat(3-s)+'</span>';
+    b.setAttribute('aria-label','Bana '+(i+1)+', '+L.name+', '+s+' av 3 stjärnor');
+    if(i===cur)b.setAttribute('aria-current','true');
+    b.onclick=()=>{loadLevel(i);b.blur();};
+    bar.appendChild(b);
+  });
+}
+function fmt(ms){const s=ms/1000,m=Math.floor(s/60);return m+':'+(s-m*60).toFixed(1).padStart(4,'0');}
+function loadLevel(i){
+  cur=i;const L=LEVELS[i];T=buildLevel(L);
+  $('lvlname').textContent='Bana '+(i+1)+': '+L.name;
+  $('rtitle').textContent='Bana '+(i+1)+': '+L.name;
+  const best=saved[L.id];
+  $('rhint').textContent=L.hint+' Tre stjärnor om du kommer i mål på '+fmt(L.par*1000)+' eller snabbare.'+(best?' Ditt bästa: '+fmt(best.t)+'.':'');
+  buildLevelBar();
+  reset();
+}
+function reset(){
+  cpIdx=-1;simT=0;acc=0;state='ready';crashT=0;flash=0;
+  bike=makeBike(T,T.start+40);startX=T.start+40;
+  cam.x=bike.p[0].x+150;cam.y=bike.p[0].y-60;
+  $('win').hidden=true;$('ready').hidden=false;
+}
+function go(){
+  if(state!=='ready')return;
+  audio();state='run';$('ready').hidden=true;last=performance.now();
+}
+function respawn(){
+  const x=cpIdx>=0?T.cps[cpIdx]:startX;
+  bike=makeBike(T,x+40);state='run';
+}
+function finish(){
+  state='win';engine(false);
+  const L=LEVELS[cur],ms=Math.round(simT*1000),s=starsFor(L,ms);
+  const prev=saved[L.id]||{s:0,t:Infinity},rec=ms<prev.t;
+  saved[L.id]={s:Math.max(prev.s,s),t:Math.min(prev.t,ms)};persist();
+  try{
+    if(window.Spelhornan&&typeof Spelhornan.rapportera==='function')
+      Spelhornan.rapportera('hojhoppet','bana-'+L.id,{poang:s,max:3,tid:ms,namn:'Bana '+(cur+1)+': '+L.name});
+  }catch(e){}
+  $('wstars').innerHTML=[0,1,2].map(k=>'<i'+(k<s?'':' class="off"')+'>★</i>').join('');
+  let t='Din tid: '+fmt(ms)+'.';
+  if(rec&&isFinite(prev.t))t+=' Nytt rekord!';
+  if(s<3)t+=' Klara '+fmt((s===1?L.par*1.35:L.par)*1000)+' för '+(s+1)+' stjärnor.';
+  $('wtext').textContent=t;
+  $('wt').textContent=s===3?'Superåkt!':s===2?'Bra kört!':'I mål!';
+  $('wnext').hidden=cur>=LEVELS.length-1;
+  $('win').hidden=false;buildLevelBar();
+  [523,659,784,1047].forEach((f,k)=>tone(f,.18,'triangle',.08,k*.11));
+  setTimeout(()=>{try{$(cur<LEVELS.length-1?'wnext':'wagain').focus({preventScroll:true});}catch(e){}},50);
+}
+
+/* ---------- Spelslinga ---------- */
+function tick(now){
+  const dt=Math.min(.05,(now-last)/1000||0);last=now;
+  if(state==='run'||state==='crash'){
+    acc+=dt;
+    while(acc>=PH.DT){
+      acc-=PH.DT;simT+=PH.DT;
+      if(state==='crash'){crashT-=PH.DT;if(crashT<=0)respawn();continue;}
+      const res=stepBike(bike,T,{gas:inp.gas,brake:inp.brake,lean:(inp.fwd?1:0)-(inp.back?1:0)});
+      const fx=bike.p[1].x;
+      while(cpIdx+1<T.cps.length&&fx>T.cps[cpIdx+1]){cpIdx++;flash=1.2;tone(880,.12,'sine',.07);tone(1320,.18,'sine',.06,.1);}
+      if(res==='goal'){finish();break;}
+      if(res==='crash'||res==='splash'){
+        state='crash';crashT=1.1;crashMsg=res==='crash'?'Oj, vurpa!':'Plask!';
+        if(res==='crash'){noise(.35,.18);tone(140,.3,'square',.05);}else{noise(.5,.1);tone(300,.25,'sine',.06);}
+        break;
+      }
+    }
+    engine(state==='run',bikeVel(bike).x);
+  }else engine(false);
+  if(flash>0)flash-=dt;
+  draw(dt);
+  requestAnimationFrame(tick);
+}
+
+/* ---------- Ritning ---------- */
+let W=0,Hh=0,dpr=1;
+function resize(){
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  const r=cv.getBoundingClientRect();W=r.width;Hh=r.height;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(Hh*dpr);
+}
+window.addEventListener('resize',resize);
+function hillsLayer(off,par,base,amp,col,z){
+  ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(0,Hh);
+  for(let sx=0;sx<=W+8;sx+=8){const wx=(sx/z+off*par);ctx.lineTo(sx,base+amp*(Math.sin(wx*.004)*.6+Math.sin(wx*.011+1.3)*.3+Math.sin(wx*.0023+4)*.4));}
+  ctx.lineTo(W,Hh);ctx.closePath();ctx.fill();
+}
+function draw(dt){
+  if(!W)resize();
+  const z=Math.max(.45,Math.min(1.4,Hh/430,W/560)); // zoom: hur många pixlar per världsenhet
+  // kamera
+  const [R,F]=bike.p,mx=(R.x+F.x)/2,my=(R.y+F.y)/2,v=bikeVel(bike);
+  const tx=mx+Math.max(-60,Math.min(170,v.x*.35))+W*.08/z,ty=my-40;
+  const k=state==='ready'?1:Math.min(1,dt*4);
+  cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*Math.min(1,k*1.4);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  // himmel
+  const g=ctx.createLinearGradient(0,0,0,Hh);g.addColorStop(0,'#9fd8ff');g.addColorStop(1,'#e6f6ff');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,Hh);
+  ctx.fillStyle='#fff3b0';ctx.beginPath();ctx.arc(W*.82,Hh*.18,Math.min(W,Hh)*.07,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  for(let i=0;i<6;i++){const cx=((i*397-cam.x*.12*z)%(W+300)+W+300)%(W+300)-150,cy=Hh*(.12+.07*(i%3));
+    ctx.beginPath();ctx.ellipse(cx,cy,48,15,0,0,7);ctx.ellipse(cx+28,cy-9,30,15,0,0,7);ctx.ellipse(cx-26,cy-4,26,12,0,0,7);ctx.fill();}
+  hillsLayer(cam.x,.25,Hh*.62,Hh*.12,'#b6e3c4',1);
+  hillsLayer(cam.x+900,.45,Hh*.74,Hh*.1,'#93d39b',1);
+  // världen
+  ctx.save();
+  ctx.translate(W/2,Hh*.58);ctx.scale(z,z);ctx.translate(-cam.x,-cam.y);
+  const x0=cam.x-W/2/z-60,x1=cam.x+W/2/z+60,yBot=cam.y+Hh/z+400;
+  const P=T.P;let i0=0;{let lo=0,hi=P.length-1;while(lo<hi){const m=(lo+hi)>>1;if(P[m+1].x<x0)lo=m+1;else hi=m;}i0=Math.max(0,lo-1);}
+  let i1=i0;while(i1<P.length-1&&P[i1].x<x1)i1++;
+  // vatten i groparna
+  for(const p of T.pits){if(p.x2<x0||p.x1>x1)continue;
+    ctx.fillStyle='#4aa8f0';ctx.fillRect(p.x1,p.w,p.x2-p.x1,yBot-p.w);
+    ctx.fillStyle='#8fd0ff';const ph=performance.now()/400;
+    ctx.beginPath();ctx.moveTo(p.x1,p.w);for(let x=p.x1;x<=p.x2;x+=8)ctx.lineTo(x,p.w-3+Math.sin(x*.08+ph)*2.5);ctx.lineTo(p.x2,p.w+8);ctx.lineTo(p.x1,p.w+8);ctx.fill();}
+  // mark
+  ctx.beginPath();ctx.moveTo(P[i0].x,yBot);for(let i=i0;i<=i1;i++)ctx.lineTo(P[i].x,P[i].y);ctx.lineTo(P[i1].x,yBot);ctx.closePath();
+  ctx.fillStyle='#c98b52';ctx.fill();
+  ctx.save();ctx.clip();
+  ctx.fillStyle='#b77a45';for(let x=Math.floor(x0/90)*90;x<x1;x+=90){for(let j=0;j<4;j++){const h=((x*7+j*131)%97+97)%97;ctx.beginPath();ctx.arc(x+h*.8,cam.y+60+j*70+h,4+h%5,0,7);ctx.fill();}}
+  ctx.restore();
+  ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.beginPath();for(let i=i0;i<=i1;i++){const p=P[i];i===i0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);}
+  ctx.strokeStyle='#3f9a3a';ctx.lineWidth=9;ctx.stroke();
+  ctx.strokeStyle='#6ccf5b';ctx.lineWidth=5;ctx.stroke();
+  // hinder
+  for(const d of T.deco){if(d.x+d.w<x0||d.x>x1)continue;
+    if(d.t==='log'){
+      ctx.fillStyle='#8a5a2b';ctx.strokeStyle='#5c3a18';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.moveTo(d.x,d.y);for(let k=0;k<=12;k++){const t=k/12;ctx.lineTo(d.x+d.w*t,d.y-d.h*Math.sin(Math.PI*t));}ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle='#d9a066';ctx.beginPath();ctx.ellipse(d.x+d.w/2,d.y-d.h*.45,d.h*.35,d.h*.4,0,0,7);ctx.fill();ctx.stroke();
+    }else{
+      ctx.fillStyle='#e0a458';ctx.strokeStyle='#7a4a1e';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x+d.h*.9,d.y-d.h);ctx.lineTo(d.x+d.w-d.h*.9,d.y-d.h);ctx.lineTo(d.x+d.w,d.y);ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(d.x+6,d.y-d.h+4);ctx.lineTo(d.x+d.w-6,d.y-4);ctx.moveTo(d.x+d.w-6,d.y-d.h+4);ctx.lineTo(d.x+6,d.y-4);ctx.stroke();
+    }}
+  // skyltar
+  ctx.font='600 18px Fredoka, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const s of T.signs){if(s.x<x0||s.x>x1)continue;
+    ctx.fillStyle='#7a4a1e';ctx.fillRect(s.x-3,s.y-60,6,60);
+    ctx.fillStyle='#ffd23f';ctx.strokeStyle='#12324a';ctx.lineWidth=3;
+    const w=ctx.measureText(s.text).width+22;ctx.beginPath();ctx.roundRect?ctx.roundRect(s.x-w/2,s.y-88,w,32,8):ctx.rect(s.x-w/2,s.y-88,w,32);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#12324a';ctx.fillText(s.text,s.x,s.y-71);}
+  // kontrollflaggor
+  T.cps.forEach((x,ci)=>{if(x<x0||x>x1)return;const y=groundY(T,x);
+    ctx.fillStyle='#4b5d6b';ctx.fillRect(x-2,y-70,4,70);
+    ctx.fillStyle=ci<=cpIdx?'#22a152':'#ff7a3d';ctx.beginPath();ctx.moveTo(x+2,y-70);ctx.lineTo(x+36,y-60);ctx.lineTo(x+2,y-50);ctx.closePath();ctx.fill();});
+  // start och mål
+  checker(startX-30,groundY(T,startX-30),false);
+  checker(T.goal,groundY(T,T.goal),true);
+  drawBike();
+  ctx.restore();
+  // HUD
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.font='700 20px Fredoka, sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  pill(10,10,104,34);ctx.fillStyle='#12324a';ctx.fillText('⏱ '+fmt(simT*1000),20,28);
+  const pw=Math.min(260,W-150),pxs=W-pw-14,prog=Math.max(0,Math.min(1,(bike.p[1].x-startX)/(T.goal-startX)));
+  pill(pxs-8,14,pw+16,26);ctx.fillStyle='#d6e8f5';ctx.fillRect(pxs,24,pw,6);ctx.fillStyle='#ff7a3d';ctx.fillRect(pxs,24,pw*prog,6);
+  ctx.fillStyle='#22a152';for(const c of T.cps){ctx.fillRect(pxs+pw*(c-startX)/(T.goal-startX)-1.5,20,3,14);}
+  ctx.font='16px sans-serif';ctx.textAlign='center';ctx.fillText('🏁',pxs+pw+2,27);ctx.fillText('🏍️',pxs+pw*prog,27);
+  if(state==='crash'||flash>0){
+    const msg=state==='crash'?crashMsg:'Kontroll!';
+    ctx.font='700 '+Math.round(Math.min(44,W/12))+'px Fredoka, sans-serif';ctx.textAlign='center';
+    ctx.lineWidth=6;ctx.strokeStyle='#12324a';ctx.strokeText(msg,W/2,Hh*.3);ctx.fillStyle=state==='crash'?'#ff7a3d':'#ffd23f';ctx.fillText(msg,W/2,Hh*.3);
+  }
+}
+function pill(x,y,w,h){ctx.fillStyle='rgba(255,255,255,.88)';ctx.strokeStyle='#2b5d82';ctx.lineWidth=3;ctx.beginPath();
+  if(ctx.roundRect)ctx.roundRect(x,y,w,h,h/2);else ctx.rect(x,y,w,h);ctx.fill();ctx.stroke();}
+function checker(x,y,goal){
+  ctx.fillStyle='#4b5d6b';ctx.fillRect(x-3,y-110,6,110);
+  if(goal){ctx.fillRect(x+81,y-110,6,110);}
+  const w=goal?84:44,s=10;
+  for(let r=0;r<3;r++)for(let c=0;c*s<w;c++){ctx.fillStyle=(r+c)%2?'#12324a':'#fff';ctx.fillRect(x+c*s,y-110+r*s,Math.min(s,w-c*s),s);}
+  if(goal){ctx.fillStyle='#ffd23f';ctx.strokeStyle='#12324a';ctx.lineWidth=3;ctx.fillRect(x+6,y-78,72,26);ctx.strokeRect(x+6,y-78,72,26);
+    ctx.fillStyle='#12324a';ctx.font='700 18px Fredoka, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('MÅL',x+42,y-64);}
+}
+function drawBike(){
+  const [R,F,H]=bike.p,a=bikeAngle(bike),mx=(R.x+F.x)/2,my=(R.y+F.y)/2;
+  // hjul
+  for(let w=0;w<2;w++){const q=bike.p[w];
+    ctx.save();ctx.translate(q.x,q.y);ctx.rotate(bike.spin[w]);
+    ctx.fillStyle='#233847';ctx.beginPath();ctx.arc(0,0,PH.WR,0,7);ctx.fill();
+    ctx.fillStyle='#dfe9f1';ctx.beginPath();ctx.arc(0,0,PH.WR-5,0,7);ctx.fill();
+    ctx.strokeStyle='#7d93a4';ctx.lineWidth=2;ctx.beginPath();for(let k=0;k<5;k++){const t=k*Math.PI*2/5;ctx.moveTo(0,0);ctx.lineTo(Math.cos(t)*(PH.WR-5),Math.sin(t)*(PH.WR-5));}ctx.stroke();
+    ctx.fillStyle='#233847';ctx.beginPath();ctx.arc(0,0,3,0,7);ctx.fill();ctx.restore();}
+  ctx.save();ctx.translate(mx,my);ctx.rotate(a);
+  // lokala koordinater: x framåt, negativt y uppåt
+  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle='#4b5d6b';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(-28,0);ctx.lineTo(-6,-14);ctx.lineTo(14,-12);ctx.moveTo(28,0);ctx.lineTo(18,-26);ctx.stroke(); // ram och gaffel
+  ctx.fillStyle='#ff7a3d';ctx.strokeStyle='#12324a';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(-16,-16);ctx.lineTo(4,-24);ctx.lineTo(18,-20);ctx.lineTo(14,-11);ctx.lineTo(-8,-10);ctx.closePath();ctx.fill();ctx.stroke(); // tank
+  ctx.fillStyle='#12324a';ctx.beginPath();ctx.moveTo(-26,-14);ctx.lineTo(-8,-18);ctx.lineTo(-6,-13);ctx.lineTo(-24,-10);ctx.closePath();ctx.fill(); // sadel
+  ctx.strokeStyle='#12324a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(18,-26);ctx.lineTo(12,-30);ctx.stroke(); // styre
+  // föraren
+  const hx=-6,hy=-44;
+  ctx.strokeStyle='#2f6fb3';ctx.lineWidth=7;
+  ctx.beginPath();ctx.moveTo(-14,-18);ctx.lineTo(-4,-8);ctx.lineTo(4,-6);ctx.stroke(); // ben
+  ctx.beginPath();ctx.moveTo(-14,-18);ctx.lineTo(hx-2,hy+12);ctx.stroke(); // kropp
+  ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(hx,hy+15);ctx.lineTo(4,-24);ctx.lineTo(12,-29);ctx.stroke(); // arm
+  ctx.fillStyle='#22a152';ctx.strokeStyle='#12324a';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.arc(hx,hy,PH.HR,0,7);ctx.fill();ctx.stroke(); // hjälm
+  ctx.fillStyle='#bfe6ff';ctx.beginPath();ctx.moveTo(hx+3,hy-4);ctx.lineTo(hx+11,hy-3);ctx.lineTo(hx+10,hy+4);ctx.lineTo(hx+3,hy+3);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+
+/* ---------- Kontroller ---------- */
+const keymap={ArrowUp:'gas',w:'gas',W:'gas',' ':'gas',ArrowDown:'brake',s:'brake',S:'brake',ArrowLeft:'back',a:'back',A:'back',ArrowRight:'fwd',d:'fwd',D:'fwd'};
+const padBtn={};document.querySelectorAll('.ctl').forEach(b=>padBtn[b.dataset.k]=b);
+function setKey(k,on){inp[k]=on;padBtn[k].classList.toggle('on',on);if(on&&state==='ready')go();}
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  const k=keymap[e.key];
+  if(k){
+    if(!$('win').hidden)return;
+    if(e.key===' '&&e.target.tagName==='BUTTON'&&!e.target.classList.contains('ctl')){return;}
+    e.preventDefault();if(!e.repeat)setKey(k,true);return;
+  }
+  if(e.key==='r'||e.key==='R'){reset();}
+  if(e.key==='Enter'&&state==='ready'&&e.target.tagName!=='BUTTON'){go();}
+});
+document.addEventListener('keyup',e=>{const k=keymap[e.key];if(k)setKey(k,false);});
+window.addEventListener('blur',()=>{for(const k in inp)setKey(k,false);});
+for(const k in padBtn){
+  const b=padBtn[k];
+  b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId);}catch(_){}setKey(k,true);});
+  const up=()=>setKey(k,false);
+  b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up);
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+  b.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();e.stopPropagation();if(!e.repeat)setKey(k,true);}});
+  b.addEventListener('keyup',e=>{if(e.key===' '||e.key==='Enter'){e.stopPropagation();setKey(k,false);}});
+}
+$('rgo').onclick=go;
+$('restart').onclick=function(){reset();this.blur();};
+$('wagain').onclick=reset;
+$('wnext').onclick=()=>loadLevel(Math.min(cur+1,LEVELS.length-1));
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';if(!sound)engine(false);this.blur();};
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=function(){
+  this.blur();
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(LEVELS[cur].name+'. '+LEVELS[cur].hint);u.lang='sv-SE';u.rate=.9;speechSynthesis.speak(u);}catch(e){}
+};
+try{if(window.Spelhornan&&typeof Spelhornan.knapp==='function')Spelhornan.knapp($('tools'));}catch(e){}
+
+let first=0;
+for(let i=0;i<LEVELS.length;i++){first=i;if(!(saved[LEVELS[i].id]&&saved[LEVELS[i].id].s>0))break;}
+resize();loadLevel(first);
+requestAnimationFrame(t=>{last=t;tick(t);});
+})();
+</script>
+</body>
+</html>
