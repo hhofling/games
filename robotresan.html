@@ -172,6 +172,7 @@ button:disabled{opacity:.45; cursor:not-allowed}
       <span class="score" id="score" aria-live="polite"></span>
       <button class="small-btn" id="speak" type="button">Läs upp</button>
       <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+      <span id="spelarplats"></span>
     </div>
   </header>
   <nav class="levels" id="levels" aria-label="Välj bana"></nav>
@@ -651,6 +652,7 @@ function win(total){
   const p=rows.reduce((a,r)=>a+r[1],0);
   const old=best(cur),rec=p>(old.p||0);
   saved[LEVELS[cur].id]={s:Math.max(s,old.s||0),p:Math.max(p,old.p||0)};persist();
+  if(window.Spelhornan)Spelhornan.rapportera('robotresan','bana-'+LEVELS[cur].id,{poang:s,max:3,namn:'Bana '+(cur+1)+': '+LEVELS[cur].name});
   buildLevelBar();
   [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.25,'triangle',.08),i*130));
   $('wstars').innerHTML=[0,1,2].map(i=>'<i class="'+(i<s?'':'off')+'">★</i>').join('');
@@ -702,5 +704,7 @@ loadLevel(first);
 })();
 </script>
 
+<script src="spelhornan.js"></script>
+<script>if(window.Spelhornan)Spelhornan.knapp(document.getElementById('spelarplats'));</script>
 </body>
 </html>
