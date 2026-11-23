@@ -16,7 +16,7 @@
   /* Delad topplista mellan enheter (Supabase). Lämna tomt för att bara spara i den här webbläsaren.
      Databasen skapas med verktyg/topplista-supabase.sql. Nyckeln är "anon public"-nyckeln och får vara publik. */
   var SUPABASE_URL = '';
-  var SUPABASE_KEY = '';
+  var SUPABASE_KEY = 'sb_publishable_k-NYbOre-x20RYiJ73hm2A_3oYRgkAf';
 
   var KEY = 'spelhornan-v1';
   var SYMBOLER = ['🦊', '🐻', '🐼', '🐸', '🦁', '🐙', '🦄', '🚀', '⭐', '🐱', '🐶', '🦖'];
@@ -308,7 +308,9 @@
     clearTimeout(synkTimer); synkTimer = setTimeout(synka, 400);
   }
   function anrop(vag, metod, kropp, extra) {
-    var h = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
+    var h = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
+    // Gamla anon-nycklar (JWT) skickas även som Authorization. Nya sb_publishable-nycklar får inte det.
+    if (/^eyJ/.test(SUPABASE_KEY)) h.Authorization = 'Bearer ' + SUPABASE_KEY;
     if (extra) for (var k in extra) h[k] = extra[k];
     return fetch(SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/' + vag, { method: metod || 'GET', headers: h, body: kropp ? JSON.stringify(kropp) : undefined, cache: 'no-store' })
       .then(function (r) {
