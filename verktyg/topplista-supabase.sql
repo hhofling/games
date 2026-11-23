@@ -21,6 +21,11 @@ create table if not exists rekord (
   primary key (spelare_id, spel, gren)
 );
 
+-- Nya Supabase-projekt ger inte automatiskt rättigheter till besökare (rollen anon).
+grant usage on schema public to anon;
+grant select, insert, update on spelare to anon;
+grant select on rekord to anon;
+
 alter table spelare enable row level security;
 alter table rekord enable row level security;
 
