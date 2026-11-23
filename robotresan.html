@@ -93,6 +93,14 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted); let
 .cells.empty i{background:#f6c9c0}
 .cost{font-size:.9rem; color:var(--muted); width:100%}
 
+.legend{display:flex; flex-wrap:wrap; gap:6px 8px; margin:12px 2px 0; padding:0; list-style:none}
+.legend[hidden]{display:none}
+.legend li{display:flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:var(--card); border:2px solid var(--line); font-size:.95rem; font-weight:500}
+.legend li b{font-size:1.15rem; font-weight:400}
+.pop{position:absolute; transform:translate(-50%,-50%); font-weight:700; font-size:clamp(.9rem,4cqw,1.6rem); pointer-events:none; z-index:4;
+  color:#fff; -webkit-text-stroke:1px var(--ink); paint-order:stroke; text-shadow:0 2px 0 var(--ink); animation:pop-up 1s forwards}
+.pop.pts{color:var(--gold)} .pop.volt{color:#fff36b}
+@keyframes pop-up{0%{opacity:0; translate:0 20%} 15%{opacity:1} 100%{opacity:0; translate:0 -120%}}
 .msg{margin:12px 2px 0; min-height:3.2em; font-weight:500; font-size:1.05rem}
 .msg.bad{color:#a8330a} .msg.good{color:#0f6b34}
 
@@ -147,6 +155,7 @@ button:disabled{opacity:.45; cursor:not-allowed}
   h1{font-size:1.6rem}
 }
 @media (prefers-reduced-motion:reduce){
+  .pop{animation-duration:1.2s}
   .robot,.bot,.apple{transition:none}
   .robot.bump .bot,.robot.hop .bot,.robot.empty .bot,.stars i,.cell .boom,.cell.charger.zap{animation:none}
 }
@@ -183,6 +192,7 @@ button:disabled{opacity:.45; cursor:not-allowed}
         </div>
       </div>
     </div>
+    <ul class="legend" id="legend" aria-label="Vad sakerna gör"></ul>
     <div class="battery" id="battery" hidden>
       <strong>Batteri</strong>
       <div class="cells" id="cells" role="meter" aria-label="Energi" aria-valuemin="0"></div>
@@ -216,7 +226,7 @@ button:disabled{opacity:.45; cursor:not-allowed}
 /*PURE-START*/
 const DIRN=[[0,-1],[1,0],[0,1],[-1,0]];
 const DIRCH={u:0,r:1,d:2,l:3};
-/* Tecken: # sten, T träd, ~ vatten, = bro, B låda, E laddstation, a äpple, S start, G flagga.
+/* Tecken: # sten, T träd, ~ vatten, = bro, B monster, E laddstation, a äpple, S start, G flagga.
    Varje bana har en svårighet (Lätt/Medel/Svår), vilka kommandon som finns (F L R + J hoppa, X skjut)
    och ibland en energi (så många energienheter batteriet rymmer). */
 const LEVELS=[
@@ -242,11 +252,11 @@ const LEVELS=[
   "...~.a",
   "...=..",
   "...~.."]},
- {id:"hoppa",tier:0,name:"Hoppa!",hint:"Nytt: Hoppa tar roboten två rutor framåt, över en sten eller vatten. Träd och lådor är för höga.",cmds:"FLRJ",rows:[
+ {id:"hoppa",tier:0,name:"Hoppa!",hint:"Nytt: Hoppa tar roboten två rutor framåt, över en sten eller vatten. Träd och monster är för höga.",cmds:"FLRJ",rows:[
   "..T...",
   "S.#.aG",
   "..T..."]},
- {id:"laser",tier:0,name:"Lasern",hint:"Nytt: Skjut skickar en laser rakt fram som spränger lådor. Den kortaste vägen går genom lådan!",cmds:"FLRJX",rows:[
+ {id:"laser",tier:0,name:"Monstret",hint:"Nytt: Ett monster 👾 står i vägen! Skjut skickar en laser rakt fram som skjuter bort monster. Den kortaste vägen går där monstret står.",cmds:"FLRJX",rows:[
   "T.....",
   "S.B.aG",
   "T....."]},
@@ -275,13 +285,13 @@ const LEVELS=[
   "......",
   ".#####",
   "....aG"]},
- {id:"lagret",tier:1,name:"Lådlagret",energy:10,hint:"Lådor överallt! Skjut bort dem som står i vägen, men lasern kostar också energi.",cmds:"FLRJX",rows:[
+ {id:"lagret",tier:1,name:"Monstergrottan",energy:10,hint:"Monster överallt! Skjut bort dem som står i vägen, men lasern kostar också energi.",cmds:"FLRJX",rows:[
   "S.B..E",
   "TTB.T.",
   "a.B..B",
   ".TTT.B",
   "E...BG"]},
- {id:"aventyret",tier:2,name:"Stora äventyret",energy:9,hint:"Två äpplen, lite energi och en lång väg. Tänk efter innan du kör!",cmds:"FLRJX",rows:[
+ {id:"aventyret",tier:2,name:"Stora äventyret",energy:9,hint:"Två äpplen att ta poäng för, lite energi och en lång väg. Tänk efter innan du kör!",cmds:"FLRJX",rows:[
   "S..~...",
   ".#.~.#.",
   ".#.=.#a",
@@ -297,7 +307,7 @@ const LEVELS=[
   "E..~..a",
   ".TT~TT.",
   "...E..G"]},
- {id:"mastarprovet",tier:2,name:"Mästarprovet",energy:9,hint:"Här finns allt: stenar, vatten, lådor och laddstationer. Lycka till!",cmds:"FLRJX",rows:[
+ {id:"mastarprovet",tier:2,name:"Mästarprovet",energy:9,hint:"Här finns allt: stenar, vatten, monster och laddstationer. Lycka till!",cmds:"FLRJX",rows:[
   "S.#.a.T",
   "TB#TT.~",
   "..E.B.~",
@@ -332,17 +342,17 @@ function canStand(P,x,y,broken){
   if(t==='crate')return crateAt(P,x,y,broken)<0;
   return !BLOCK.has(t);
 }
-/* Returnerar {ok, x,y, why, hit(låda index), beam(längd)} */
+/* Returnerar {ok, x,y, why, hit(monster index), beam(längd)} */
 function tryCmd(P,s,c){
   const [dx,dy]=DIRN[s.d];
-  if(c==='F'){const x=s.x+dx,y=s.y+dy;return canStand(P,x,y,s.broken)?{ok:true,x,y}:{ok:false,why:'bump',x,y};}
+  if(c==='F'){const x=s.x+dx,y=s.y+dy;if(canStand(P,x,y,s.broken))return {ok:true,x,y};return {ok:false,why:inb(P,x,y)&&crateAt(P,x,y,s.broken)>=0?'monster':'bump',x,y};}
   if(c==='J'){
     const mx=s.x+dx,my=s.y+dy,x=s.x+2*dx,y=s.y+2*dy;
     if(!inb(P,mx,my))return {ok:false,why:'edge'};
     const mt=cellAt(P,mx,my);
     if(mt==='tree'||crateAt(P,mx,my,s.broken)>=0)return {ok:false,why:'high'};
     if(!inb(P,x,y))return {ok:false,why:'edge'};
-    if(!canStand(P,x,y,s.broken))return {ok:false,why:'land',x,y};
+    if(!canStand(P,x,y,s.broken))return {ok:false,why:crateAt(P,x,y,s.broken)>=0?'monster':'land',x,y};
     return {ok:true,x,y};
   }
   if(c==='X'){
@@ -480,7 +490,7 @@ function paintBattery(){
   c.setAttribute('aria-valuetext',rb.e+' av '+P.energy);
 }
 function paintCrates(){
-  crateEl.forEach((el,i)=>{const gone=!!(rb.broken&(1<<i));el.textContent=gone?'':'📦';});
+  crateEl.forEach((el,i)=>{const gone=!!(rb.broken&(1<<i));el.textContent=gone?'':'👾';});
 }
 function resetRobot(){
   rb={x:P.start.x,y:P.start.y,d:P.dir,ang:P.dir*90,broken:0,e:P.energy};
@@ -515,6 +525,15 @@ function loadLevel(i){
     bd.appendChild(c);
   }
   const r=document.createElement('div');r.className='robot';r.id='robot';r.innerHTML=BOT;bd.appendChild(r);
+  const has=t=>P.cells.includes(t);
+  const lg=[];
+  if(P.apples.length)lg.push(['🍎','Äpple: '+PTS.apple+' poäng']);
+  if(has('charger'))lg.push(['⚡','Laddar batteriet']);
+  if(P.crates.length)lg.push(['👾','Monster: skjut bort med lasern']);
+  if(P.cmds.includes('J')&&(has('stone')||has('water')))lg.push(['🪨🌊','Hoppa över']);
+  if(has('bridge'))lg.push(['🌉','Bron går att gå på']);
+  $('legend').innerHTML=lg.map(x=>'<li><b aria-hidden="true">'+x[0]+'</b>'+x[1]+'</li>').join('');
+  $('legend').hidden=!lg.length;
   $('battery').hidden=!P.energy;
   $('cells').innerHTML='<i></i>'.repeat(P.energy);
   document.querySelectorAll('.cmd').forEach(btn=>btn.hidden=!P.cmds.includes(btn.dataset.c));
@@ -542,6 +561,11 @@ function add(c){
 }
 function stopRun(){runId++;running=false;renderProg();setButtons();if(P)resetRobot();}
 
+function popup(x,y,text,cls){
+  const el=document.createElement('div');el.className='pop '+(cls||'');el.textContent=text;
+  el.style.left=((x+.5)/P.w*100)+'%';el.style.top=((y+.3)/P.h*100)+'%';
+  $('board').appendChild(el);setTimeout(()=>el.remove(),1100);
+}
 function shootBeam(r){
   const bd=$('board'),el=document.createElement('div');el.className='beam';
   const len=(r.hit>=0||r.stop)?r.beam-.35:r.beam+.5;
@@ -578,7 +602,8 @@ async function run(){
       if(!r.ok){
         tone(150,.3,'square',.05);
         const t={bump:'Hoppsan! Roboten krockade. Titta på programmet och ändra det.',
-          high:'Det är för högt! Roboten kan inte hoppa över träd och lådor.',
+          monster:'Ett monster står i vägen! Skjut bort det med lasern först.',
+          high:'Det är för högt! Roboten kan inte hoppa över träd och monster. Monster skjuter du bort med lasern.',
           land:'Roboten kan inte landa där. Den måste landa på en tom ruta.',
           edge:'Roboten kan inte hoppa utanför banan.'}[r.why];
         return fail(my,t);
@@ -588,8 +613,8 @@ async function run(){
         tone(1200,.18,'sawtooth',.04);setTimeout(()=>tone(700,.12,'sawtooth',.03),90);
         shootBeam(r);
         if(r.hit>=0){
-          const k=r.hit;rb.broken|=(1<<k);
-          setTimeout(()=>{const el=crateEl[k];el.innerHTML='<span class="boom">💥</span>';tone(90,.35,'square',.07);
+          const k=r.hit;rb.broken|=(1<<k);const mc=P.crates[k];
+          setTimeout(()=>{const el=crateEl[k];el.innerHTML='<span class="boom">💥</span>';popup(mc.x,mc.y,'Pang!');tone(90,.35,'square',.07);
             setTimeout(()=>{if(rb.broken&(1<<k))el.textContent='';},500);},220);
         }
       }else{
@@ -598,10 +623,10 @@ async function run(){
         else tone(520,.08);
         rb.x=r.x;rb.y=r.y;steps+=c==='J'?2:1;paintRobot();
         const k=P.apples.findIndex(a=>a.x===r.x&&a.y===r.y);
-        if(k>=0&&!got.has(k)){got.add(k);setTimeout(()=>{appleEl[k].classList.add('gone');tone(880,.15,'triangle');},300);}
+        if(k>=0&&!got.has(k)){got.add(k);setTimeout(()=>{appleEl[k].classList.add('gone');tone(880,.15,'triangle');popup(r.x,r.y,'+'+PTS.apple,'pts');},300);}
         if(P.energy&&cellAt(P,r.x,r.y)==='charger'){
           rb.e=P.energy;
-          setTimeout(()=>{paintBattery();const el=$('c'+r.x+'_'+r.y);el.classList.remove('zap');void el.offsetWidth;el.classList.add('zap');
+          setTimeout(()=>{paintBattery();popup(r.x,r.y,'⚡ Fullt!','volt');const el=$('c'+r.x+'_'+r.y);el.classList.remove('zap');void el.offsetWidth;el.classList.add('zap');
             [660,880,1100].forEach((f,j)=>setTimeout(()=>tone(f,.1,'triangle',.05),j*70));},350);
         }
         if(r.x===P.goal.x&&r.y===P.goal.y){await sleep(STEP);if(my!==runId)return;win(total);return;}
@@ -632,7 +657,7 @@ function win(total){
   $('wpts').innerHTML=rows.map(r=>'<li class="'+(r[2]?'':'miss')+'"><span>'+r[0]+'</span><span>+'+r[1]+'</span></li>').join('')
     +'<li class="sum"><span>Summa'+(rec&&old.p?' (nytt rekord!)':'')+'</span><span>'+p+' poäng</span></li>';
   let t;
-  if(!all)t='Kan du ta alla äpplen nästa gång?';
+  if(!all)t='Varje äpple ger '+PTS.apple+' poäng. Kan du ta alla nästa gång?';
   else if(!shortPath)t='Det finns en kortare väg: '+P.parSteps+' rutor. Kan du hitta den?';
   else if(!shortProg)t='Kortaste vägen! Kan du göra programmet ännu kortare? Det går med '+P.parCmds+' kommandon.';
   else t='Kortaste vägen och kortaste programmet. Fantastiskt!';
@@ -660,7 +685,7 @@ if(!('speechSynthesis' in window))sp.hidden=true;
 sp.onclick=()=>{
   try{
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(LEVELS[cur].name+'. '+LEVELS[cur].hint.replace('⚡',''));u.lang='sv-SE';u.rate=.9;
+    const u=new SpeechSynthesisUtterance(LEVELS[cur].name+'. '+LEVELS[cur].hint.replace(/⚡|👾/gu,''));u.lang='sv-SE';u.rate=.9;
     speechSynthesis.speak(u);
   }catch(e){}
 };
