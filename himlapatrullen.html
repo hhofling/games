@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Himlapatrullen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Himlapatrullen: ett 3D-flygspel med propellerplan. Spelet ritas med three.js i en canvas,
+   och menyer och HUD ligger ovanpå som vanlig HTML. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --accent:#ff7a3d; --gold:#ffc21a; --go:#22a152; --bad:#d9442b; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0; height:100%; overflow:hidden; background:#bfe6ff; color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35}
+body{touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible,a:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+#scen{position:fixed; inset:0; width:100%; height:100%; display:block}
+
+/* ---------- menyer ---------- */
+.lager{position:fixed; inset:0; overflow:auto; padding:16px max(16px,env(safe-area-inset-right)) 28px max(16px,env(safe-area-inset-left)); background:rgba(223,241,255,.55); z-index:20; touch-action:pan-y}
+.lager[hidden]{display:none}
+.mitt{max-width:980px; margin:0 auto}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; margin-bottom:14px}
+h1{font-size:2.2rem; font-weight:700; margin:0; text-shadow:0 2px 0 #fff}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted); text-shadow:none}
+.tools{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow); text-decoration:none; color:var(--ink); display:inline-flex; align-items:center}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px}
+.upp{display:flex; flex-direction:column; gap:4px; padding:14px 16px; text-align:left; background:var(--card); border:4px solid var(--edge); border-radius:20px; box-shadow:0 6px 0 var(--shadow); min-height:150px; font-size:1rem}
+.upp:hover{transform:translateY(-2px)}
+.upp:active{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
+.upp .ik{font-size:2.4rem; line-height:1}
+.upp .nm{font-size:1.3rem; font-weight:700}
+.upp .tx{color:var(--muted); flex:1}
+.upp .st{font-size:1.3rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:.6px var(--edge)}
+.st .tom{color:#d7e6f2}
+.kort{background:var(--card); border:4px solid var(--edge); border-radius:22px; box-shadow:0 6px 0 var(--shadow); padding:18px 20px}
+.hjalp{margin-top:16px; font-size:1rem; color:var(--muted)}
+.hjalp b{color:var(--ink)}
+.hjalp label{display:inline-flex; gap:8px; align-items:center; margin-top:8px; color:var(--ink); font-weight:600; cursor:pointer}
+.hjalp input{width:22px; height:22px; accent-color:var(--accent)}
+.ruta{max-width:520px; margin:8vh auto 0; text-align:center}
+.ruta h2{margin:0 0 4px; font-size:1.9rem}
+.ruta .ik{font-size:3.2rem; line-height:1}
+.ruta p{margin:8px 0; font-size:1.1rem}
+.ruta .mal{background:#fff4d6; border:3px solid var(--gold); border-radius:14px; padding:8px 12px; font-weight:600}
+.knappar{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:16px}
+.stor{min-height:60px; padding:8px 22px; border-radius:18px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-size:1.35rem; font-weight:700; box-shadow:0 5px 0 #0d5a2e}
+.stor:active{transform:translateY(3px); box-shadow:0 2px 0 #0d5a2e}
+.sec{min-height:60px; padding:8px 18px; border-radius:18px; border:3px solid var(--edge); background:var(--card); font-size:1.1rem; font-weight:600; box-shadow:0 5px 0 var(--shadow)}
+.stjarnor{font-size:2.6rem; letter-spacing:.12em; color:var(--gold); -webkit-text-stroke:1px var(--edge); margin:6px 0}
+.poang{font-size:1.3rem; font-weight:700}
+.nytt{color:var(--go); font-weight:700}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed; inset:0; pointer-events:none; z-index:10}
+#hud[hidden]{display:none}
+.topp{position:absolute; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); right:max(10px,env(safe-area-inset-right)); display:flex; gap:10px; align-items:flex-start; justify-content:space-between}
+.chip{background:rgba(255,255,255,.88); border:3px solid var(--edge); border-radius:14px; padding:4px 12px; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+#malTxt{max-width:60vw}
+#malTxt small{display:block; font-weight:500; color:var(--muted); font-size:.85rem}
+.hoger{display:flex; gap:8px; align-items:flex-start}
+#pausKnapp{pointer-events:auto; min-width:48px; min-height:48px; border-radius:14px; border:3px solid var(--edge); background:rgba(255,255,255,.9); font-size:1.3rem; font-weight:700; box-shadow:0 3px 0 var(--shadow)}
+.matare{position:absolute; left:max(10px,env(safe-area-inset-left)); bottom:max(10px,env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:6px; width:min(240px,42vw)}
+.bar{background:rgba(255,255,255,.88); border:3px solid var(--edge); border-radius:12px; padding:2px 8px 6px; font-size:.85rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.bar i{display:block; height:10px; border-radius:6px; background:#d7e6f2; overflow:hidden}
+.bar i b{display:block; height:100%; width:100%; background:var(--go); transition:width .15s}
+.bar[hidden]{display:none}
+#karta{position:absolute; right:max(10px,env(safe-area-inset-right)); bottom:max(10px,env(safe-area-inset-bottom)); width:140px; height:140px; border-radius:50%; border:3px solid var(--edge); background:rgba(255,255,255,.75); box-shadow:0 3px 0 var(--shadow)}
+#sikte{position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; border:3px solid rgba(255,255,255,.95); border-radius:50%; box-shadow:0 0 0 2px rgba(18,50,74,.35)}
+#sikte::after{content:""; position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px; border-radius:50%; background:#fff}
+#markorer > div{position:absolute; transform:translate(-50%,-50%); font-weight:700; font-size:.8rem; text-align:center; white-space:nowrap; color:#fff; text-shadow:0 1px 2px #12324a,0 0 2px #12324a}
+#markorer .mk{display:flex; flex-direction:column; align-items:center; gap:2px}
+#markorer .ram{width:30px; height:30px; border:3px solid currentColor; border-radius:8px}
+#markorer .pil{width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent; border-bottom:22px solid currentColor; filter:drop-shadow(0 1px 1px #12324a)}
+#rubrik{position:absolute; left:50%; top:22%; transform:translateX(-50%); font-size:2rem; font-weight:700; color:#fff; text-shadow:0 2px 0 var(--edge),0 0 8px rgba(18,50,74,.6); text-align:center; transition:opacity .4s; white-space:nowrap}
+#varning{position:absolute; left:50%; top:34%; transform:translateX(-50%); font-size:1.3rem; font-weight:700; color:#fff; background:var(--bad); border:3px solid #7d1f0e; border-radius:14px; padding:4px 14px}
+#varning[hidden]{display:none}
+#trafflash{position:absolute; inset:0; box-shadow:inset 0 0 90px rgba(217,68,43,.0); transition:box-shadow .25s}
+
+/* ---------- touch ---------- */
+#touch{position:fixed; inset:0; z-index:11; display:none}
+body.touch #touch{display:block}
+#spak{position:absolute; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; border:4px solid rgba(255,255,255,.8); background:rgba(18,50,74,.18); display:none}
+#spak b{position:absolute; left:50%; top:50%; width:54px; height:54px; margin:-27px; border-radius:50%; background:rgba(255,255,255,.9); border:3px solid var(--edge)}
+.tk{position:absolute; border-radius:50%; border:4px solid var(--edge); background:rgba(255,255,255,.85); font-weight:700; box-shadow:0 4px 0 var(--shadow); display:grid; place-items:center; text-align:center; line-height:1.1}
+#tSkjut{width:100px; height:100px; right:max(24px,calc(env(safe-area-inset-right) + 16px)); bottom:max(26px,env(safe-area-inset-bottom)); background:rgba(255,122,61,.9); color:#2a1200; font-size:1.05rem}
+#tTurbo{width:72px; height:72px; right:max(140px,calc(env(safe-area-inset-right) + 132px)); bottom:max(40px,env(safe-area-inset-bottom)); font-size:.85rem}
+.tk.pa{transform:scale(.93); filter:brightness(.9)}
+#tHint{position:absolute; left:18px; bottom:120px; color:#fff; font-weight:600; text-shadow:0 1px 2px #12324a; font-size:.95rem; max-width:40vw}
+#fel{position:fixed; inset:auto 16px 16px; z-index:50; background:#fff; border:3px solid var(--bad); border-radius:14px; padding:10px 14px}
+#fel[hidden]{display:none}
+@media (max-width:560px){
+  h1{font-size:1.8rem}
+  #rubrik{font-size:1.5rem}
+  #karta{width:110px; height:110px}
+}
+body.touch #karta{bottom:auto; top:calc(max(10px,env(safe-area-inset-top)) + 62px); width:110px; height:110px}
+body.touch .matare{width:min(200px,34vw)}
+body.touch #tHint{bottom:auto; top:45%}
+</style>
+</head>
+<body>
+<canvas id="scen" aria-label="Spelvärlden"></canvas>
+
+<!-- HUD under spelet -->
+<div id="hud" hidden>
+  <div id="markorer"></div>
+  <div id="sikte"></div>
+  <div id="trafflash"></div>
+  <div class="topp">
+    <div class="chip" id="malTxt">Uppdrag</div>
+    <div class="hoger">
+      <div class="chip" id="poangTxt">0 p</div>
+      <button id="pausKnapp" type="button" aria-label="Paus">II</button>
+    </div>
+  </div>
+  <div id="rubrik"></div>
+  <div id="varning" hidden>Vänd tillbaka!</div>
+  <div class="matare">
+    <div class="bar" id="barSkepp" hidden>Måsen <i><b id="skeppB"></b></i></div>
+    <div class="bar" id="barMal" hidden><span id="malNamn">Jätteplanet</span> <i><b id="malB" style="background:var(--bad)"></b></i></div>
+    <div class="bar">Ditt plan <i><b id="halsaB"></b></i></div>
+    <div class="bar">Turbo <i><b id="turboB" style="background:var(--accent)"></b></i></div>
+  </div>
+  <canvas id="karta" width="280" height="280" aria-hidden="true"></canvas>
+</div>
+
+<div id="touch" aria-hidden="true">
+  <div id="spak"><b></b></div>
+  <div id="tHint">Dra med tummen här för att styra</div>
+  <div class="tk" id="tTurbo">Turbo</div>
+  <div class="tk" id="tSkjut">Skjut</div>
+</div>
+
+<!-- Startmeny -->
+<div class="lager" id="meny">
+  <div class="mitt">
+    <header>
+      <h1>Himlapatrullen <small>Flyg propellerplanet, gör uppdrag och stoppa luftpiraterna!</small></h1>
+      <div class="tools">
+        <a class="small-btn" href="index.html">← Spelhörnan</a>
+        <button class="small-btn" id="speak" type="button">Läs upp</button>
+        <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+      </div>
+    </header>
+    <div class="grid" id="lista"></div>
+    <div class="kort hjalp">
+      <b>Så styr du:</b> piltangenterna eller W A S D styr planet, <b>mellanslag</b> skjuter, <b>Shift</b> ger turbo och <b>P</b> pausar.
+      På mobil och surfplatta drar du med tummen till vänster och trycker på <b>Skjut</b> till höger.
+      Piraterna har fallskärm, så när ett plan går poff hoppar piloten ut och seglar ner i vattnet.
+      <br><label><input type="checkbox" id="omvand"> Flygarstyrning (pil upp = dyk, pil ner = stig)</label>
+    </div>
+  </div>
+</div>
+
+<!-- Genomgång innan uppdraget -->
+<div class="lager" id="genomgang" hidden>
+  <div class="kort ruta">
+    <div class="ik" id="gIk">✈️</div>
+    <h2 id="gNamn">Uppdrag</h2>
+    <p id="gText"></p>
+    <p class="mal" id="gMal"></p>
+    <div class="knappar">
+      <button class="sec" id="gTillbaka" type="button">Tillbaka</button>
+      <button class="sec" id="gLas" type="button">Läs upp</button>
+      <button class="stor" id="gStart" type="button">Flyg!</button>
+    </div>
+  </div>
+</div>
+
+<!-- Paus -->
+<div class="lager" id="paus" hidden>
+  <div class="kort ruta">
+    <h2>Paus</h2>
+    <p id="pMal"></p>
+    <div class="knappar">
+      <button class="sec" id="pMeny" type="button">Alla uppdrag</button>
+      <button class="sec" id="pOm" type="button">Börja om</button>
+      <button class="stor" id="pFort" type="button">Fortsätt</button>
+    </div>
+  </div>
+</div>
+
+<!-- Slut på uppdraget -->
+<div class="lager" id="slut" hidden>
+  <div class="kort ruta">
+    <div class="ik" id="sIk">🏆</div>
+    <h2 id="sRubrik">Uppdraget klart!</h2>
+    <div class="stjarnor" id="sStj"></div>
+    <p id="sText"></p>
+    <p class="poang" id="sPoang"></p>
+    <p id="sNytt" class="nytt"></p>
+    <div class="knappar">
+      <button class="sec" id="sMeny" type="button">Alla uppdrag</button>
+      <button class="sec" id="sOm" type="button">Försök igen</button>
+      <button class="stor" id="sNasta" type="button">Nästa uppdrag</button>
+    </div>
+  </div>
+</div>
+
+<div id="fel" hidden>Spelet kunde inte laddas. Kontrollera internetanslutningen och ladda om sidan.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="spelhornan.js" onerror="this.remove()"></script>
+<script>
+'use strict';
+if(!window.THREE){ document.getElementById('fel').hidden=false; throw new Error('three.js saknas'); }
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const wrapA=a=>{while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a;};
+function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+const rnd=Math.random;
+
+/* ================= Inställningar och sparat ================= */
+const SPAR='himlapatrullen-v1';
+let spar={stj:{}, best:{}, omvand:false};
+try{ const d=JSON.parse(localStorage.getItem(SPAR)||'null'); if(d&&typeof d==='object') spar=Object.assign(spar,d); }catch(e){}
+function sparaNu(){ try{ localStorage.setItem(SPAR,JSON.stringify(spar)); }catch(e){} }
+
+/* ================= Uppdragen =================
+   typ styr vad som räknas som klart. Alla positioner är i meter ungefär: planet flyger ca 46 m/s. */
+const HAMN={x:620, z:0};
+const UPPDRAG=[
+  {id:'flygskolan', namn:'Flygskolan', ikon:'🎯', par:75,
+   text:'Välkommen till Himlapatrullen! Först ska du lära dig flyga. Flyg genom alla gula ringar. Ingen skjuter på dig här.',
+   mal:'Flyg genom 8 ringar.', typ:'ringar',
+   start:{x:0,y:60,z:320,h:0},
+   ringar:[[0,62,170],[-20,75,20],[-110,95,-110],[-250,90,-160],[-380,70,-90],[-420,55,60],[-330,70,190],[-170,80,250]]},
+  {id:'patrull', namn:'Första patrullen', ikon:'✈️', par:110, sikte:.6, skada:4,
+   text:'Fyra luftpirater flyger runt över öarna. Jaga dem och skjut tills de går poff! Följ de röda pilarna på skärmen.',
+   mal:'Skjut ner 4 piratplan.', typ:'fiender', vagor:[4],
+   start:{x:0,y:80,z:300,h:0}},
+  {id:'ballonger', namn:'Ballongjakten', ikon:'🎈', par:120, tid:200, sikte:.5, skada:4,
+   text:'Piraterna spanar efter skatter från stora ballonger. Skjut sönder alla åtta ballonger innan tiden tar slut. Två piratplan vaktar.',
+   mal:'Spräck 8 ballonger på 200 sekunder.', typ:'ballonger', vagor:[2],
+   start:{x:0,y:80,z:380,h:0}},
+  {id:'masen', namn:'Skydda Måsen', ikon:'🚢', par:120, sikte:.45, skada:4,
+   text:'Fraktbåten Måsen är på väg till hamnen med mat till ön. Piraterna vill skjuta på den. Skydda båten tills den är framme i hamnen!',
+   mal:'Håll Måsen hel hela vägen till hamnen.', typ:'skepp', vagor:[3,3,3,3],
+   start:{x:-560,y:70,z:200,h:0}},
+  {id:'jatten', namn:'Jätteplanet', ikon:'🛩️', par:100, sikte:.4, skada:5,
+   text:'Piraternas jätteplan flyger mot hamnen för att sno hela godislagret! Två vaktplan skyddar det. Skjut ner jätteplanet innan det kommer fram.',
+   mal:'Stoppa jätteplanet innan det når hamnen.', typ:'jatte', vagor:[2,2],
+   start:{x:300,y:90,z:300,h:0}},
+  {id:'storstriden', namn:'Stora luftstriden', ikon:'⭐', par:200, sikte:.35, skada:5,
+   text:'Nu kommer alla luftpirater på en gång, i tre vågor. Sist kommer deras bästa pilot, Kapten Rost, i sitt guldplan. Klarar du alla?',
+   mal:'Klara tre vågor och Kapten Rost.', typ:'fiender', vagor:[3,4,'ess'],
+   start:{x:0,y:90,z:300,h:0}}
+];
+
+/* ================= three.js-scenen ================= */
+const canvas=$('scen');
+const renderer=new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+const scene=new THREE.Scene();
+const HIMMEL=0xbfe6ff;
+scene.background=new THREE.Color(HIMMEL);
+scene.fog=new THREE.Fog(HIMMEL,350,1500);
+const camera=new THREE.PerspectiveCamera(65,1,0.5,3000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x5c8fb0,0.85));
+const sol=new THREE.DirectionalLight(0xffffff,0.7); sol.position.set(300,600,200); scene.add(sol);
+
+function resize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h,false); camera.aspect=w/h;
+  camera.fov=w<h?80:65; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resize); resize();
+
+const M=c=>new THREE.MeshLambertMaterial({color:c});
+const MB=c=>new THREE.MeshBasicMaterial({color:c});
+
+/* Hav */
+const hav=new THREE.Mesh(new THREE.PlaneGeometry(8000,8000),M(0x3f9fdc));
+hav.rotation.x=-Math.PI/2; scene.add(hav);
+// små vågglitter
+{
+  const g=new THREE.PlaneGeometry(6,1.2), m=new THREE.MeshBasicMaterial({color:0xbfe6ff, transparent:true, opacity:.55});
+  const r=rng(7);
+  for(let i=0;i<260;i++){ const w=new THREE.Mesh(g,m); w.rotation.x=-Math.PI/2; w.position.set((r()-.5)*2600,0.15,(r()-.5)*2600); scene.add(w); }
+}
+
+/* Öar */
+const OAR=[];
+function lagOn(x,z,r,h,hamn){
+  const g=new THREE.Group();
+  const sand=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.08,2,20),M(0xf3dc96)); sand.position.y=0.6; g.add(sand);
+  const kulle=new THREE.Mesh(new THREE.ConeGeometry(r*.85,h,16),M(0x6cc35a)); kulle.position.y=1.5+h/2; g.add(kulle);
+  const rr=rng(Math.floor(x*13+z*7)>>>0);
+  if(!hamn){
+    for(let i=0;i<5;i++){
+      const a=rr()*Math.PI*2, d=r*(.55+rr()*.35);
+      const stam=new THREE.Mesh(new THREE.CylinderGeometry(.5,.7,6,6),M(0x8a5a2b)); stam.position.set(Math.cos(a)*d,4,Math.sin(a)*d);
+      const kron=new THREE.Mesh(new THREE.ConeGeometry(3,5,7),M(0x2f9a45)); kron.position.set(Math.cos(a)*d,8.5,Math.sin(a)*d);
+      g.add(stam,kron);
+    }
+  }else{
+    // hamnen: små hus med röda tak och en brygga
+    for(let i=0;i<7;i++){
+      const a=-1.2+i*.4, d=r*.55;
+      const hus=new THREE.Mesh(new THREE.BoxGeometry(9,7,8),M(i%2?0xfff2d8:0xffd27a)); hus.position.set(Math.cos(a+Math.PI)*d,5,Math.sin(a+Math.PI)*d);
+      const tak=new THREE.Mesh(new THREE.ConeGeometry(7.5,5,4),M(0xd9442b)); tak.position.set(hus.position.x,11,hus.position.z); tak.rotation.y=Math.PI/4;
+      g.add(hus,tak);
+    }
+    const brygga=new THREE.Mesh(new THREE.BoxGeometry(60,1.2,6),M(0xa9733a)); brygga.position.set(-r-24,1,40); g.add(brygga);
+    const fyr=new THREE.Mesh(new THREE.CylinderGeometry(2.5,3.5,22,10),M(0xffffff)); fyr.position.set(-r*.7,11,-r*.6);
+    const fyrtopp=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.2,4,10),M(0xd9442b)); fyrtopp.position.set(-r*.7,24,-r*.6);
+    g.add(fyr,fyrtopp);
+  }
+  g.position.set(x,0,z); scene.add(g);
+  OAR.push({x,z,r,h:hamn?14:h});
+}
+lagOn(HAMN.x,HAMN.z,80,10,true);
+{
+  const r=rng(42); let n=0, f=0;
+  while(n<16 && f<400){
+    f++;
+    const x=(r()-.5)*1800, z=(r()-.5)*1800, rad=35+r()*45;
+    if(Math.hypot(x,z-300)<140) continue;            // ingen ö precis vid starten
+    if(Math.hypot(x-HAMN.x,z-HAMN.z)<220) continue;
+    if(Math.abs(z-40)<60 && x<560) continue;          // båtens väg ska vara fri
+    if(OAR.some(o=>Math.hypot(o.x-x,o.z-z)<o.r+rad+60)) continue;
+    lagOn(x,z,rad,12+r()*20,false); n++;
+  }
+}
+function markHojd(x,z){ // höjden på marken under en punkt (0 = hav)
+  let h=0;
+  for(const o of OAR){ const d=Math.hypot(x-o.x,z-o.z); if(d<o.r) h=Math.max(h,1.6+o.h*(1-d/(o.r*.85))); }
+  return h;
+}
+
+/* Moln */
+{
+  const g=new THREE.SphereGeometry(1,10,8), m=new THREE.MeshLambertMaterial({color:0xffffff, emissive:0x9aa8b4, transparent:true, opacity:.92});
+  const r=rng(99);
+  for(let i=0;i<46;i++){
+    const c=new THREE.Group(); const s=14+r()*16;
+    for(let k=0;k<5;k++){ const b=new THREE.Mesh(g,m); b.scale.set(s*(.7+r()*.6),s*(.5+r()*.3),s*(.7+r()*.6)); b.position.set((k-2)*s*.75,r()*s*.3,(r()-.5)*s*.8); c.add(b); }
+    const a=r()*Math.PI*2, d=200+r()*1300;
+    c.position.set(Math.cos(a)*d,130+r()*160,Math.sin(a)*d); c.rotation.y=r()*3;
+    scene.add(c);
+  }
+}
+
+/* ================= Modeller ================= */
+// Ett propellerplan byggt av enkla former. Nosen pekar mot -Z, höger vinge mot +X.
+function lagPlan(kropp,vinge,detalj,skala){
+  const g=new THREE.Group(), p=new THREE.Group();
+  const fus=new THREE.Mesh(new THREE.CylinderGeometry(.95,.55,7.4,10),M(kropp)); fus.rotation.x=Math.PI/2; p.add(fus);
+  const nos=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.0,1.3,12),M(detalj)); nos.rotation.x=Math.PI/2; nos.position.z=-3.9; p.add(nos);
+  const spinner=new THREE.Mesh(new THREE.ConeGeometry(.45,.9,8),M(0xffffff)); spinner.rotation.x=-Math.PI/2; spinner.position.z=-4.9; p.add(spinner);
+  const prop=new THREE.Group(); prop.position.z=-4.65;
+  const blad=new THREE.Mesh(new THREE.BoxGeometry(.3,4,.12),M(0x3a3a3a)); prop.add(blad);
+  const blad2=blad.clone(); blad2.rotation.z=Math.PI/2; prop.add(blad2);
+  p.add(prop);
+  const v=new THREE.Mesh(new THREE.BoxGeometry(11,.28,2),M(vinge)); v.position.set(0,-.35,-.9); p.add(v);
+  for(const s of [-1,1]){ const t=new THREE.Mesh(new THREE.BoxGeometry(1.4,.32,2.05),M(detalj)); t.position.set(s*4.9,-.35,-.9); p.add(t); }
+  const stj=new THREE.Mesh(new THREE.BoxGeometry(4,.22,1.1),M(vinge)); stj.position.set(0,.1,3.2); p.add(stj);
+  const fena=new THREE.Mesh(new THREE.BoxGeometry(.22,1.9,1.4),M(detalj)); fena.position.set(0,1.0,3.3); p.add(fena);
+  const huv=new THREE.Mesh(new THREE.SphereGeometry(.75,10,8),new THREE.MeshLambertMaterial({color:0x9fe0ff, transparent:true, opacity:.85}));
+  huv.scale.set(1,.9,1.7); huv.position.set(0,.75,-.3); p.add(huv);
+  const pilot=new THREE.Mesh(new THREE.SphereGeometry(.38,8,6),M(0x7a4a22)); pilot.position.set(0,.85,-.2); p.add(pilot);
+  g.add(p); g.scale.setScalar(skala||1);
+  g.userData.prop=prop;
+  return g;
+}
+function lagJatte(){
+  const g=new THREE.Group();
+  const fus=new THREE.Mesh(new THREE.CylinderGeometry(2.2,1.3,22,12),M(0x7b5ea8)); fus.rotation.x=Math.PI/2; g.add(fus);
+  const nos=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8),M(0x9fe0ff)); nos.scale.z=1.3; nos.position.z=-11; g.add(nos);
+  const v=new THREE.Mesh(new THREE.BoxGeometry(34,.6,4.5),M(0x5b4485)); v.position.set(0,-.4,-1); g.add(v);
+  const props=[];
+  for(const x of [-11,-5.5,5.5,11]){
+    const mot=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,4,10),M(0x333333)); mot.rotation.x=Math.PI/2; mot.position.set(x,-.4,-3.5); g.add(mot);
+    const pr=new THREE.Group(); const b=new THREE.Mesh(new THREE.BoxGeometry(.35,4.2,.15),M(0x222222)); pr.add(b); const b2=b.clone(); b2.rotation.z=Math.PI/2; pr.add(b2);
+    pr.position.set(x,-.4,-5.7); g.add(pr); props.push(pr);
+  }
+  const stj=new THREE.Mesh(new THREE.BoxGeometry(11,.4,2.6),M(0x5b4485)); stj.position.set(0,.4,9.5); g.add(stj);
+  const fena=new THREE.Mesh(new THREE.BoxGeometry(.5,5,3),M(0xffc21a)); fena.position.set(0,2.6,9.6); g.add(fena);
+  g.userData.props=props;
+  return g;
+}
+function lagSkepp(){
+  const g=new THREE.Group();
+  const skrov=new THREE.Mesh(new THREE.BoxGeometry(10,4,34),M(0x2b5d82)); skrov.position.y=1.5; g.add(skrov);
+  const for_=new THREE.Mesh(new THREE.ConeGeometry(5,8,4),M(0x2b5d82)); for_.rotation.x=-Math.PI/2; for_.rotation.y=Math.PI/4; for_.scale.set(1,1,.57); for_.position.set(0,1.5,-21); g.add(for_);
+  const dack=new THREE.Mesh(new THREE.BoxGeometry(9,.6,32),M(0xc58c4a)); dack.position.y=3.8; g.add(dack);
+  const hytt=new THREE.Mesh(new THREE.BoxGeometry(7,5,8),M(0xffffff)); hytt.position.set(0,6.5,6); g.add(hytt);
+  const sk=new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.5,6,10),M(0xff7a3d)); sk.position.set(0,11,8); g.add(sk);
+  for(let i=0;i<3;i++){ const l=new THREE.Mesh(new THREE.BoxGeometry(6,3.5,4.5),M([0x22a152,0xffc21a,0xd9442b][i])); l.position.set(0,5.8,-4-i*5.5); g.add(l); }
+  return g;
+}
+function lagBallong(){
+  const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.SphereGeometry(5.5,14,12),M(0xd9442b)); b.scale.y=1.2; g.add(b);
+  const rand=new THREE.Mesh(new THREE.TorusGeometry(5.6,.5,6,20),M(0x222222)); rand.rotation.x=Math.PI/2; g.add(rand);
+  const korg=new THREE.Mesh(new THREE.BoxGeometry(2.4,2,2.4),M(0x8a5a2b)); korg.position.y=-10; g.add(korg);
+  const rep=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,4,4),M(0x333333)); rep.position.y=-7.5; g.add(rep);
+  return g;
+}
+function lagRing(){
+  const g=new THREE.Mesh(new THREE.TorusGeometry(12,1.1,8,28),new THREE.MeshBasicMaterial({color:0xffc21a, transparent:true, opacity:.9}));
+  return g;
+}
+
+/* "POFF!"-text som sprite */
+const poffTex=(()=>{
+  const c=document.createElement('canvas'); c.width=256; c.height=128; const x=c.getContext('2d');
+  x.font='bold 76px Fredoka, Trebuchet MS, sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+  x.lineWidth=12; x.strokeStyle='#12324a'; x.strokeText('POFF!',128,66); x.fillStyle='#ffc21a'; x.fillText('POFF!',128,66);
+  return new THREE.CanvasTexture(c);
+})();
+
+/* ================= Spelets tillstånd ================= */
+const spelare={obj:lagPlan(0x3d8fe0,0xffc21a,0xffffff,1), x:0,y:60,z:300, h:0,p:0,b:0, fart:46, halsa:100, turbo:100, kyla:0, kanon:0, skakning:0};
+scene.add(spelare.obj);
+let lage='meny';         // meny | genomgang | spel | paus | slut
+let U=null;              // aktuellt uppdrag
+let tid=0, poang=0, nedskjutna=0, vag=0, vagPaus=0, avslutasOm=0, resultat=null;
+const fiender=[], kulor=[], fkulor=[], effekter=[], ballonger=[], ringar=[];
+let skepp=null, jatte=null, nastaRing=0;
+const inp={x:0,y:0,skjut:false,turbo:false};
+const tangent={};
+
+/* ================= Ljud ================= */
+let ljud=true, ac=null, motor=null;
+function startaLjud(){
+  if(ac||!ljud) return;
+  try{
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(), f=ac.createBiquadFilter(), g=ac.createGain();
+    o.type='sawtooth'; o.frequency.value=60; f.type='lowpass'; f.frequency.value=380; g.gain.value=0;
+    o.connect(f); f.connect(g); g.connect(ac.destination); o.start();
+    motor={o,g};
+  }catch(e){ ac=null; }
+}
+function brus(langd,filt,frek,vol){
+  if(!ac||!ljud) return;
+  const n=Math.floor(ac.sampleRate*langd), buf=ac.createBuffer(1,n,ac.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+  const s=ac.createBufferSource(); s.buffer=buf;
+  const f=ac.createBiquadFilter(); f.type=filt; f.frequency.value=frek;
+  const g=ac.createGain(); g.gain.value=vol;
+  s.connect(f); f.connect(g); g.connect(ac.destination); s.start();
+}
+function ton(fr,langd,typ,vol,nar){
+  if(!ac||!ljud) return;
+  const t=ac.currentTime+(nar||0), o=ac.createOscillator(), g=ac.createGain();
+  o.type=typ||'square'; o.frequency.value=fr; g.gain.setValueAtTime(vol||.08,t); g.gain.exponentialRampToValueAtTime(.001,t+langd);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+langd+.02);
+}
+const ljudSkott=()=>brus(.06,'highpass',1800,.12);
+const ljudPoff=()=>{ brus(.55,'lowpass',500,.5); ton(180,.25,'triangle',.15); };
+const ljudTraff=()=>ton(140,.12,'square',.08);
+const ljudRing=()=>{ ton(660,.12,'triangle',.15); ton(990,.18,'triangle',.15,.1); };
+const ljudVinst=()=>[523,659,784,1046].forEach((f,i)=>ton(f,.25,'triangle',.16,i*.14));
+const ljudForlust=()=>[392,330,262].forEach((f,i)=>ton(f,.3,'triangle',.14,i*.18));
+$('snd').onclick=function(){
+  ljud=!ljud; this.setAttribute('aria-pressed',String(ljud)); this.textContent=ljud?'Ljud på':'Ljud av';
+  if(!ljud&&motor) motor.g.gain.value=0; if(ljud) startaLjud();
+};
+function las(text){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='sv-SE'; u.rate=.95;
+  const v=speechSynthesis.getVoices().find(v=>/^sv/i.test(v.lang)); if(v) u.voice=v;
+  speechSynthesis.speak(u);
+}
+$('speak').onclick=()=>las('Himlapatrullen. Välj ett uppdrag. Styr planet med pilarna eller tummen, och skjut med mellanslag eller skjutknappen.');
+
+/* ================= Meny ================= */
+function stjText(n){ let s=''; for(let i=0;i<3;i++) s+=i<n?'★':'<span class="tom">★</span>'; return s; }
+function ritaMeny(){
+  const l=$('lista'); l.innerHTML='';
+  UPPDRAG.forEach((u,i)=>{
+    const b=document.createElement('button'); b.type='button'; b.className='upp';
+    b.innerHTML='<div class="ik"></div><div class="nm"></div><div class="tx"></div><div class="st"></div>';
+    b.querySelector('.ik').textContent=u.ikon;
+    b.querySelector('.nm').textContent=(i+1)+'. '+u.namn;
+    b.querySelector('.tx').textContent=u.mal;
+    b.querySelector('.st').innerHTML=stjText(spar.stj[u.id]||0)+(spar.best[u.id]?' <small style="color:var(--muted);-webkit-text-stroke:0;letter-spacing:0;font-size:.9rem">'+spar.best[u.id]+' p</small>':'');
+    b.onclick=()=>{ startaLjud(); visaGenomgang(i); };
+    l.appendChild(b);
+  });
+}
+function visa(id){ for(const x of ['meny','genomgang','paus','slut']) $(x).hidden=x!==id; $('hud').hidden=!(id==='spel'||id==='paus'); }
+function visaGenomgang(i){
+  U=Object.assign({index:i},UPPDRAG[i]); lage='genomgang';
+  $('gIk').textContent=U.ikon; $('gNamn').textContent=(i+1)+'. '+U.namn; $('gText').textContent=U.text; $('gMal').textContent='Mål: '+U.mal;
+  visa('genomgang'); $('gStart').focus();
+}
+$('gTillbaka').onclick=()=>{ lage='meny'; visa('meny'); ritaMeny(); };
+$('gLas').onclick=()=>las(U.namn+'. '+U.text);
+$('gStart').onclick=()=>{ startaLjud(); startaUppdrag(); };
+$('omvand').checked=!!spar.omvand;
+$('omvand').onchange=e=>{ spar.omvand=e.target.checked; sparaNu(); };
+if(window.Spelhornan&&typeof Spelhornan.knapp==='function'){ try{ Spelhornan.knapp(document.querySelector('#meny .tools')); }catch(e){} }
+
+/* ================= Starta ett uppdrag ================= */
+function rensa(){
+  for(const a of [fiender,kulor,fkulor,effekter,ballonger,ringar]){ for(const o of a) scene.remove(o.obj); a.length=0; }
+  if(skepp){ scene.remove(skepp.obj); skepp=null; }
+  if(jatte){ scene.remove(jatte.obj); jatte=null; }
+}
+function startaUppdrag(){
+  rensa();
+  const s=U.start;
+  Object.assign(spelare,{x:s.x,y:s.y,z:s.z,h:s.h,p:0,b:0,halsa:100,turbo:100,kyla:0,skakning:0});
+  spelare.obj.visible=true;
+  tid=0; poang=0; nedskjutna=0; vag=0; vagPaus=2; avslutasOm=0; resultat=null; nastaRing=0;
+  if(U.typ==='ringar'){
+    U.ringar.forEach((r,i)=>{
+      const o=lagRing(); o.position.set(r[0],r[1],r[2]);
+      // ringen vänds så att man flyger rakt igenom den från förra ringen mot nästa
+      const n=U.ringar[i+1]||[r[0]*2-(U.ringar[i-1]||r)[0],r[1],r[2]*2-(U.ringar[i-1]||r)[2]], f=U.ringar[i-1]||[s.x,s.y,s.z];
+      o.lookAt(r[0]+(n[0]-f[0]), r[1], r[2]+(n[2]-f[2]));
+      scene.add(o); ringar.push({obj:o,x:r[0],y:r[1],z:r[2],klar:false});
+    });
+  }
+  if(U.typ==='ballonger'){
+    const kand=OAR.slice(1).sort((a,b)=>Math.hypot(a.x,a.z-300)-Math.hypot(b.x,b.z-300)).slice(0,8);
+    kand.forEach((o,i)=>{
+      const b=lagBallong(); const y=55+(i%3)*18;
+      b.position.set(o.x,y,o.z); scene.add(b);
+      ballonger.push({obj:b,x:o.x,y,z:o.z,liv:2,fas:i});
+    });
+  }
+  if(U.typ==='skepp'){
+    const o=lagSkepp(); o.rotation.y=-Math.PI/2; // fören mot +X
+    skepp={obj:o,x:-520,z:40,halsa:100}; o.position.set(skepp.x,0,skepp.z); scene.add(o);
+  }
+  if(U.typ==='jatte'){
+    const o=lagJatte();
+    jatte={obj:o,x:-950,y:95,z:-260,h:0,p:0,b:0,fart:17,liv:45,max:45,typ:'jatte',kyla:2};
+    jatte.h=Math.atan2(-(HAMN.x-jatte.x),-(HAMN.z-jatte.z));
+    scene.add(o);
+    spelare.h=Math.atan2(-(jatte.x-spelare.x),-(jatte.z-spelare.z));
+  }
+  $('barSkepp').hidden=U.typ!=='skepp';
+  $('barMal').hidden=U.typ!=='jatte';
+  if(U.typ==='jatte') $('malNamn').textContent='Jätteplanet';
+  lage='spel'; visa('spel'); visaRubrik(U.namn,2.2);
+}
+
+function nyFiende(typ,roll){
+  const ess=typ==='ess';
+  const o=lagPlan(ess?0xe0a21a:0xc0392b, ess?0xd9442b:0x5a2a2a, ess?0x222222:0x1d1d1d, ess?1.15:1);
+  // välj en plats en bit bort från spelaren
+  const a=rnd()*Math.PI*2, d=520+rnd()*200;
+  let bx=spelare.x, bz=spelare.z;
+  if(roll==='skepp'&&skepp){ bx=skepp.x+200; bz=skepp.z; }
+  if(roll==='vakt'&&jatte){ bx=jatte.x; bz=jatte.z; }
+  const f={obj:o, x:bx+Math.cos(a)*d, y:70+rnd()*50, z:bz+Math.sin(a)*d, h:0,p:0,b:0,
+    fart:ess?50:37, sv:ess?1.25:.95, liv:ess?10:3, max:ess?10:3, typ:ess?'ess':'pirat', roll:roll||'jakt',
+    kyla:1.5+rnd()*2, bryt:0, bx:0,by:0,bz:0};
+  if(roll==='vakt'&&jatte){ f.x=jatte.x+(fiender.length%2?30:-30); f.z=jatte.z+25; f.y=jatte.y; f.h=jatte.h; }
+  else f.h=Math.atan2(-(bx-f.x),-(bz-f.z));
+  scene.add(o); fiender.push(f);
+  return f;
+}
+function startaVag(){
+  const v=U.vagor[vag];
+  if(v==='ess'){ nyFiende('ess'); nyFiende('pirat'); nyFiende('pirat'); visaRubrik('Kapten Rost kommer!',2.5); }
+  else{
+    for(let i=0;i<v;i++){
+      const roll=U.typ==='skepp'?(i===0&&vag>0?'jakt':'skepp'):U.typ==='jatte'?'vakt':'jakt';
+      nyFiende('pirat',roll);
+    }
+    if(vag>0) visaRubrik(U.typ==='skepp'||U.typ==='jatte'?'Fler pirater!':'Våg '+(vag+1)+'!',2);
+  }
+  vag++;
+}
+
+/* ================= Rubriker ================= */
+let rubrikTid=0;
+function visaRubrik(t,s){ const r=$('rubrik'); r.textContent=t; r.style.opacity=1; rubrikTid=s||1.6; }
+
+/* ================= Flygning ================= */
+const V=new THREE.Vector3();
+function framat(o,ut){ const cp=Math.cos(o.p); ut.set(-Math.sin(o.h)*cp, Math.sin(o.p), -Math.cos(o.h)*cp); return ut; }
+function placera(o){ o.obj.position.set(o.x,o.y,o.z); o.obj.rotation.set(o.p,o.h,o.b,'YXZ'); }
+function styrMot(o,tx,ty,tz,dt){
+  const dx=tx-o.x, dy=ty-o.y, dz=tz-o.z;
+  const onskH=Math.atan2(-dx,-dz), dh=wrapA(onskH-o.h);
+  const sv=o.sv||.9;
+  o.h=wrapA(o.h+clamp(dh,-sv*dt,sv*dt));
+  o.b=lerp(o.b,clamp(dh*1.6,-.9,.9),Math.min(1,dt*3));
+  let onskP=clamp(Math.atan2(dy,Math.hypot(dx,dz)),-.55,.55);
+  if(o.y<35) onskP=Math.max(onskP,.35);
+  o.p+=clamp(onskP-o.p,-.8*dt,.8*dt);
+}
+
+function uppdateraSpelare(dt){
+  const s=spelare;
+  let ix=inp.x, iy=inp.y;
+  if(tangent.ArrowLeft||tangent.KeyA) ix-=1; if(tangent.ArrowRight||tangent.KeyD) ix+=1;
+  if(tangent.ArrowUp||tangent.KeyW) iy+=1; if(tangent.ArrowDown||tangent.KeyS) iy-=1;
+  ix=clamp(ix,-1,1); iy=clamp(iy,-1,1);
+  if(spar.omvand) iy=-iy;
+  const skjut=inp.skjut||tangent.Space, turbo=(inp.turbo||tangent.ShiftLeft||tangent.ShiftRight)&&s.turbo>1;
+
+  // utanför spelplanen: planet vänder själv tillbaka
+  const ut=Math.hypot(s.x,s.z)>1400;
+  $('varning').hidden=!ut;
+  let malB=-ix*.95;
+  if(ut){ const dh=wrapA(Math.atan2(s.x,s.z)-s.h); malB=clamp(dh*2,-.95,.95); }
+  s.b=lerp(s.b,malB,Math.min(1,dt*3));
+  s.h=wrapA(s.h+s.b*1.15*dt);
+  if(Math.abs(iy)>.05) s.p+=iy*1.05*dt; else s.p=lerp(s.p,0,Math.min(1,dt*.8));
+  s.p=clamp(s.p,-1,1);
+  if(s.y>480) s.p=Math.min(s.p,0);
+  s.turbo=clamp(s.turbo+(turbo?-32:14)*dt,0,100);
+  s.fart=lerp(s.fart,turbo?74:46,Math.min(1,dt*2));
+  framat(s,V);
+  s.x+=V.x*s.fart*dt; s.y+=V.y*s.fart*dt; s.z+=V.z*s.fart*dt;
+  // krock med hav eller ö: planet studsar upp och tar skada
+  const mark=markHojd(s.x,s.z);
+  if(s.y<mark+2.2){
+    s.y=mark+3; s.p=.55; skadaSpelare(25); poff(s.x,mark+1,s.z,.6,true);
+    visaRubrik(mark>0?'Akta ön!':'Plask! Upp igen!',1.4);
+  }
+  s.kyla-=dt;
+  if(skjut&&s.kyla<=0){ s.kyla=.11; skjutSpelare(); }
+  s.obj.userData.prop.rotation.z+=dt*(40+s.fart);
+  placera(s);
+}
+
+function skadaSpelare(n){
+  if(lage!=='spel'||resultat) return;
+  spelare.halsa=Math.max(0,spelare.halsa-n); spelare.skakning=.35; ljudTraff();
+  $('trafflash').style.boxShadow='inset 0 0 90px rgba(217,68,43,.65)';
+  setTimeout(()=>{$('trafflash').style.boxShadow='inset 0 0 90px rgba(217,68,43,0)';},160);
+  if(spelare.halsa<=0){
+    poff(spelare.x,spelare.y,spelare.z,1.3,false); spelare.obj.visible=false;
+    fallskarm(spelare.x,spelare.y,spelare.z,0x3d8fe0);
+    avsluta(false,'Ditt plan gick poff! Men du hoppade ut med fallskärm och är helt oskadd.');
+  }
+}
+
+/* ================= Skott ================= */
+const kulGeo=new THREE.BoxGeometry(.35,.35,3.2), kulMat=MB(0xfff27a), fkulMat=MB(0xff5a3d);
+const tmpA=new THREE.Vector3(), tmpB=new THREE.Vector3();
+function malLista(){ // allt man kan skjuta på
+  const l=fiender.slice(); for(const b of ballonger) l.push(b); if(jatte) l.push(jatte); return l;
+}
+function skjutSpelare(){
+  const s=spelare; framat(s,V);
+  // lite hjälp att sikta: kulorna dras mot ett mål som nästan är i siktet
+  let bast=null, bastV=.1;
+  for(const m of malLista()){
+    tmpA.set(m.x-s.x,m.y-s.y,m.z-s.z); const d=tmpA.length(); if(d>420) continue;
+    const v=tmpA.angleTo(V); if(v<bastV){ bastV=v; bast=m; }
+  }
+  const dir=V.clone();
+  if(bast){
+    const d=Math.hypot(bast.x-s.x,bast.y-s.y,bast.z-s.z), t=d/220;
+    if(bast.fart){ framat(bast,tmpB); tmpA.set(bast.x+tmpB.x*bast.fart*t-s.x, bast.y+tmpB.y*bast.fart*t-s.y, bast.z+tmpB.z*bast.fart*t-s.z); }
+    else tmpA.set(bast.x-s.x,bast.y-s.y,bast.z-s.z);
+    dir.copy(tmpA.normalize());
+  }
+  s.kanon=1-s.kanon;
+  const sida=s.kanon?3.6:-3.6;
+  const hx=Math.cos(s.h), hz=-Math.sin(s.h); // höger-vektor (utan lutning)
+  const o=new THREE.Mesh(kulGeo,kulMat);
+  const k={obj:o,x:s.x+hx*sida*Math.cos(s.b),y:s.y-sida*Math.sin(s.b)*.5,z:s.z+hz*sida*Math.cos(s.b),vx:dir.x*220+V.x*s.fart,vy:dir.y*220+V.y*s.fart,vz:dir.z*220+V.z*s.fart,liv:1.6};
+  o.position.set(k.x,k.y,k.z); o.lookAt(k.x+k.vx,k.y+k.vy,k.z+k.vz);
+  scene.add(o); kulor.push(k); ljudSkott();
+}
+function skjutFiende(f,tx,ty,tz,precision){
+  framat(f,V);
+  tmpA.set(tx-f.x,ty-f.y,tz-f.z).normalize();
+  const sp=(1-precision)*.12;
+  tmpA.x+=(rnd()-.5)*sp; tmpA.y+=(rnd()-.5)*sp; tmpA.z+=(rnd()-.5)*sp; tmpA.normalize();
+  const o=new THREE.Mesh(kulGeo,fkulMat);
+  const k={obj:o,x:f.x+V.x*5,y:f.y+V.y*5,z:f.z+V.z*5,vx:tmpA.x*150,vy:tmpA.y*150,vz:tmpA.z*150,liv:2};
+  o.position.set(k.x,k.y,k.z); o.lookAt(k.x+k.vx,k.y+k.vy,k.z+k.vz);
+  scene.add(o); fkulor.push(k);
+}
+function uppdateraKulor(dt){
+  for(let i=kulor.length-1;i>=0;i--){
+    const k=kulor[i]; k.liv-=dt;
+    // dela upp steget så att snabba kulor inte flyger igenom ett mål
+    let traff=null;
+    for(let st=0;st<3&&!traff;st++){
+      k.x+=k.vx*dt/3; k.y+=k.vy*dt/3; k.z+=k.vz*dt/3;
+      for(const m of malLista()){
+        const r=m.typ==='jatte'?14:m.typ==='ess'?6.5:6;
+        if(Math.abs(m.x-k.x)<r&&Math.abs(m.y-k.y)<r&&Math.abs(m.z-k.z)<r&&Math.hypot(m.x-k.x,m.y-k.y,m.z-k.z)<r){ traff=m; break; }
+      }
+    }
+    k.obj.position.set(k.x,k.y,k.z);
+    if(traff){ traffa(traff); }
+    if(traff||k.liv<=0||k.y<0){ scene.remove(k.obj); kulor.splice(i,1); }
+  }
+  for(let i=fkulor.length-1;i>=0;i--){
+    const k=fkulor[i]; k.liv-=dt; let bort=k.liv<=0||k.y<0;
+    k.x+=k.vx*dt; k.y+=k.vy*dt; k.z+=k.vz*dt; k.obj.position.set(k.x,k.y,k.z);
+    if(!bort&&spelare.obj.visible&&Math.hypot(spelare.x-k.x,spelare.y-k.y,spelare.z-k.z)<4.5){ bort=true; skadaSpelare(U.skada||5); }
+    if(!bort&&skepp&&k.y<13&&Math.abs(k.x-skepp.x)<20&&Math.abs(k.z-skepp.z)<7){
+      bort=true; skepp.halsa=Math.max(0,skepp.halsa-1.6); smapoff(k.x,k.y,k.z);
+      if(skepp.halsa<=0) avsluta(false,'Måsen fick för många träffar och fick vända hem. Försök igen!');
+    }
+    if(bort){ scene.remove(k.obj); fkulor.splice(i,1); }
+  }
+}
+function traffa(m){
+  m.liv-=1; smapoff(m.x,m.y,m.z);
+  if(m.liv>0){ ljudTraff(); return; }
+  if(m.typ==='ballong'||ballonger.includes(m)){
+    const i=ballonger.indexOf(m); ballonger.splice(i,1); scene.remove(m.obj);
+    poff(m.x,m.y,m.z,1,false); poang+=75; return;
+  }
+  if(m===jatte){
+    poff(m.x,m.y,m.z,3,false); scene.remove(m.obj); jatte=null; poang+=500;
+    for(let i=0;i<3;i++) fallskarm(m.x+(i-1)*6,m.y,m.z,0xd9442b);
+    avsluta(true,'Jätteplanet gick poff och godislagret är räddat! Piraterna seglar ner i fallskärm.');
+    return;
+  }
+  const i=fiender.indexOf(m); if(i<0) return;
+  fiender.splice(i,1); scene.remove(m.obj);
+  poff(m.x,m.y,m.z,m.typ==='ess'?1.6:1.1,false); fallskarm(m.x,m.y,m.z,m.typ==='ess'?0xffc21a:0xd9442b);
+  nedskjutna++; poang+=m.typ==='ess'?300:100;
+  if(m.typ==='ess') visaRubrik('Kapten Rost gick poff!',2);
+}
+
+/* ================= Effekter ================= */
+const bollGeo=new THREE.SphereGeometry(1,8,6);
+function poff(x,y,z,storlek,plask){
+  ljudPoff();
+  const g=new THREE.Group(); const mat=[];
+  const farger=plask?[0xffffff,0xbfe6ff,0x9fd3f5]:[0xffffff,0xdedede,0xffc21a,0xff7a3d];
+  for(let i=0;i<14;i++){
+    const m=new THREE.MeshLambertMaterial({color:farger[i%farger.length], transparent:true, opacity:1}); mat.push(m);
+    const b=new THREE.Mesh(bollGeo,m); const s=(1.5+rnd()*2.5)*storlek;
+    b.scale.setScalar(s); b.position.set((rnd()-.5)*6*storlek,(rnd()-.5)*6*storlek,(rnd()-.5)*6*storlek);
+    b.userData.v=new THREE.Vector3((rnd()-.5)*14,(rnd()-.2)*14,(rnd()-.5)*14).multiplyScalar(storlek);
+    g.add(b);
+  }
+  g.position.set(x,y,z); scene.add(g);
+  effekter.push({obj:g,mat,liv:1.1,max:1.1,typ:'poff'});
+  if(!plask){
+    const sm=new THREE.SpriteMaterial({map:poffTex, transparent:true, depthTest:false});
+    const sp=new THREE.Sprite(sm); sp.scale.set(22*storlek,11*storlek,1); sp.position.set(x,y+6*storlek,z); scene.add(sp);
+    effekter.push({obj:sp,mat:[sm],liv:1.2,max:1.2,typ:'text'});
+  }
+}
+function smapoff(x,y,z){
+  const m=new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.9});
+  const b=new THREE.Mesh(bollGeo,m); b.scale.setScalar(1.6); b.position.set(x,y,z); scene.add(b);
+  effekter.push({obj:b,mat:[m],liv:.3,max:.3,typ:'liten'});
+}
+function fallskarm(x,y,z,farg){
+  const g=new THREE.Group();
+  const sk=new THREE.Mesh(new THREE.SphereGeometry(3.2,12,6,0,Math.PI*2,0,Math.PI/2),M(farg)); sk.position.y=4; g.add(sk);
+  const ra=new THREE.Mesh(new THREE.SphereGeometry(3.25,12,6,0,Math.PI*2,1.15,.12),M(0xffffff)); ra.position.y=4; g.add(ra);
+  const pil=new THREE.Mesh(new THREE.BoxGeometry(.9,1.4,.7),M(0x7a4a22)); pil.position.y=-.5; g.add(pil);
+  const hu=new THREE.Mesh(new THREE.SphereGeometry(.45,8,6),M(0xffd6b0)); hu.position.y=.5; g.add(hu);
+  g.position.set(x,y,z); scene.add(g);
+  effekter.push({obj:g,mat:[],liv:60,max:60,typ:'skarm',fas:rnd()*6});
+}
+function uppdateraEffekter(dt){
+  for(let i=effekter.length-1;i>=0;i--){
+    const e=effekter[i]; e.liv-=dt; const t=1-e.liv/e.max;
+    if(e.typ==='poff'){
+      for(const b of e.obj.children){ b.position.addScaledVector(b.userData.v,dt); b.scale.multiplyScalar(1+dt*.9); }
+      for(const m of e.mat) m.opacity=clamp(1-t*t,0,1);
+    }else if(e.typ==='text'){ e.obj.position.y+=dt*6; e.mat[0].opacity=clamp(1.6-t*1.6,0,1); }
+    else if(e.typ==='liten'){ e.obj.scale.multiplyScalar(1+dt*4); e.mat[0].opacity=.9*(1-t); }
+    else if(e.typ==='skarm'){
+      e.fas+=dt; e.obj.position.y-=dt*5; e.obj.rotation.z=Math.sin(e.fas*1.5)*.15; e.obj.position.x+=Math.sin(e.fas)*dt*2;
+      if(e.obj.position.y<0.5){ poff(e.obj.position.x,0.5,e.obj.position.z,.35,true); e.liv=0; }
+    }
+    if(e.liv<=0){ scene.remove(e.obj); effekter.splice(i,1); }
+  }
+}
+
+/* ================= Fiender ================= */
+function uppdateraFiender(dt){
+  const s=spelare, prec=U?U.sikte||.5:.5;
+  for(const f of fiender){
+    let tx,ty,tz, malAr='spelare';
+    if(f.bryt>0){ f.bryt-=dt; tx=f.bx; ty=f.by; tz=f.bz; }
+    else if(f.roll==='skepp'&&skepp){ tx=skepp.x+40; ty=14; tz=skepp.z; malAr='skepp'; }
+    else if(f.roll==='vakt'&&jatte&&Math.hypot(s.x-jatte.x,s.z-jatte.z)>260){
+      // vakterna stannar nära jätteplanet tills spelaren kommer nära
+      framat(jatte,V); tx=jatte.x+V.x*60+(f.x<jatte.x?-25:25); ty=jatte.y+5; tz=jatte.z+V.z*60;
+    }
+    else{ framat(s,V); const d=Math.hypot(s.x-f.x,s.y-f.y,s.z-f.z), t=d/150; tx=s.x+V.x*s.fart*t; ty=s.y+V.y*s.fart*t; tz=s.z+V.z*s.fart*t; }
+    styrMot(f,tx,ty,tz,dt);
+    // för nära målet: sväng bort en stund
+    const dm=malAr==='skepp'?Math.hypot(skepp.x-f.x,skepp.z-f.z):Math.hypot(s.x-f.x,s.y-f.y,s.z-f.z);
+    if(f.bryt<=0&&dm<(malAr==='skepp'?55:38)){
+      f.bryt=2.5+rnd(); const a=f.h+(rnd()<.5?1:-1)*(1+rnd());
+      f.bx=f.x-Math.sin(a)*300; f.bz=f.z-Math.cos(a)*300; f.by=clamp(f.y+(rnd()-.3)*60,60,160);
+    }
+    framat(f,V);
+    f.x+=V.x*f.fart*dt; f.y+=V.y*f.fart*dt; f.z+=V.z*f.fart*dt;
+    const mark=markHojd(f.x,f.z); if(f.y<mark+12){ f.y=mark+12; f.p=Math.max(f.p,.3); }
+    f.obj.userData.prop.rotation.z+=dt*60;
+    placera(f);
+    // skjut när målet är framför
+    f.kyla-=dt;
+    if(f.kyla<=0&&f.bryt<=0&&!resultat){
+      let mx,my,mz;
+      if(malAr==='skepp'){ mx=skepp.x; my=6; mz=skepp.z; } else { mx=s.x; my=s.y; mz=s.z; }
+      tmpA.set(mx-f.x,my-f.y,mz-f.z); const d=tmpA.length();
+      if(d<(malAr==='skepp'?240:230)&&tmpA.angleTo(V)<.22&&(malAr==='skepp'||s.obj.visible)){
+        skjutFiende(f,mx,my,mz,prec); f.kyla=f.typ==='ess'?.35:.55; if(rnd()<.25) f.kyla+=.8;
+      }
+    }
+  }
+  if(jatte){
+    const j=jatte;
+    styrMot(j,HAMN.x,j.y,HAMN.z,dt); j.b*=.5;
+    framat(j,V); j.x+=V.x*j.fart*dt; j.z+=V.z*j.fart*dt;
+    for(const p of j.obj.userData.props) p.rotation.z+=dt*30;
+    placera(j);
+    // bakskytten skjuter ibland mot spelaren om hen är nära
+    j.kyla-=dt;
+    if(j.kyla<=0&&Math.hypot(s.x-j.x,s.y-j.y,s.z-j.z)<170&&s.obj.visible){ skjutFiende({x:j.x,y:j.y+3,z:j.z,h:s.h,p:0},s.x,s.y,s.z,.35); j.kyla=1.1; }
+    $('malB').style.width=(100*j.liv/j.max)+'%';
+    if(Math.hypot(HAMN.x-j.x,HAMN.z-j.z)<90) avsluta(false,'Jätteplanet hann fram till hamnen och piraterna snodde godiset. Försök igen!');
+  }
+}
+
+/* ================= Uppdragens regler ================= */
+function uppdateraUppdrag(dt){
+  tid+=dt;
+  if(U.vagor&&!resultat){
+    const kvarIVag=fiender.length;
+    if(vag<U.vagor.length){
+      if(U.typ==='skepp'||U.typ==='jatte'){ // nya pirater kommer med jämna mellanrum
+        vagPaus-=dt; if(vagPaus<=0){ startaVag(); vagPaus=U.typ==='skepp'?26:40; }
+      }else if(kvarIVag===0){ vagPaus-=dt; if(vagPaus<=0){ startaVag(); vagPaus=3; } }
+    }
+  }
+  let malText='';
+  if(U.typ==='ringar'){
+    const r=ringar[nastaRing];
+    if(r&&Math.hypot(spelare.x-r.x,spelare.y-r.y,spelare.z-r.z)<14){
+      r.klar=true; r.obj.material.opacity=.15; ljudRing(); poang+=50; nastaRing++;
+      if(nastaRing>=ringar.length) avsluta(true,'Bra flugit! Du är redo för riktiga uppdrag.');
+      else visaRubrik('Ring '+nastaRing+' av '+ringar.length,1);
+    }
+    ringar.forEach((q,i)=>{ if(!q.klar){ q.obj.material.color.setHex(i===nastaRing?0xffc21a:0xffffff); q.obj.material.opacity=i===nastaRing?.95:.45; } });
+    malText='Ringar: '+nastaRing+' av '+ringar.length;
+  }else if(U.typ==='fiender'){
+    const tot=U.vagor.reduce((a,v)=>a+(v==='ess'?3:v),0);
+    malText='Pirater: '+nedskjutna+' av '+tot+(U.vagor.length>1?' · våg '+Math.max(1,vag)+' av '+U.vagor.length:'');
+    if(vag>=U.vagor.length&&fiender.length===0&&!resultat) avsluta(true,U.vagor.includes('ess')?'Du besegrade alla luftpirater och Kapten Rost! Du är himlens hjälte.':'Alla piratplan gick poff och piloterna seglar ner i fallskärm.');
+  }else if(U.typ==='ballonger'){
+    const kvarTid=Math.max(0,U.tid-tid);
+    malText='Ballonger kvar: '+ballonger.length+' · '+Math.ceil(kvarTid)+' s';
+    if(ballonger.length===0&&!resultat) avsluta(true,'Alla ballonger är spräckta. Piraterna hittar inga skatter i dag!');
+    else if(kvarTid<=0&&!resultat) avsluta(false,'Tiden tog slut. Försök igen och använd turbo mellan ballongerna!');
+    for(const b of ballonger){ b.fas+=dt; b.y+=Math.sin(b.fas*.8)*dt*1.5; b.obj.position.y=b.y; b.obj.rotation.y+=dt*.3; }
+  }else if(U.typ==='skepp'&&skepp){
+    skepp.x+=9*dt; skepp.obj.position.set(skepp.x,Math.sin(tid*1.3)*.4,skepp.z); skepp.obj.rotation.z=Math.sin(tid)*.03;
+    const kvar=Math.max(0,500-skepp.x);
+    malText='Måsen: '+Math.ceil(kvar)+' m kvar till hamnen';
+    $('skeppB').style.width=skepp.halsa+'%';
+    $('skeppB').style.background=skepp.halsa<35?'var(--bad)':'var(--go)';
+    if(kvar<=0&&!resultat){ poang+=Math.round(skepp.halsa*5); avsluta(true,'Måsen kom fram till hamnen med maten. Alla på ön jublar!'); }
+  }else if(U.typ==='jatte'){
+    if(jatte) malText='Jätteplanet: '+Math.ceil(Math.max(0,Math.hypot(HAMN.x-jatte.x,HAMN.z-jatte.z)-90))+' m till hamnen';
+  }
+  const mt=$('malTxt'); mt.innerHTML=''; mt.append(U.namn); const sm=document.createElement('small'); sm.textContent=malText; mt.append(sm);
+  $('poangTxt').textContent=poang+' p';
+  $('halsaB').style.width=spelare.halsa+'%';
+  $('halsaB').style.background=spelare.halsa<35?'var(--bad)':'var(--go)';
+  $('turboB').style.width=spelare.turbo+'%';
+}
+
+function avsluta(vann,text){
+  if(resultat) return;
+  resultat={vann,text}; avslutasOm=vann?1.6:2.4;
+  if(vann){ ljudVinst(); visaRubrik('Uppdraget klart!',2); } else { ljudForlust(); visaRubrik('Oj då!',2); }
+}
+function visaSlut(){
+  lage='slut'; visa('slut'); for(const k in tangent) tangent[k]=false; inp.skjut=false; inp.turbo=false;
+  const r=resultat; let stj=0, ny='';
+  if(r.vann){
+    poang+=300+Math.round(spelare.halsa*3)+Math.max(0,Math.round((U.par-tid)*5));
+    stj=1+(spelare.halsa>=50?1:0)+(tid<=U.par?1:0);
+    if(stj>(spar.stj[U.id]||0)){ spar.stj[U.id]=stj; }
+    if(poang>(spar.best[U.id]||0)){ if(spar.best[U.id]) ny='Nytt rekord!'; spar.best[U.id]=poang; }
+    sparaNu();
+    if(window.Spelhornan&&typeof Spelhornan.rapportera==='function'){
+      try{ Spelhornan.rapportera('himlapatrullen','uppdrag-'+U.id,{poang, tid:Math.round(tid*1000), namn:U.namn}); }catch(e){}
+    }
+  }
+  $('sIk').textContent=r.vann?'🏆':'🪂';
+  $('sRubrik').textContent=r.vann?'Uppdraget klart!':'Uppdraget misslyckades';
+  $('sStj').innerHTML=r.vann?stjText(stj):''; $('sStj').hidden=!r.vann;
+  $('sText').textContent=r.text+(r.vann?' Tid: '+Math.round(tid)+' s.':'');
+  $('sPoang').textContent=r.vann?poang+' poäng':'';
+  $('sNytt').textContent=ny;
+  const sista=U.index>=UPPDRAG.length-1;
+  $('sNasta').hidden=!r.vann||sista;
+  (r.vann&&!sista?$('sNasta'):$('sOm')).focus();
+}
+$('sMeny').onclick=()=>{ rensa(); lage='meny'; visa('meny'); ritaMeny(); };
+$('sOm').onclick=()=>startaUppdrag();
+$('sNasta').onclick=()=>visaGenomgang(U.index+1);
+
+function pausa(){ if(lage!=='spel'||resultat) return; lage='paus'; visa('paus'); $('pMal').textContent=U.mal; $('pFort').focus(); }
+$('pausKnapp').onclick=pausa;
+$('pFort').onclick=()=>{ lage='spel'; visa('spel'); };
+$('pOm').onclick=()=>startaUppdrag();
+$('pMeny').onclick=()=>{ rensa(); lage='meny'; visa('meny'); ritaMeny(); };
+
+/* ================= Kamera, markörer och karta ================= */
+const kamPos=new THREE.Vector3(0,80,400), kamMal=new THREE.Vector3();
+let menyVinkel=0;
+function uppdateraKamera(dt){
+  const s=spelare; framat(s,V);
+  const bak=new THREE.Vector3(s.x-V.x*20,s.y-V.y*20+6.5,s.z-V.z*20);
+  kamPos.lerp(bak,Math.min(1,dt*5));
+  camera.position.copy(kamPos);
+  if(s.skakning>0){ s.skakning-=dt; camera.position.x+=(rnd()-.5)*1.2; camera.position.y+=(rnd()-.5)*1.2; }
+  kamMal.set(s.x+V.x*30,s.y+V.y*30+2,s.z+V.z*30);
+  camera.up.set(0,1,0); camera.lookAt(kamMal);
+  camera.rotateZ(s.b*.25);
+  camera.updateMatrixWorld();
+}
+const markDiv=$('markorer'), markPool=[];
+const P=new THREE.Vector3();
+function markor(i){ while(markPool.length<=i){ const d=document.createElement('div'); markDiv.appendChild(d); markPool.push(d); } return markPool[i]; }
+function ritaMarkorer(){
+  const W=window.innerWidth, H=window.innerHeight; let n=0;
+  const lista=[];
+  for(const f of fiender) lista.push([f,f.typ==='ess'?'#ffc21a':'#ff5a3d']);
+  for(const b of ballonger) lista.push([b,'#ff8fb0']);
+  if(jatte) lista.push([jatte,'#c79bff']);
+  if(U&&U.typ==='ringar'&&ringar[nastaRing]) lista.push([ringar[nastaRing],'#ffc21a']);
+  if(skepp) lista.push([{x:skepp.x,y:8,z:skepp.z},'#58b0ff']);
+  for(const [o,farg] of lista){
+    P.set(o.x,o.y,o.z); const avst=P.distanceTo(camera.position); P.project(camera);
+    const d=markor(n++); d.style.display='block'; d.style.color=farg;
+    const bakom=P.z>1;
+    let x=(P.x*.5+.5)*W, y=(-P.y*.5+.5)*H;
+    const m=46;
+    if(!bakom&&x>m&&x<W-m&&y>m&&y<H-m){
+      d.className='mk'; d.innerHTML='<div class="ram"></div>'+Math.round(avst)+' m';
+      d.style.left=x+'px'; d.style.top=y+'px'; d.style.transform='translate(-50%,-15px)';
+    }else{
+      let dx=x-W/2, dy=y-H/2; if(bakom){ dx=-dx; dy=-dy; if(Math.abs(dx)<1&&Math.abs(dy)<1) dy=1; }
+      const sk=Math.min((W/2-m)/Math.abs(dx||1e-6),(H/2-m)/Math.abs(dy||1e-6));
+      x=W/2+dx*sk; y=H/2+dy*sk;
+      d.className='pil'; d.innerHTML='';
+      d.style.left=x+'px'; d.style.top=y+'px';
+      d.style.transform='translate(-50%,-50%) rotate('+(Math.atan2(dy,dx)+Math.PI/2)+'rad)';
+    }
+  }
+  for(let i=n;i<markPool.length;i++) markPool[i].style.display='none';
+  // siktet
+  const s=spelare; framat(s,V); P.set(s.x+V.x*160,s.y+V.y*160,s.z+V.z*160).project(camera);
+  const sk=$('sikte'); sk.style.left=((P.x*.5+.5)*W)+'px'; sk.style.top=((-P.y*.5+.5)*H)+'px';
+}
+const kc=$('karta').getContext('2d');
+function ritaKarta(){
+  const S=280, R=S/2, skala=R/650, s=spelare;
+  kc.clearRect(0,0,S,S); kc.save(); kc.beginPath(); kc.arc(R,R,R-2,0,Math.PI*2); kc.clip();
+  kc.fillStyle='rgba(88,176,255,.55)'; kc.fillRect(0,0,S,S);
+  const fx=-Math.sin(s.h), fz=-Math.cos(s.h), hx=Math.cos(s.h), hz=-Math.sin(s.h);
+  const pos=(x,z)=>{ const dx=x-s.x, dz=z-s.z; return [R+(dx*hx+dz*hz)*skala, R-(dx*fx+dz*fz)*skala]; };
+  kc.fillStyle='#92d67d';
+  for(const o of OAR){ const [x,y]=pos(o.x,o.z); kc.beginPath(); kc.arc(x,y,Math.max(3,o.r*skala),0,Math.PI*2); kc.fill(); }
+  const prick=(x,z,f,r)=>{ let [px,py]=pos(x,z); const dx=px-R, dy=py-R, dd=Math.hypot(dx,dy); if(dd>R-8){ px=R+dx/dd*(R-8); py=R+dy/dd*(R-8); } kc.fillStyle=f; kc.beginPath(); kc.arc(px,py,r,0,Math.PI*2); kc.fill(); kc.strokeStyle='#12324a'; kc.lineWidth=2; kc.stroke(); };
+  if(U&&(U.typ==='skepp'||U.typ==='jatte')) prick(HAMN.x,HAMN.z,'#ffffff',8);
+  if(U&&U.typ==='ringar') ringar.forEach((r,i)=>{ if(!r.klar) prick(r.x,r.z,i===nastaRing?'#ffc21a':'#fff3c4',i===nastaRing?9:5); });
+  for(const b of ballonger) prick(b.x,b.z,'#ff8fb0',7);
+  if(skepp) prick(skepp.x,skepp.z,'#2b5d82',9);
+  if(jatte) prick(jatte.x,jatte.z,'#9a6ee0',11);
+  for(const f of fiender) prick(f.x,f.z,f.typ==='ess'?'#ffc21a':'#ff5a3d',7);
+  kc.restore();
+  // spelaren i mitten
+  kc.fillStyle='#ffffff'; kc.strokeStyle='#12324a'; kc.lineWidth=3;
+  kc.beginPath(); kc.moveTo(R,R-14); kc.lineTo(R+10,R+10); kc.lineTo(R,R+5); kc.lineTo(R-10,R+10); kc.closePath(); kc.fill(); kc.stroke();
+}
+
+/* ================= Menyflygning (bakgrund) ================= */
+function menyFlyg(dt){
+  menyVinkel+=dt*.12;
+  const s=spelare; s.obj.visible=true;
+  s.x=Math.cos(menyVinkel)*260; s.z=Math.sin(menyVinkel)*260+100; s.y=90+Math.sin(menyVinkel*2)*10;
+  s.h=-menyVinkel+Math.PI; s.p=Math.cos(menyVinkel*2)*.08; s.b=.35;
+  s.obj.userData.prop.rotation.z+=dt*80; placera(s);
+  framat(s,V);
+  const sida=new THREE.Vector3(Math.cos(s.h),0,-Math.sin(s.h));
+  kamPos.set(s.x-V.x*26+sida.x*16, s.y+8, s.z-V.z*26+sida.z*16);
+  camera.position.copy(kamPos); camera.up.set(0,1,0); camera.lookAt(s.x+V.x*10,s.y,s.z+V.z*10);
+}
+
+/* ================= Huvudloop ================= */
+let forra=performance.now();
+function loop(nu){
+  const dt=Math.min(.05,(nu-forra)/1000); forra=nu;
+  if(lage==='spel'){
+    if(!resultat||spelare.obj.visible) uppdateraSpelare(dt);
+    uppdateraFiender(dt); uppdateraKulor(dt); uppdateraEffekter(dt);
+    if(!resultat) uppdateraUppdrag(dt);
+    else { avslutasOm-=dt; if(U.typ==='skepp'&&skepp){ skepp.x+=9*dt; skepp.obj.position.x=skepp.x; } if(avslutasOm<=0) visaSlut(); }
+    uppdateraKamera(dt); ritaMarkorer(); ritaKarta();
+    if(motor&&ljud){ motor.o.frequency.value=40+spelare.fart*.9; motor.g.gain.value=spelare.obj.visible?.05:0; }
+  }else if(lage==='meny'||lage==='genomgang'){
+    menyFlyg(dt); uppdateraEffekter(dt);
+    if(motor) motor.g.gain.value=0;
+  }else{
+    if(motor) motor.g.gain.value=0;
+    if(lage==='slut') uppdateraEffekter(dt);
+  }
+  if(rubrikTid>0){ rubrikTid-=dt; if(rubrikTid<=0) $('rubrik').style.opacity=0; }
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+
+/* ================= Tangentbord ================= */
+const SPEL_TANGENTER=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight'];
+window.addEventListener('keydown',e=>{
+  if(lage==='spel'&&SPEL_TANGENTER.includes(e.code)){ tangent[e.code]=true; e.preventDefault(); startaLjud(); }
+  if((e.code==='KeyP'||e.code==='Escape')&&lage==='spel'){ pausa(); e.preventDefault(); }
+  else if((e.code==='KeyP'||e.code==='Escape')&&lage==='paus'){ lage='spel'; visa('spel'); e.preventDefault(); }
+});
+window.addEventListener('keyup',e=>{ tangent[e.code]=false; });
+window.addEventListener('blur',()=>{ for(const k in tangent) tangent[k]=false; inp.skjut=false; inp.turbo=false; pausa(); });
+
+/* ================= Touch ================= */
+const arTouch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
+if(arTouch) document.body.classList.add('touch');
+window.addEventListener('touchstart',()=>document.body.classList.add('touch'),{once:true,passive:true});
+const spak=$('spak'), spakB=spak.firstElementChild;
+let spakId=null, spakX=0, spakY=0;
+const touchYta=$('touch');
+touchYta.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.tk')) return;
+  if(e.clientX>window.innerWidth*.6||spakId!==null) return;
+  spakId=e.pointerId; spakX=e.clientX; spakY=e.clientY;
+  spak.style.display='block'; spak.style.left=spakX+'px'; spak.style.top=spakY+'px'; spakB.style.transform='';
+  $('tHint').style.display='none';
+  try{ touchYta.setPointerCapture(e.pointerId); }catch(_){}
+  startaLjud(); e.preventDefault();
+});
+touchYta.addEventListener('pointermove',e=>{
+  if(e.pointerId!==spakId) return;
+  let dx=e.clientX-spakX, dy=e.clientY-spakY; const d=Math.hypot(dx,dy), max=50;
+  if(d>max){ dx*=max/d; dy*=max/d; }
+  spakB.style.transform='translate('+dx+'px,'+dy+'px)';
+  inp.x=dx/max; inp.y=-dy/max;
+});
+function slappSpak(e){ if(e.pointerId!==spakId) return; spakId=null; inp.x=0; inp.y=0; spak.style.display='none'; }
+touchYta.addEventListener('pointerup',slappSpak); touchYta.addEventListener('pointercancel',slappSpak);
+function knappTouch(el,nyckel){
+  el.addEventListener('pointerdown',e=>{ inp[nyckel]=true; el.classList.add('pa'); try{ el.setPointerCapture(e.pointerId); }catch(_){} startaLjud(); e.preventDefault(); });
+  const upp=()=>{ inp[nyckel]=false; el.classList.remove('pa'); };
+  el.addEventListener('pointerup',upp); el.addEventListener('pointercancel',upp); el.addEventListener('lostpointercapture',upp);
+}
+knappTouch($('tSkjut'),'skjut'); knappTouch($('tTurbo'),'turbo');
+// touchkontrollerna syns bara under själva flygningen
+const visaOrg=visa;
+visa=function(id){ visaOrg(id); touchYta.style.visibility=id==='spel'?'visible':'hidden'; };
+
+ritaMeny(); visa('meny');
+requestAnimationFrame(loop);
+
+// Testkrok: gör det möjligt att styra spelet från automatiska tester.
+window.__himla={get lage(){return lage;}, spelare, fiender, ballonger, ringar, get skepp(){return skepp;}, get jatte(){return jatte;}, get poang(){return poang;}, get tid(){return tid;}, get nasta(){return nastaRing;}, inp, startaUppdrag:i=>{U=Object.assign({index:i},UPPDRAG[i]); startaUppdrag();}, traffa};
+</script>
+</body>
+</html>
