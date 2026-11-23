@@ -79,6 +79,8 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
 .choices{display:grid; gap:10px; margin:10px 0}
 .choice{min-height:60px; border-radius:16px; border:3px solid var(--edge); background:#f2f8fd; font-size:1.15rem; font-weight:600; box-shadow:0 4px 0 var(--shadow)}
 .choice small{display:block; font-weight:400; font-size:.9rem; color:var(--muted)}
+.choice[aria-pressed="true"]{background:var(--accent); color:#2a1200}
+.choice[aria-pressed="true"] small{color:#2a1200}
 .tier{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
 .big{font-size:3rem; line-height:1.1}
 .btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
@@ -152,7 +154,11 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
 <div class="overlay" id="setup" hidden>
   <div class="ocard" role="dialog" aria-labelledby="st">
     <h2 id="st">Drottningen 👑</h2>
-    <p>Ett strategispel för två. Tryck på hur ni vill spela.</p>
+    <p>Ett strategispel för två. Välj variant och hur ni vill spela.</p>
+    <div class="tier variant" style="grid-template-columns:1fr 1fr">
+      <button class="choice" id="varG" type="button" aria-pressed="true">Grundspelet<small>5 sorters kryp</small></button>
+      <button class="choice" id="varF" type="button" aria-pressed="false">Fler kryp<small>+ 🦎 🪱 🐢</small></button>
+    </div>
     <div class="choices">
       <button class="choice" id="mode2" type="button">👫 Två spelare<small>Turas om på samma skärm</small></button>
     </div>
@@ -196,7 +202,11 @@ const TYPES={
   larv:    {namn:'Larv',    ikon:'🐛', antal:2, text:'Kryper exakt två steg längs kanten.'},
   groda:   {namn:'Groda',   ikon:'🐸', antal:2, text:'Hoppar två rutor rakt fram, över vad som helst.'},
   fjaril:  {namn:'Fjäril',  ikon:'🦋', antal:1, text:'Flyger till en tom plats högst tre steg bort.'},
-  igelkott:{namn:'Igelkott',ikon:'🦔', antal:1, text:'Går ett steg. Fiendekryp som står bredvid den sitter fast i taggarna.'}
+  igelkott:{namn:'Igelkott',ikon:'🦔', antal:1, text:'Går ett steg. Fiendekryp som står bredvid den sitter fast i taggarna.'},
+  // Bara i varianten "Fler kryp":
+  odla:      {namn:'Ödla',      ikon:'🦎', antal:1, fler:true, text:'Springer rakt fram längs gruppen och stannar var den vill.'},
+  daggmask:  {namn:'Daggmask',  ikon:'🪱', antal:1, fler:true, text:'Kryper ett steg, eller byter plats med ett av dina egna kryp bredvid sig.'},
+  skoldpadda:{namn:'Sköldpadda',ikon:'🐢', antal:1, fler:true, text:'Går ett steg. Den och dina kryp bredvid den kan aldrig fastna hos en igelkott.'}
 };
 const TYPE_ORDER=Object.keys(TYPES);
 const PNAME=['Orange','Lila'];
@@ -204,9 +214,9 @@ const PNAME=['Orange','Lila'];
 function nb(k){const [q,r]=P(k);return DIRS.map(([dq,dr])=>K(q+dq,r+dr));}
 function dist(a,b){const [q1,r1]=P(a),[q2,r2]=P(b);const dq=q1-q2,dr=r1-r2;return (Math.abs(dq)+Math.abs(dr)+Math.abs(dq+dr))/2;}
 
-function newState(){
+function newState(fler){
   const pieces=[];let id=0;
-  for(let o=0;o<2;o++)for(const t of TYPE_ORDER)for(let i=0;i<TYPES[t].antal;i++)pieces.push({id:id++,o,t,k:null});
+  for(let o=0;o<2;o++)for(const t of TYPE_ORDER)if(fler||!TYPES[t].fler)for(let i=0;i<TYPES[t].antal;i++)pieces.push({id:id++,o,t,k:null});
   return {pieces,cur:0,n:0,winner:null,last:null,passed:false};
 }
 function clone(s){return {pieces:s.pieces.map(p=>({...p})),cur:s.cur,n:s.n,winner:s.winner,last:s.last,passed:s.passed};}
@@ -214,6 +224,8 @@ function occ(s){const m=new Map();m.set(FLOWER,'F');for(const p of s.pieces)if(p
 function ringCount(s,m,o){let c=0;for(const k of RING){const v=m.get(k);if(v!==undefined&&v!=='F'&&s.pieces[v].o===o)c++;}return c;}
 function touches(m,k){return nb(k).some(x=>m.has(x));}
 function frozenBy(s,m,p){
+  if(p.t==='skoldpadda')return false;
+  for(const x of nb(p.k)){const v=m.get(x);if(v!==undefined&&v!=='F'){const q=s.pieces[v];if(q.o===p.o&&q.t==='skoldpadda')return false;}}
   for(const x of nb(p.k)){const v=m.get(x);if(v!==undefined&&v!=='F'){const q=s.pieces[v];if(q.o!==p.o&&q.t==='igelkott')return true;}}
   return false;
 }
@@ -236,19 +248,42 @@ function slides(mm,k){
 /* Varför ett kryp inte kan flytta (eller null om det kan). */
 function whyStuck(s,m,p){
   if(frozenBy(s,m,p))return 'fast';
-  if(!connectedWithout(m,p.k))return 'grupp';
+  if(!connectedWithout(m,p.k)&&!(p.t==='daggmask'&&swapTargets(s,m,p).length))return 'grupp';
   return null;
+}
+/* Daggmasken kan byta plats med ett eget kryp bredvid sig. Gruppen hänger då alltid ihop. */
+function swapTargets(s,m,p){
+  return nb(p.k).filter(x=>{const v=m.get(x);return v!==undefined&&v!=='F'&&s.pieces[v].o===p.o;});
+}
+/* Ödlan: glider steg för steg i en och samma riktning så länge den nuddar något. */
+function runLine(mm,k){
+  const out=[];
+  for(let i=0;i<6;i++){
+    let [q,r]=P(k);
+    for(;;){
+      const b=K(q+DIRS[i][0],r+DIRS[i][1]);if(mm.has(b))break;
+      const c1=K(q+DIRS[(i+5)%6][0],r+DIRS[(i+5)%6][1]),c2=K(q+DIRS[(i+1)%6][0],r+DIRS[(i+1)%6][1]);
+      if(!mm.has(c1)&&!mm.has(c2))break;
+      out.push(b);q+=DIRS[i][0];r+=DIRS[i][1];
+    }
+  }
+  return out;
 }
 function pieceTargets(s,m,p){
   if(whyStuck(s,m,p))return [];
-  const mm=new Map(m);mm.delete(p.k);
   const res=new Set();
-  if(p.t==='snigel'||p.t==='igelkott'){for(const b of slides(mm,p.k))res.add(b);}
+  if(p.t==='daggmask'){
+    for(const x of swapTargets(s,m,p))res.add(x);
+    if(!connectedWithout(m,p.k))return [...res];
+  }
+  const mm=new Map(m);mm.delete(p.k);
+  if(p.t==='snigel'||p.t==='igelkott'||p.t==='skoldpadda'||p.t==='daggmask'){for(const b of slides(mm,p.k))res.add(b);}
   else if(p.t==='larv'){for(const b of slides(mm,p.k))for(const c of slides(mm,b))if(c!==p.k)res.add(c);}
   else if(p.t==='groda'){const [q,r]=P(p.k);for(const [dq,dr] of DIRS){const t=K(q+2*dq,r+2*dr);if(!mm.has(t)&&touches(mm,t))res.add(t);}}
   else if(p.t==='fjaril'){const [q,r]=P(p.k);
     for(let dq=-3;dq<=3;dq++)for(let dr=Math.max(-3,-dq-3);dr<=Math.min(3,-dq+3);dr++){
       const t=K(q+dq,r+dr);if(t!==p.k&&!mm.has(t)&&touches(mm,t))res.add(t);}}
+  else if(p.t==='odla'){for(const b of runLine(mm,p.k))res.add(b);}
   return [...res];
 }
 function placeTargets(s,m,o){
@@ -278,7 +313,9 @@ function apply(s,mv){
   const n=clone(s),o=n.cur;
   let from=null;
   if(mv.a==='p'){const p=n.pieces.find(p=>p.o===o&&!p.k&&p.t===mv.t);p.k=mv.k;n.last={id:p.id,from:null,to:mv.k};}
-  else{const p=n.pieces[mv.id];from=p.k;p.k=mv.k;n.last={id:p.id,from,to:mv.k};}
+  else{const p=n.pieces[mv.id];from=p.k;
+    const other=n.pieces.find(q=>q.k===mv.k);if(other)other.k=from; // daggmaskens platsbyte
+    p.k=mv.k;n.last={id:p.id,from:other?null:from,to:mv.k};}
   n.n++;n.passed=false;
   const m=occ(n);
   if(ringCount(n,m,o)>=NEED){n.winner=o;return n;}
@@ -344,7 +381,8 @@ const KEY='drottningen-v1';
 let saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('krypkampen-v1')||'{}')||{};}catch(e){saved={};}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
 
-let state=newState(),hist=[],mode='2p',tier='medel',sel=null,thinking=false,sound=true;
+let fler=false;try{fler=localStorage.getItem('drottningen-variant')==='fler';}catch(e){}
+let state=newState(fler),hist=[],mode='2p',tier='medel',sel=null,thinking=false,sound=true;
 const TIERNAME={latt:'Lätt',medel:'Medel',svar:'Svår'};
 
 let ac=null;
@@ -515,10 +553,11 @@ function finish(){
     if(mode==='ai'){
       if(w===0){title='Du vann! 🎉';icon='🏆';
         let pid='';try{const a=window.Spelhornan&&Spelhornan.aktiv();if(a)pid=a.id;}catch(e){}
-        const sk=pid?tier+':'+pid:tier;
-        saved[sk]=(saved[sk]||0)+1;if(pid)saved[tier]=(saved[tier]||0)+1;persist();
-        try{if(window.Spelhornan)Spelhornan.rapportera('drottningen',tier,{poang:saved[sk],namn:TIERNAME[tier]});}catch(e){}
-        text=how+' Du har vunnit '+saved[sk]+' '+(saved[sk]===1?'gång':'gånger')+' mot datorn på '+TIERNAME[tier]+'.';
+        const gren=fler?tier+'-fler':tier,gnamn=TIERNAME[tier]+(fler?' · Fler kryp':'');
+        const sk=pid?gren+':'+pid:gren;
+        saved[sk]=(saved[sk]||0)+1;if(pid)saved[gren]=(saved[gren]||0)+1;persist();
+        try{if(window.Spelhornan)Spelhornan.rapportera('drottningen',gren,{poang:saved[sk],namn:gnamn});}catch(e){}
+        text=how+' Du har vunnit '+saved[sk]+' '+(saved[sk]===1?'gång':'gånger')+' mot datorn på '+gnamn+'.';
       }else{title='Datorn vann';icon='🤖';text=how+' Försök igen!';}
     }else{title=PNAME[w]+' vann! 🎉';text=how;}
     [660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle'),i*140));
@@ -529,22 +568,33 @@ function finish(){
 }
 function start(md,tr){
   mode=md;if(tr)tier=tr;
-  state=newState();hist=[];sel=null;thinking=false;
+  state=newState(fler);hist=[];sel=null;thinking=false;
   $('setup').hidden=true;$('win').hidden=true;
   render();hint();
 }
 function showSetup(){
-  const r=['latt','medel','svar'].map(t=>TIERNAME[t]+': '+(saved[t]||0)).join(' · ');
-  $('record').textContent='Dina vinster mot datorn. '+r;
+  const g=t=>fler?t+'-fler':t;
+  const r=['latt','medel','svar'].map(t=>TIERNAME[t]+': '+(saved[g(t)]||0)).join(' · ');
+  $('varG').setAttribute('aria-pressed',String(!fler));$('varF').setAttribute('aria-pressed',String(fler));
+  renderCritters();
+  $('record').textContent='Dina vinster mot datorn'+(fler?' (Fler kryp)':'')+'. '+r;
   $('setup').hidden=false;
 }
 
 // regelkort
-for(const t of TYPE_ORDER){
-  const d=document.createElement('div');d.className='critter';
-  d.innerHTML='<span class="e">'+TYPES[t].ikon+'</span><span><b>'+TYPES[t].namn+'</b> ('+TYPES[t].antal+' st)<br>'+TYPES[t].text+'</span>';
-  $('critters').appendChild(d);
+function renderCritters(){
+  const box=$('critters');box.innerHTML='';
+  for(const t of TYPE_ORDER){
+    const d=document.createElement('div');d.className='critter';
+    if(TYPES[t].fler&&!fler)d.style.opacity='.55';
+    d.innerHTML='<span class="e">'+TYPES[t].ikon+'</span><span><b>'+TYPES[t].namn+'</b> ('+TYPES[t].antal+' st)'+(TYPES[t].fler?' <i>bara i Fler kryp</i>':'')+'<br>'+TYPES[t].text+'</span>';
+    box.appendChild(d);
+  }
 }
+function setVariant(f){fler=f;try{localStorage.setItem('drottningen-variant',f?'fler':'grund');}catch(e){}showSetup();}
+$('varG').onclick=()=>setVariant(false);
+$('varF').onclick=()=>setVariant(true);
+renderCritters();
 $('mode2').onclick=()=>start('2p');
 document.querySelectorAll('[data-tier]').forEach(b=>b.onclick=()=>start('ai',b.dataset.tier));
 $('newgame').onclick=showSetup;
