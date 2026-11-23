@@ -15,7 +15,7 @@
   'use strict';
   /* Delad topplista mellan enheter (Supabase). Lämna tomt för att bara spara i den här webbläsaren.
      Databasen skapas med verktyg/topplista-supabase.sql. Nyckeln är "anon public"-nyckeln och får vara publik. */
-  var SUPABASE_URL = '';
+  var SUPABASE_URL = 'https://gvnrrkdjcurcbjgbbfoo.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_k-NYbOre-x20RYiJ73hm2A_3oYRgkAf';
 
   var KEY = 'spelhornan-v1';
