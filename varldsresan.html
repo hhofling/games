@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Världsresan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: en kolumn. Menyn väljer spel, världsdel och nivå. I spelet ligger frågan överst, sedan flagga/karta och svarsknapparna. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --accent:#ff7a3d; --gold:#ffc21a; --go:#1f9a4d; --bad:#d8394f; --shadow:rgba(18,50,74,.22);
+  --sea:#a8d8fb; --land:#fff4cc; --land-out:#e4ebf0; --border:#6f8fa8; --hover:#ffd98a;
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 40px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible,a:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:16px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2.2rem; font-weight:700; margin:0}
+h2{font-size:1.25rem; margin:0 0 10px; font-weight:600}
+.tools{display:flex; gap:8px; flex-wrap:wrap}
+.small-btn{display:inline-flex; align-items:center; min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow); text-decoration:none; color:inherit}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn:active{transform:translateY(2px); box-shadow:0 1px 0 var(--shadow)}
+.panel{background:var(--card); border:4px solid var(--edge); border-radius:22px; box-shadow:0 6px 0 var(--shadow); padding:18px; min-width:0}
+
+/* Meny */
+.modes{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px}
+.mode{display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:16px; text-align:left; background:var(--card); border:4px solid var(--edge); border-radius:22px; box-shadow:0 6px 0 var(--shadow); min-height:170px}
+.mode:hover{transform:translateY(-2px)}
+.mode:active{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
+.mode .icon{font-size:2.8rem; line-height:1}
+.mode .name{font-size:1.4rem; font-weight:700}
+.mode .desc{color:var(--muted); font-size:1rem; flex:1}
+.mode .best{font-size:1.1rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:.6px var(--edge); min-height:1.3em}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{min-height:48px; padding:6px 14px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-size:1.05rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.chip[aria-pressed="true"]{background:var(--accent); color:#2a1200}
+.settings{display:flex; flex-direction:column; gap:16px}
+
+/* Spel */
+.bar{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.count{font-weight:600; font-size:1.1rem}
+.score{font-weight:700; font-size:1.2rem; padding:4px 14px; border-radius:999px; background:#fff3c2; border:3px solid var(--gold)}
+.progress{height:14px; border-radius:999px; background:#c3ddf1; overflow:hidden; border:2px solid var(--edge)}
+.progress i{display:block; height:100%; width:0; background:var(--go); transition:width .3s}
+.q{display:flex; flex-direction:column; gap:16px; align-items:stretch}
+.qtext{font-size:1.6rem; font-weight:600; text-align:center; text-wrap:balance; margin:0}
+.qtext b{color:#c4500f}
+.flagbox{display:flex; justify-content:center}
+.flag{width:min(320px,80%); aspect-ratio:4/3; object-fit:cover; border-radius:10px; border:3px solid var(--ink); box-shadow:0 5px 0 var(--shadow); background:#eee}
+.flag.small{width:96px; border-width:2px; box-shadow:none; border-radius:6px}
+.answers{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.ans{min-height:64px; padding:8px 12px; border-radius:16px; border:3px solid var(--edge); background:var(--card); font-size:1.2rem; font-weight:600; box-shadow:0 4px 0 var(--shadow); text-wrap:balance}
+.ans:not(:disabled):hover{background:#fff6df}
+.ans:active{transform:translateY(2px); box-shadow:0 2px 0 var(--shadow)}
+.ans:disabled{cursor:default}
+.ans.right{background:var(--go); border-color:#0f6633; color:#fff}
+.ans.wrong{background:var(--bad); border-color:#8e1f30; color:#fff}
+.ans .key{display:inline-block; min-width:1.4em; margin-right:.3em; font-size:.85rem; color:var(--muted); font-weight:500}
+.ans.right .key,.ans.wrong .key{color:inherit}
+.feedback{display:flex; flex-direction:column; gap:12px; align-items:center; text-align:center}
+.verdict{font-size:1.5rem; font-weight:700; margin:0}
+.verdict.ok{color:var(--go)} .verdict.no{color:var(--bad)}
+.fact{display:flex; align-items:center; gap:14px; text-align:left; padding:10px 14px; border-radius:16px; background:#eef7ff; border:2px solid #b3d4ec}
+.fact .t{font-size:1.15rem; font-weight:600}
+.fact .s{color:var(--muted); font-size:1rem}
+.big-btn{min-height:56px; padding:8px 28px; border-radius:16px; border:3px solid #0f6633; background:var(--go); color:#fff; font-size:1.3rem; font-weight:700; box-shadow:0 4px 0 var(--shadow)}
+.big-btn.alt{background:var(--card); color:var(--ink); border-color:var(--edge)}
+.big-btn:active{transform:translateY(2px); box-shadow:0 2px 0 var(--shadow)}
+.hint{min-height:1.4em; text-align:center; font-weight:600; color:var(--muted); margin:0}
+.hint.no{color:var(--bad)}
+.hint:empty{display:none}
+
+/* Karta */
+.mapbox{position:relative; border-radius:16px; overflow:hidden; border:3px solid var(--edge); background:var(--sea)}
+.mapbox svg{display:block; width:100%; height:auto; max-height:64vh; touch-action:none; user-select:none; -webkit-user-select:none}
+.mapbox .zoom{position:absolute; right:8px; top:8px; display:flex; flex-direction:column; gap:6px}
+.mapbox .zoom button{width:44px; height:44px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1.4rem; font-weight:700; line-height:1; box-shadow:0 3px 0 var(--shadow); padding:0}
+.sea{fill:var(--sea)}
+.grat{fill:none; stroke:#8fc5ec; stroke-width:.6; vector-effect:non-scaling-stroke}
+.c{fill:var(--land-out); stroke:var(--border); stroke-width:.6; vector-effect:non-scaling-stroke; stroke-linejoin:round}
+.c.in{fill:var(--land)}
+.pick .c.in{cursor:pointer}
+@media (hover:hover){ .pick .c.in:hover, .pick .dot.in:hover circle.v{fill:var(--hover)} }
+.dot circle.v{fill:var(--land); stroke:var(--border); stroke-width:1.2; vector-effect:non-scaling-stroke}
+.dot circle.hit{fill:transparent}
+.pick .dot.in{cursor:pointer}
+.dot:not(.in){display:none}
+.c.target{fill:var(--accent)} .dot.target circle.v{fill:var(--accent); stroke:#7a2a00; stroke-width:2.4}
+.c.right{fill:var(--go)} .dot.right circle.v{fill:var(--go); stroke:#0f6633; stroke-width:2.4}
+.c.wrong{fill:var(--bad)} .dot.wrong circle.v{fill:var(--bad)}
+.c.sel{fill:#7cc4ff} .dot.sel circle.v{fill:#7cc4ff; stroke:var(--edge); stroke-width:2.4}
+.dot.target,.dot.right,.dot.wrong,.dot.sel{display:inline}
+.loading{padding:40px; text-align:center; color:var(--muted)}
+
+/* Resultat */
+.result{display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center}
+.stars{font-size:3.4rem; letter-spacing:.1em; line-height:1}
+.stars .off{opacity:.2; filter:grayscale(1)}
+.missed{display:flex; flex-direction:column; gap:8px; width:100%; max-width:520px}
+.row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
+.foot{color:var(--muted); font-size:.85rem; text-align:center}
+
+@media (max-width:520px){
+  h1{font-size:1.8rem}
+  .qtext{font-size:1.35rem}
+  .ans{font-size:1.05rem; min-height:58px}
+  .modes{grid-template-columns:1fr 1fr; gap:10px}
+  .mode{min-height:150px; padding:12px}
+  .mode .icon{font-size:2.2rem}
+  .mode .name{font-size:1.15rem}
+  .mode .desc{font-size:.9rem}
+  .mapbox .zoom{right:6px; top:6px; gap:4px}
+  .mapbox .zoom button{width:36px; height:36px; border-radius:10px; font-size:1.15rem; border-width:2px}
+}
+@media (prefers-reduced-motion:reduce){ .mode:hover{transform:none} .progress i{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌍 Världsresan</h1>
+    <div class="tools">
+      <a class="small-btn" href="index.html">← Alla spel</a>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+
+  <!-- MENY -->
+  <section id="menu" class="settings">
+    <div class="panel">
+      <h2>Var vill du resa?</h2>
+      <div class="chips" id="regions"></div>
+    </div>
+    <div class="panel">
+      <h2>Hur svårt?</h2>
+      <div class="chips" id="levels"></div>
+    </div>
+    <div class="modes" id="modes"></div>
+    <p class="foot">Kartdata: Natural Earth · Flaggor: flag-icons</p>
+  </section>
+
+  <!-- SPEL -->
+  <section id="game" class="panel q" hidden>
+    <div class="bar">
+      <button class="small-btn" id="quit" type="button">✕ Avsluta</button>
+      <div class="count" id="count"></div>
+      <div class="score" id="score">⭐ 0</div>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+    <p class="qtext" id="qtext"></p>
+    <div class="flagbox" id="flagbox" hidden><img class="flag" id="qflag" alt="Flagga"></div>
+    <div id="mapslot"></div>
+    <p class="hint" id="hint" aria-live="polite"></p>
+    <div class="answers" id="answers"></div>
+    <div class="feedback" id="feedback" aria-live="polite" hidden></div>
+  </section>
+
+  <!-- UTFORSKA -->
+  <section id="explore" class="panel q" hidden>
+    <div class="bar">
+      <button class="small-btn" id="exitExplore" type="button">← Meny</button>
+      <button class="small-btn" id="randomCountry" type="button">🎲 Slumpa ett land</button>
+    </div>
+    <div class="chips" id="exRegions"></div>
+    <p class="qtext" id="exText">Tryck på ett land!</p>
+    <div id="exMapslot"></div>
+    <div class="feedback" id="exInfo"></div>
+  </section>
+
+  <!-- RESULTAT -->
+  <section id="result" class="panel result" hidden></section>
+</div>
+
+<script src="geografi/lib/d3-array.min.js"></script>
+<script src="geografi/lib/d3-geo.min.js"></script>
+<script src="geografi/lib/topojson-client.min.js"></script>
+<script>
+/* ---------- Data ----------
+   [kod, namn, huvudstad, världsdel, nivå]  nivå 1 = kända länder, 2 = medel, 3 = svåra */
+const RAW=[
+["se","Sverige","Stockholm","EU",1],["no","Norge","Oslo","EU",1],["dk","Danmark","Köpenhamn","EU",1],["fi","Finland","Helsingfors","EU",1],
+["is","Island","Reykjavik","EU",1],["de","Tyskland","Berlin","EU",1],["fr","Frankrike","Paris","EU",1],["gb","Storbritannien","London","EU",1],
+["es","Spanien","Madrid","EU",1],["it","Italien","Rom","EU",1],["pt","Portugal","Lissabon","EU",2],["nl","Nederländerna","Amsterdam","EU",1],
+["be","Belgien","Bryssel","EU",2],["lu","Luxemburg","Luxemburg","EU",3],["ie","Irland","Dublin","EU",2],["ch","Schweiz","Bern","EU",2],
+["at","Österrike","Wien","EU",2],["pl","Polen","Warszawa","EU",2],["cz","Tjeckien","Prag","EU",2],["sk","Slovakien","Bratislava","EU",3],
+["hu","Ungern","Budapest","EU",2],["ro","Rumänien","Bukarest","EU",3],["bg","Bulgarien","Sofia","EU",3],["gr","Grekland","Aten","EU",1],
+["hr","Kroatien","Zagreb","EU",2],["si","Slovenien","Ljubljana","EU",3],["ba","Bosnien och Hercegovina","Sarajevo","EU",3],
+["rs","Serbien","Belgrad","EU",3],["me","Montenegro","Podgorica","EU",3],["mk","Nordmakedonien","Skopje","EU",3],["al","Albanien","Tirana","EU",3],
+["xk","Kosovo","Pristina","EU",3],["ee","Estland","Tallinn","EU",2],["lv","Lettland","Riga","EU",2],["lt","Litauen","Vilnius","EU",2],
+["by","Belarus","Minsk","EU",3],["ua","Ukraina","Kiev","EU",2],["md","Moldavien","Chișinău","EU",3],["ru","Ryssland","Moskva","EU",1],
+["mt","Malta","Valletta","EU",3],["cy","Cypern","Nicosia","EU",3],["ad","Andorra","Andorra la Vella","EU",3],["mc","Monaco","Monaco","EU",3],
+["sm","San Marino","San Marino","EU",3],["li","Liechtenstein","Vaduz","EU",3],["va","Vatikanstaten","Vatikanstaten","EU",3],
+["cn","Kina","Peking","AS",1],["jp","Japan","Tokyo","AS",1],["in","Indien","New Delhi","AS",1],["kr","Sydkorea","Seoul","AS",2],
+["kp","Nordkorea","Pyongyang","AS",3],["mn","Mongoliet","Ulaanbaatar","AS",3],["tw","Taiwan","Taipei","AS",3],["vn","Vietnam","Hanoi","AS",2],
+["th","Thailand","Bangkok","AS",1],["la","Laos","Vientiane","AS",3],["kh","Kambodja","Phnom Penh","AS",3],["mm","Myanmar","Naypyidaw","AS",3],
+["my","Malaysia","Kuala Lumpur","AS",2],["sg","Singapore","Singapore","AS",2],["id","Indonesien","Jakarta","AS",2],
+["ph","Filippinerna","Manila","AS",2],["bn","Brunei","Bandar Seri Begawan","AS",3],["tl","Östtimor","Dili","AS",3],["bd","Bangladesh","Dhaka","AS",3],
+["np","Nepal","Katmandu","AS",2],["bt","Bhutan","Thimphu","AS",3],["lk","Sri Lanka","Colombo","AS",3],["mv","Maldiverna","Malé","AS",3],
+["pk","Pakistan","Islamabad","AS",2],["af","Afghanistan","Kabul","AS",2],["ir","Iran","Teheran","AS",2],["iq","Irak","Bagdad","AS",2],
+["sy","Syrien","Damaskus","AS",2],["lb","Libanon","Beirut","AS",3],["il","Israel","Jerusalem","AS",2],["ps","Palestina","Ramallah","AS",3],
+["jo","Jordanien","Amman","AS",3],["sa","Saudiarabien","Riyadh","AS",2],["ye","Jemen","Sanaa","AS",3],["om","Oman","Muskat","AS",3],
+["ae","Förenade Arabemiraten","Abu Dhabi","AS",2],["qa","Qatar","Doha","AS",3],["bh","Bahrain","Manama","AS",3],["kw","Kuwait","Kuwait","AS",3],
+["tr","Turkiet","Ankara","AS",1],["ge","Georgien","Tbilisi","AS",3],["am","Armenien","Jerevan","AS",3],["az","Azerbajdzjan","Baku","AS",3],
+["kz","Kazakstan","Astana","AS",3],["uz","Uzbekistan","Tasjkent","AS",3],["tm","Turkmenistan","Asjchabad","AS",3],
+["kg","Kirgizistan","Bisjkek","AS",3],["tj","Tadzjikistan","Dusjanbe","AS",3],["eg","Egypten","Kairo","AF",1],["ma","Marocko","Rabat","AF",2],
+["dz","Algeriet","Alger","AF",3],["tn","Tunisien","Tunis","AF",2],["ly","Libyen","Tripoli","AF",3],["sd","Sudan","Khartoum","AF",3],
+["ss","Sydsudan","Juba","AF",3],["et","Etiopien","Addis Abeba","AF",2],["er","Eritrea","Asmara","AF",3],["dj","Djibouti","Djibouti","AF",3],
+["so","Somalia","Mogadishu","AF",3],["ke","Kenya","Nairobi","AF",2],["ug","Uganda","Kampala","AF",3],["tz","Tanzania","Dodoma","AF",3],
+["rw","Rwanda","Kigali","AF",3],["bi","Burundi","Gitega","AF",3],["cd","Kongo-Kinshasa","Kinshasa","AF",3],
+["cg","Kongo-Brazzaville","Brazzaville","AF",3],["ga","Gabon","Libreville","AF",3],["gq","Ekvatorialguinea","Malabo","AF",3],
+["cm","Kamerun","Yaoundé","AF",3],["cf","Centralafrikanska republiken","Bangui","AF",3],["td","Tchad","N'Djamena","AF",3],
+["ne","Niger","Niamey","AF",3],["ng","Nigeria","Abuja","AF",2],["bj","Benin","Porto-Novo","AF",3],["tg","Togo","Lomé","AF",3],
+["gh","Ghana","Accra","AF",2],["ci","Elfenbenskusten","Yamoussoukro","AF",3],["bf","Burkina Faso","Ouagadougou","AF",3],["ml","Mali","Bamako","AF",3],
+["mr","Mauretanien","Nouakchott","AF",3],["sn","Senegal","Dakar","AF",3],["gm","Gambia","Banjul","AF",3],["gw","Guinea-Bissau","Bissau","AF",3],
+["gn","Guinea","Conakry","AF",3],["sl","Sierra Leone","Freetown","AF",3],["lr","Liberia","Monrovia","AF",3],["cv","Kap Verde","Praia","AF",3],
+["st","São Tomé och Príncipe","São Tomé","AF",3],["ao","Angola","Luanda","AF",3],["zm","Zambia","Lusaka","AF",3],["zw","Zimbabwe","Harare","AF",3],
+["mw","Malawi","Lilongwe","AF",3],["mz","Moçambique","Maputo","AF",3],["mg","Madagaskar","Antananarivo","AF",2],["na","Namibia","Windhoek","AF",3],
+["bw","Botswana","Gaborone","AF",3],["za","Sydafrika","Pretoria","AF",1],["ls","Lesotho","Maseru","AF",3],["sz","Eswatini","Mbabane","AF",3],
+["km","Komorerna","Moroni","AF",3],["mu","Mauritius","Port Louis","AF",3],["sc","Seychellerna","Victoria","AF",3],
+["us","USA","Washington D.C.","NA",1],["ca","Kanada","Ottawa","NA",1],["mx","Mexiko","Mexico City","NA",1],["gt","Guatemala","Guatemala City","NA",3],
+["bz","Belize","Belmopan","NA",3],["sv","El Salvador","San Salvador","NA",3],["hn","Honduras","Tegucigalpa","NA",3],
+["ni","Nicaragua","Managua","NA",3],["cr","Costa Rica","San José","NA",2],["pa","Panama","Panama City","NA",2],["cu","Kuba","Havanna","NA",2],
+["jm","Jamaica","Kingston","NA",2],["ht","Haiti","Port-au-Prince","NA",3],["do","Dominikanska republiken","Santo Domingo","NA",3],
+["bs","Bahamas","Nassau","NA",3],["tt","Trinidad och Tobago","Port of Spain","NA",3],["bb","Barbados","Bridgetown","NA",3],
+["gd","Grenada","Saint George's","NA",3],["lc","S:t Lucia","Castries","NA",3],["vc","S:t Vincent och Grenadinerna","Kingstown","NA",3],
+["ag","Antigua och Barbuda","Saint John's","NA",3],["kn","S:t Kitts och Nevis","Basseterre","NA",3],["dm","Dominica","Roseau","NA",3],
+["br","Brasilien","Brasília","SA",1],["ar","Argentina","Buenos Aires","SA",1],["cl","Chile","Santiago","SA",2],["pe","Peru","Lima","SA",2],
+["co","Colombia","Bogotá","SA",2],["ve","Venezuela","Caracas","SA",2],["ec","Ecuador","Quito","SA",3],["bo","Bolivia","Sucre","SA",3],
+["py","Paraguay","Asunción","SA",3],["uy","Uruguay","Montevideo","SA",3],["gy","Guyana","Georgetown","SA",3],["sr","Surinam","Paramaribo","SA",3],
+["au","Australien","Canberra","OC",1],["nz","Nya Zeeland","Wellington","OC",2],["pg","Papua Nya Guinea","Port Moresby","OC",3],
+["fj","Fiji","Suva","OC",3],["sb","Salomonöarna","Honiara","OC",3],["vu","Vanuatu","Port Vila","OC",3],["ws","Samoa","Apia","OC",3],
+["to","Tonga","Nuku'alofa","OC",3],["ki","Kiribati","Tarawa","OC",3],["tv","Tuvalu","Funafuti","OC",3],["nr","Nauru","Yaren","OC",3],
+["fm","Mikronesien","Palikir","OC",3],["mh","Marshallöarna","Majuro","OC",3],["pw","Palau","Ngerulmud","OC",3]
+];
+const LANDER=RAW.map(([c,n,h,r,l])=>({c,n,h,r,l}));
+const BY=Object.fromEntries(LANDER.map(x=>[x.c,x]));
+const REGIONER=[
+  {k:'ALL',namn:'Hela världen',box:[-180,-56,180,83]},
+  {k:'EU',namn:'Europa',box:[-25,34,45,71]},
+  {k:'AS',namn:'Asien',box:[25,-11,150,56]},
+  {k:'AF',namn:'Afrika',box:[-26,-36,60,38]},
+  {k:'NA',namn:'Nordamerika',box:[-170,6,-52,72]},
+  {k:'SA',namn:'Sydamerika',box:[-92,-56,-32,13]},
+  {k:'OC',namn:'Oceanien',box:[110,-48,190,10]}
+];
+const REG=Object.fromEntries(REGIONER.map(r=>[r.k,r]));
+const NIVAER=[{k:1,namn:'Lätt'},{k:2,namn:'Medel'},{k:3,namn:'Svår'}];
+const LAGEN=[
+  {k:'flagga',ikon:'🚩',namn:'Flaggor',text:'Vilket land har den här flaggan?'},
+  {k:'stad',ikon:'🏛️',namn:'Huvudstäder',text:'Vad heter landets huvudstad?'},
+  {k:'vilket',ikon:'📍',namn:'Vilket land?',text:'Ett land lyser på kartan. Vilket är det?'},
+  {k:'hitta',ikon:'🗺️',namn:'Hitta landet',text:'Tryck på rätt land på kartan.'},
+  {k:'utforska',ikon:'🔍',namn:'Utforska',text:'Tryck på länder och lär dig flaggor och huvudstäder.'}
+];
+const ANTAL=10;
+const $=id=>document.getElementById(id);
+const flagSrc=c=>'geografi/flaggor/'+c+'.svg';
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const pick=(a,n)=>shuffle(a).slice(0,n);
+const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;};
+
+/* ---------- Sparat ---------- */
+const KEY='varldsresan-v1';
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+let val={reg:saved.reg||'EU', niva:saved.niva||1};
+if(!REG[val.reg])val.reg='EU';
+let sound=saved.sound!==false;
+
+/* ---------- Ljud ---------- */
+let ac=null;
+function tone(freqs,dur,type){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    let t=ac.currentTime;
+    for(const f of freqs){
+      const o=ac.createOscillator(),g=ac.createGain();
+      o.type=type||'sine';o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.18,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+      o.connect(g).connect(ac.destination);o.start(t);o.stop(t+dur+.02);t+=dur*.8;
+    }
+  }catch(e){}
+}
+const ljudRatt=()=>tone([660,880],.14,'triangle');
+const ljudFel=()=>tone([220,180],.18,'square');
+const ljudKlar=()=>tone([523,659,784,1046],.14,'triangle');
+function setSound(){ $('snd').setAttribute('aria-pressed',String(sound)); $('snd').textContent=sound?'Ljud på':'Ljud av'; }
+$('snd').onclick=()=>{sound=!sound;saved.sound=sound;persist();setSound();};
+setSound();
+
+/* ---------- Karta ---------- */
+let features=null, mapPromise=null;
+function loadMap(){
+  if(!mapPromise){
+    mapPromise=fetch('geografi/varlden.json').then(r=>r.json()).then(topo=>{
+      features=topojson.feature(topo,topo.objects.countries).features;
+      // Tuvalu är för litet för kartfilen: lägg till en punkt.
+      features.push({type:'Feature',id:'tv',geometry:{type:'Point',coordinates:[179.2,-8.5]}});
+    });
+  }
+  return mapPromise;
+}
+const SVGNS='http://www.w3.org/2000/svg';
+function svgEl(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+
+/* Bygger en karta för en världsdel. active = koder som är med i spelet (ljusa och klickbara). */
+function makeMap(regKey, active, opts){
+  opts=opts||{};
+  const W=960, R=REG[regKey], [x0,y0,x1,y1]=R.box;
+  const pts=[];
+  for(let x=x0;x<=x1;x+=5){pts.push([x,y0],[x,y1]);}
+  for(let y=y0;y<=y1;y+=5){pts.push([x0,y],[x1,y]);}
+  const box={type:'MultiPoint',coordinates:pts.map(p=>[p[0]>180?p[0]-360:p[0],p[1]])};
+  const proj=regKey==='ALL'
+    ? d3.geoNaturalEarth1().rotate([-10,0])
+    : d3.geoAzimuthalEqualArea().rotate([-(x0+x1)/2,-(y0+y1)/2]).clipAngle(100);
+  proj.fitSize([1000,1000],box);
+  const b0=d3.geoPath(proj).bounds(box);
+  const H=Math.round(Math.max(380,Math.min(760,W*(b0[1][1]-b0[0][1])/(b0[1][0]-b0[0][0]))));
+  proj.fitExtent([[12,12],[W-12,H-12]],box);
+  const path=d3.geoPath(proj).pointRadius(2);
+
+  const svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Karta över '+R.namn});
+  svg.appendChild(svgEl('rect',{class:'sea',x:-W,y:-H,width:W*3,height:H*3}));
+  svg.appendChild(svgEl('path',{class:'grat',d:path(d3.geoGraticule10())}));
+  const gLand=svgEl('g',{}), gDots=svgEl('g',{});
+  svg.appendChild(gLand); svg.appendChild(gDots);
+
+  const els={}; // kod -> [element]
+  const add=(c,e)=>{(els[c]=els[c]||[]).push(e);};
+  const groups={};
+  for(const f of features){
+    const d=path(f); if(!d) continue;
+    const p=svgEl('path',{d,class:'c'+(f.id&&active.has(f.id)?' in':'')});
+    if(f.id){p.dataset.c=f.id; add(f.id,p); (groups[f.id]=groups[f.id]||[]).push(f);}
+    gLand.appendChild(p);
+  }
+  // Små länder får en prick så att de går att se och trycka på.
+  const dots=[];
+  for(const c in groups){
+    if(!BY[c]) continue;
+    const fs=groups[c];
+    const main=fs.reduce((a,f)=>d3.geoArea(f)>d3.geoArea(a)?f:a,fs[0]);
+    if(path.area(main)>40 && main.geometry.type!=='Point') continue;
+    const xy=proj(d3.geoCentroid(main)); if(!xy||!isFinite(xy[0])) continue;
+    if(xy[0]<-20||xy[0]>W+20||xy[1]<-20||xy[1]>H+20) continue;
+    const g=svgEl('g',{class:'dot'+(active.has(c)?' in':'')}); g.dataset.c=c;
+    const v=svgEl('circle',{class:'v',cx:xy[0],cy:xy[1],r:7}), hit=svgEl('circle',{class:'hit',cx:xy[0],cy:xy[1],r:16});
+    g.appendChild(v); g.appendChild(hit); gDots.appendChild(g); add(c,g); dots.push([v,hit]);
+  }
+
+  const box_=el('div','mapbox'); box_.appendChild(svg);
+  if(opts.pick) svg.classList.add('pick');
+
+  /* Zoom och panorering: dra, nyp, scrollhjul eller knapparna. */
+  let vb={x:0,y:0,w:W,h:H};
+  function apply(){
+    vb.w=Math.max(W/12,Math.min(W,vb.w)); vb.h=vb.w*H/W;
+    vb.x=Math.max(0,Math.min(W-vb.w,vb.x)); vb.y=Math.max(0,Math.min(H-vb.h,vb.y));
+    svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+    const k=Math.max(vb.w/W,.35);
+    for(const [v,hit] of dots){v.setAttribute('r',7*k);hit.setAttribute('r',16*vb.w/W);}
+  }
+  function scaleInfo(){const r=svg.getBoundingClientRect();return {r,s:r.width/vb.w};}
+  function zoomAt(f,cx,cy){
+    const {r,s}=scaleInfo();
+    const px=vb.x+(cx-r.left)/s, py=vb.y+(cy-r.top)/s;
+    const nw=Math.max(W/12,Math.min(W,vb.w*f)), k=nw/vb.w;
+    vb.x=px-(px-vb.x)*k; vb.y=py-(py-vb.y)*k; vb.w=nw; apply();
+  }
+  const ptrs=new Map(); let moved=0, pinch=null;
+  svg.addEventListener('pointerdown',e=>{
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1) moved=0;
+    if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),w:vb.w};}
+  });
+  window.addEventListener('pointermove',e=>{
+    if(!ptrs.has(e.pointerId)) return;
+    const prev=ptrs.get(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){
+      const {s}=scaleInfo(); const dx=e.clientX-prev.x, dy=e.clientY-prev.y;
+      moved+=Math.abs(dx)+Math.abs(dy);
+      if(moved>8){vb.x-=dx/s; vb.y-=dy/s; apply();}
+    } else if(ptrs.size===2&&pinch){
+      const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y);
+      moved=99; zoomAt((pinch.w*pinch.d/d)/vb.w,(a.x+b.x)/2,(a.y+b.y)/2);
+    }
+  });
+  const up=e=>{ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null;};
+  window.addEventListener('pointerup',up); window.addEventListener('pointercancel',up);
+  svg.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.deltaY>0?1.2:1/1.2,e.clientX,e.clientY);},{passive:false});
+  svg.addEventListener('click',e=>{
+    if(moved>8||!opts.pick) return;
+    const t=e.target.closest('[data-c]'); if(!t||!active.has(t.dataset.c)) return;
+    opts.pick(t.dataset.c);
+  });
+  const zb=el('div','zoom');
+  const zbtn=(txt,label,fn)=>{const b=el('button',null,txt);b.type='button';b.setAttribute('aria-label',label);b.onclick=fn;zb.appendChild(b);};
+  const center=()=>{const r=svg.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];};
+  zbtn('+','Zooma in',()=>zoomAt(1/1.6,...center()));
+  zbtn('−','Zooma ut',()=>zoomAt(1.6,...center()));
+  zbtn('⟲','Visa hela kartan',()=>{vb={x:0,y:0,w:W,h:H};apply();});
+  box_.appendChild(zb);
+
+  return {
+    el:box_,
+    mark(c,cls){(els[c]||[]).forEach(e=>e.classList.add(cls));},
+    clear(){svg.querySelectorAll('.target,.right,.wrong,.sel').forEach(e=>e.classList.remove('target','right','wrong','sel'));},
+    has(c){return !!els[c];},
+    reset(){vb={x:0,y:0,w:W,h:H};apply();}
+  };
+}
+
+/* ---------- Meny ---------- */
+function chipRow(container,items,cur,onPick){
+  container.textContent='';
+  for(const it of items){
+    const b=el('button','chip',it.namn); b.type='button';
+    b.setAttribute('aria-pressed',String(it.k===cur));
+    b.onclick=()=>onPick(it.k);
+    container.appendChild(b);
+  }
+}
+function bestKey(mode){return mode+'|'+val.reg+'|'+val.niva;}
+function starsText(n){return '★'.repeat(n)+'☆'.repeat(3-n);}
+function renderMenu(){
+  chipRow($('regions'),REGIONER,val.reg,k=>{val.reg=k;saved.reg=k;persist();renderMenu();});
+  chipRow($('levels'),NIVAER,val.niva,k=>{val.niva=k;saved.niva=k;persist();renderMenu();});
+  const m=$('modes'); m.textContent='';
+  for(const L of LAGEN){
+    const b=el('button','mode'); b.type='button';
+    b.appendChild(el('div','icon',L.ikon));
+    b.appendChild(el('div','name',L.namn));
+    b.appendChild(el('div','desc',L.text));
+    const best=(saved.best||{})[bestKey(L.k)];
+    const s=el('div','best',L.k==='utforska'?'':(best!=null?starsText(best):''));
+    if(best!=null) s.setAttribute('aria-label','Bästa: '+best+' av 3 stjärnor');
+    b.appendChild(s);
+    b.onclick=()=>L.k==='utforska'?startExplore():startGame(L.k);
+    m.appendChild(b);
+  }
+}
+function show(id){for(const s of ['menu','game','explore','result']) $(s).hidden=s!==id; window.scrollTo(0,0);}
+
+/* ---------- Spelet ---------- */
+let G=null;
+function poolFor(reg,niva){
+  const base=LANDER.filter(x=>reg==='ALL'||x.r===reg);
+  let n=niva, p=base.filter(x=>x.l<=n);
+  while(p.length<10&&n<3){n++;p=base.filter(x=>x.l<=n);}
+  return {pool:p,base};
+}
+function options(ans,pool,base,key){
+  const seen=new Set([ans[key]]), out=[ans];
+  for(const src of [shuffle(pool),shuffle(base),shuffle(LANDER)]){
+    for(const x of src){ if(out.length>=4) break; if(seen.has(x[key])) continue; seen.add(x[key]); out.push(x); }
+  }
+  return shuffle(out);
+}
+async function startGame(mode){
+  const {pool,base}=poolFor(val.reg,val.niva);
+  const qs=pick(pool,Math.min(ANTAL,pool.length)).map(ans=>{
+    const rev=mode==='stad'&&val.niva>1&&Math.random()<.35;
+    return {ans,rev,opts:options(ans,pool,base,rev?'n':(mode==='stad'?'h':'n'))};
+  });
+  G={mode,qs,i:0,score:0,missed:[],map:null,tries:0,locked:false,reg:val.reg,active:new Set(base.map(x=>x.c))};
+  show('game');
+  $('mapslot').textContent=''; $('mapslot').appendChild(el('div','loading','Laddar kartan…'));
+  const needMapNow=mode==='vilket'||mode==='hitta';
+  const ready=loadMap().then(()=>{
+    if(!G||G.mode!==mode) return;
+    G.map=makeMap(G.reg,G.active,{pick:mode==='hitta'?onMapPick:null});
+    $('mapslot').textContent=''; $('mapslot').appendChild(G.map.el);
+    $('mapslot').hidden=!needMapNow;
+  }).catch(()=>{$('mapslot').textContent='';$('mapslot').appendChild(el('div','loading','Kartan kunde inte laddas.'));});
+  if(needMapNow) await ready; else $('mapslot').hidden=true;
+  askQuestion();
+}
+function updateBar(){
+  $('count').textContent='Fråga '+(G.i+1)+' av '+G.qs.length;
+  $('score').textContent='⭐ '+G.score;
+  $('prog').style.width=(100*G.i/G.qs.length)+'%';
+}
+function askQuestion(){
+  const q=G.qs[G.i]; G.tries=0; G.locked=false;
+  updateBar();
+  $('feedback').hidden=true; $('feedback').textContent='';
+  $('hint').textContent=''; $('hint').className='hint';
+  const qt=$('qtext'); qt.textContent='';
+  const A=$('answers'); A.textContent=''; A.hidden=false;
+  if(G.map){G.map.clear();}
+  $('flagbox').hidden=true;
+  if(G.mode==='flagga'){
+    qt.append('Vilket land har den här flaggan?');
+    $('qflag').src=flagSrc(q.ans.c); $('flagbox').hidden=false;
+    $('mapslot').hidden=true;
+  } else if(G.mode==='stad'){
+    if(q.rev){qt.append(document.createTextNode('I vilket land ligger huvudstaden '),el('b',null,q.ans.h),'?');}
+    else{qt.append(document.createTextNode('Vad heter huvudstaden i '),el('b',null,q.ans.n),'?');
+      $('qflag').src=flagSrc(q.ans.c); $('flagbox').hidden=false;}
+    $('mapslot').hidden=true;
+  } else if(G.mode==='vilket'){
+    qt.append('Vilket land lyser orange på kartan?');
+    $('mapslot').hidden=false; G.map&&G.map.mark(q.ans.c,'target');
+  } else if(G.mode==='hitta'){
+    qt.append(document.createTextNode('Var ligger '),el('b',null,q.ans.n),'?');
+    $('mapslot').hidden=false; A.hidden=true;
+    $('hint').textContent='Tryck på landet på kartan. Du kan zooma med + och −.';
+  }
+  if(G.mode!=='hitta'){
+    const key=(G.mode==='stad'&&!q.rev)?'h':'n';
+    q.opts.forEach((o,idx)=>{
+      const b=el('button','ans'); b.type='button';
+      b.appendChild(el('span','key',String(idx+1)));
+      b.append(o[key]); b.dataset.c=o.c;
+      b.onclick=()=>answer(o.c,b);
+      A.appendChild(b);
+    });
+  }
+  // Ladda nästa flagga i förväg
+  const nx=G.qs[G.i+1]; if(nx){const im=new Image();im.src=flagSrc(nx.ans.c);}
+}
+function answer(c,btn){
+  if(G.locked) return; G.locked=true;
+  const q=G.qs[G.i], ok=c===q.ans.c;
+  for(const b of $('answers').children){
+    b.disabled=true;
+    if(b.dataset.c===q.ans.c) b.classList.add('right');
+  }
+  if(!ok) btn.classList.add('wrong');
+  finish(ok, ok?null:c);
+}
+function onMapPick(c){
+  if(!G||G.locked) return;
+  const q=G.qs[G.i];
+  if(c===q.ans.c){ G.locked=true; G.map.clear(); G.map.mark(c,'right'); finish(true,null); return; }
+  G.tries++;
+  G.map.clear(); G.map.mark(c,'wrong');
+  if(G.tries<2){
+    ljudFel();
+    $('hint').className='hint no';
+    $('hint').textContent='Det där är '+BY[c].n+'. Försök en gång till!';
+  } else {
+    G.locked=true; G.map.mark(q.ans.c,'right'); finish(false,c);
+  }
+}
+function finish(ok,wrongC){
+  const q=G.qs[G.i];
+  if(ok){G.score++;ljudRatt();} else {G.missed.push(q.ans);ljudFel();}
+  $('score').textContent='⭐ '+G.score;
+  $('prog').style.width=(100*(G.i+1)/G.qs.length)+'%';
+  $('hint').textContent=''; $('hint').className='hint';
+  // Visa var landet ligger på kartan
+  if(G.map){
+    if(G.mode!=='hitta'){ G.map.clear(); G.map.mark(q.ans.c,'right'); }
+    $('mapslot').hidden=false;
+  }
+  const F=$('feedback'); F.textContent='';
+  const praise=['Rätt! 🎉','Snyggt! 🌟','Jättebra! 🎉','Helt rätt! ✨'];
+  let msg;
+  if(ok&&G.tries>0) msg='Rätt på andra försöket! 👍';
+  else if(ok) msg=praise[Math.floor(Math.random()*praise.length)];
+  else if(G.mode==='hitta') msg='Inte riktigt. Du tryckte på '+BY[wrongC].n+'. Här ligger '+q.ans.n+'.';
+  else msg='Nej, rätt svar är '+((G.mode==='stad'&&!q.rev)?q.ans.h:q.ans.n)+'.';
+  F.appendChild(el('p','verdict '+(ok?'ok':'no'),msg));
+  F.appendChild(factCard(q.ans));
+  const nb=el('button','big-btn',G.i+1<G.qs.length?'Nästa →':'Se resultat'); nb.type='button';
+  nb.onclick=next; F.appendChild(nb);
+  F.hidden=false;
+  nb.focus({preventScroll:true});
+  F.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function factCard(x){
+  const f=el('div','fact');
+  const im=el('img','flag small'); im.src=flagSrc(x.c); im.alt='Flaggan för '+x.n;
+  const t=el('div');
+  t.appendChild(el('div','t',x.n));
+  t.appendChild(el('div','s','Huvudstad: '+x.h));
+  t.appendChild(el('div','s','Världsdel: '+REG[x.r].namn));
+  f.append(im,t); return f;
+}
+function next(){
+  G.i++;
+  if(G.i<G.qs.length){askQuestion(); window.scrollTo({top:0,behavior:'smooth'});}
+  else showResult();
+}
+function showResult(){
+  const n=G.qs.length, s=G.score, r=s/n;
+  const stars=r>=.9?3:r>=.7?2:r>=.4?1:0;
+  saved.best=saved.best||{};
+  const key=G.mode+'|'+G.reg+'|'+val.niva, prev=saved.best[key];
+  const record=prev==null||stars>prev;
+  if(record) saved.best[key]=stars;
+  persist(); ljudKlar();
+  const R=$('result'); R.textContent='';
+  const st=el('div','stars'); st.setAttribute('aria-label',stars+' av 3 stjärnor');
+  for(let i=0;i<3;i++) st.appendChild(el('span',i<stars?'':'off','⭐'));
+  R.appendChild(st);
+  R.appendChild(el('h2',null,'Du fick '+s+' av '+n+' rätt!'));
+  const word=stars===3?'Fantastiskt! Du är en riktig världsresenär!':stars===2?'Bra jobbat! Snart kan du alla.':stars===1?'Bra försök! Spela igen så lär du dig mer.':'Öva lite till – du klarar det!';
+  R.appendChild(el('p',null,word+(record&&prev!=null?' Nytt rekord! 🏆':'')));
+  if(G.missed.length){
+    R.appendChild(el('h2',null,'Länder att öva på'));
+    const m=el('div','missed'); G.missed.forEach(x=>m.appendChild(factCard(x))); R.appendChild(m);
+  }
+  const row=el('div','row');
+  const again=el('button','big-btn','Spela igen'); again.type='button'; const mode=G.mode; again.onclick=()=>startGame(mode);
+  const menu=el('button','big-btn alt','Byt spel'); menu.type='button'; menu.onclick=toMenu;
+  row.append(again,menu); R.appendChild(row);
+  show('result'); again.focus({preventScroll:true});
+}
+function toMenu(){G=null; renderMenu(); show('menu');}
+$('quit').onclick=toMenu;
+document.addEventListener('keydown',e=>{
+  if(!G||$('game').hidden) return;
+  const n=parseInt(e.key,10);
+  if(n>=1&&n<=4&&!G.locked){const b=$('answers').children[n-1]; if(b) b.click();}
+});
+
+/* ---------- Utforska ---------- */
+let EX=null;
+async function startExplore(){
+  G=null; show('explore');
+  await buildExplore(val.reg);
+}
+async function buildExplore(reg){
+  chipRow($('exRegions'),REGIONER,reg,k=>{val.reg=k;saved.reg=k;persist();buildExplore(k);});
+  $('exMapslot').textContent=''; $('exMapslot').appendChild(el('div','loading','Laddar kartan…'));
+  $('exInfo').textContent=''; $('exText').textContent='Tryck på ett land!';
+  try{await loadMap();}catch(e){$('exMapslot').textContent='';$('exMapslot').appendChild(el('div','loading','Kartan kunde inte laddas.'));return;}
+  const active=new Set(LANDER.filter(x=>reg==='ALL'||x.r===reg).map(x=>x.c));
+  const all=new Set(LANDER.map(x=>x.c));
+  EX={reg,active,map:makeMap(reg,active,{pick:c=>exShow(c)})};
+  // I Utforska går det att trycka på alla länder som syns.
+  EX.map.el.querySelector('svg').querySelectorAll('[data-c]').forEach(e=>{ if(all.has(e.dataset.c)){ e.classList.add('in'); active.add(e.dataset.c);} });
+  $('exMapslot').textContent=''; $('exMapslot').appendChild(EX.map.el);
+}
+function exShow(c){
+  const x=BY[c]; if(!x) return;
+  EX.map.clear(); EX.map.mark(c,'sel'); tone([700],.08,'triangle');
+  $('exText').textContent=x.n;
+  const I=$('exInfo'); I.textContent='';
+  const big=el('img','flag'); big.src=flagSrc(c); big.alt='Flaggan för '+x.n;
+  I.appendChild(big);
+  I.appendChild(el('p','verdict ok','Huvudstad: '+x.h));
+  I.appendChild(el('p','hint','Världsdel: '+REG[x.r].namn));
+}
+$('randomCountry').onclick=()=>{
+  if(!EX) return;
+  const list=LANDER.filter(x=>(EX.reg==='ALL'||x.r===EX.reg)&&EX.map.has(x.c));
+  exShow(list[Math.floor(Math.random()*list.length)].c);
+};
+$('exitExplore').onclick=()=>{EX=null;toMenu();};
+
+renderMenu();
+</script>
+</body>
+</html>
