@@ -117,6 +117,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
   <header>
     <h1><a href="index.html" aria-label="Till Spelhörnan">Ordmemory</a> <small>Hitta korten som hör ihop</small></h1>
     <div class="tools">
+      <span id="spelarplats"></span>
       <button class="small-btn" id="caps" type="button" aria-pressed="false">ABC</button>
       <button class="small-btn" id="speak" type="button">Läs upp</button>
       <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
@@ -438,18 +439,17 @@ function win(){
   const k=skey(tema,niva);
   if(stars>(saved.stj[k]||0)){saved.stj[k]=stars;persist();}
   buildBars();
-  const sek=Math.round((Date.now()-t0)/1000);
-  $('wstars').innerHTML=[0,1,2].map(i=>'<i'+(i<stars?'':' class="off"')+'>★</i>').join('');
+    $('wstars').innerHTML=[0,1,2].map(i=>'<i'+(i<stars?'':' class="off"')+'>★</i>').join('');
   $('wtext').textContent='Du hittade alla '+par+' par på '+tries+' försök.';
   $('wnext').hidden=niva>=NIVAER.length-1;
   $('win').hidden=false;
   [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.18),i*130));
   say('Alla par hittade!','good');
   $('wagain').focus();
-  /* Gemensam topplista: används bara om spelhornan.js finns på sidan. */
+  /* Gemensam topplista (spelhornan.js): stjärnor per tema och nivå, kortast tid vinner vid lika. */
   try{
-    if(window.Spelhornan&&Spelhornan.rapportera)
-      Spelhornan.rapportera('ordmemory',TEMAN[tema].namn+' '+NIVAER[niva].namn,{poang:Math.round(100*par/tries),max:100,tid:sek});
+    if(window.Spelhornan)
+      Spelhornan.rapportera('ordmemory',(TEMAN[tema].namn+'-'+NIVAER[niva].namn).toLowerCase(),{poang:stars,max:3,tid:Date.now()-t0,namn:TEMAN[tema].namn+' · '+NIVAER[niva].namn});
   }catch(e){}
 }
 
@@ -469,5 +469,7 @@ newGame();
 setCaps();
 })();
 </script>
+<script src="spelhornan.js"></script>
+<script>if(window.Spelhornan)Spelhornan.knapp(document.getElementById('spelarplats'));</script>
 </body>
 </html>
