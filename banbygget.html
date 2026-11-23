@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Banbygget</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: banan till vänster, delarna och knapparna till höger. En kolumn på telefon. */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82; --line:#b3d4ec;
+  --go:#22a152; --accent:#ff7a3d; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:16px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+button{font-family:inherit; color:inherit; cursor:pointer}
+button:focus-visible,canvas:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:1080px; margin:0 auto; display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:16px 22px}
+header{grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0; letter-spacing:.01em}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted); letter-spacing:0}
+.tools{display:flex; flex-wrap:wrap; gap:8px}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.levels{grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px}
+.lvl{min-width:56px; min-height:56px; padding:4px 8px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-weight:700; font-size:1.15rem; line-height:1.1; box-shadow:0 3px 0 var(--shadow)}
+.lvl span{display:block; font-size:.78rem; color:var(--gold); letter-spacing:.08em; min-height:1em; -webkit-text-stroke:.5px var(--edge)}
+.lvl[aria-current="true"]{background:var(--accent); color:#2a1200}
+.lvl[aria-current="true"] span{color:#fff}
+
+.stage{min-width:0}
+.board-wrap{position:relative}
+canvas{display:block; width:100%; aspect-ratio:16/10; border:5px solid var(--edge); border-radius:20px; background:#cfeaff; box-shadow:0 5px 0 var(--shadow); touch-action:manipulation; cursor:pointer}
+.msg{margin:12px 2px 0; min-height:3.2em; font-weight:500; font-size:1.05rem}
+.msg.bad{color:#a8330a} .msg.good{color:#0f6b34}
+
+.panel{min-width:0; display:flex; flex-direction:column; gap:14px}
+.panel h2{font-size:1.1rem; margin:0 0 6px; font-weight:600; color:var(--muted)}
+.who{display:flex; flex-direction:column; gap:8px}
+.obj{display:flex; gap:10px; align-items:center; background:var(--card); border:3px solid var(--line); border-radius:16px; padding:8px 10px; font-size:.98rem}
+.obj canvas{width:44px; height:44px; aspect-ratio:auto; border:0; border-radius:0; box-shadow:none; background:none; flex:none; cursor:default}
+.obj b{display:block; font-size:1.05rem}
+.parts{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px}
+.part{
+  position:relative; min-height:92px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  border-radius:18px; border:3px solid var(--edge); background:var(--card); font-size:.98rem; font-weight:600; line-height:1.1;
+  box-shadow:0 5px 0 var(--shadow); padding:6px 4px;
+}
+.part svg{width:54px; height:34px}
+.part .n{position:absolute; top:-10px; right:-8px; min-width:30px; height:30px; padding:0 6px; border-radius:999px; background:var(--accent); color:#2a1200; border:3px solid var(--edge); display:grid; place-items:center; font-size:.95rem}
+.part[aria-pressed="true"]{background:#fff1e8; border-color:var(--accent); box-shadow:0 5px 0 #c4561f}
+.part.empty .n{background:#e3edf5}
+.part:active{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
+.tip{font-size:.92rem; color:var(--muted); margin:2px 2px 0}
+.actions{display:grid; grid-template-columns:2fr 1fr; gap:10px}
+.run{min-height:64px; border-radius:18px; border:3px solid #0d5a2e; background:var(--go); color:#fff; font-size:1.5rem; font-weight:700; box-shadow:0 5px 0 #0d5a2e}
+.run:active{transform:translateY(3px); box-shadow:0 2px 0 #0d5a2e}
+.run.stop{background:#d9442b; border-color:#7d1f0e; box-shadow:0 5px 0 #7d1f0e}
+.sec{min-height:64px; border-radius:18px; border:3px solid var(--edge); background:var(--card); font-size:1.05rem; font-weight:600; box-shadow:0 5px 0 var(--shadow)}
+button:disabled{opacity:.45; cursor:not-allowed}
+
+.win{position:absolute; inset:0; display:grid; place-items:center; padding:14px; background:rgba(18,50,74,.6); border-radius:20px}
+.win[hidden]{display:none}
+.win-card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:16px 20px; text-align:center; max-width:360px; width:100%}
+.win-card h2{margin:0; font-size:1.8rem}
+.stars{font-size:2.6rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:1.5px var(--edge); margin:2px 0}
+.stars i{font-style:normal; display:inline-block; animation:pop .5s both}
+.stars i:nth-child(2){animation-delay:.15s} .stars i:nth-child(3){animation-delay:.3s}
+.stars i.off{color:#e3edf5; animation:none}
+@keyframes pop{0%{transform:scale(0) rotate(-30deg)} 70%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1)}}
+.win-card p{margin:6px 0 12px; font-size:1.05rem}
+.win-btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.win-btns .go{background:var(--go); color:#fff; border-color:#0d5a2e}
+
+@media (max-width:820px){
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:1.6rem}
+  .parts{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
+  .panel .who-box{order:3}
+  .msg{min-height:2.4em; margin-top:8px}
+  .lvl{min-width:46px; min-height:48px; font-size:1.05rem; border-radius:12px}
+  .levels{gap:6px}
+  .win-card{padding:10px 12px}
+  .win-card h2{font-size:1.4rem}
+  .stars{font-size:2rem}
+  .win-card p{margin:4px 0 8px; font-size:.95rem}
+}
+@media (prefers-reduced-motion:reduce){
+  .stars i{animation:none}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Banbygget <small id="lvlname"></small></h1>
+    <div class="tools" id="tools">
+      <button class="small-btn" id="speak" type="button">Läs upp</button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+  <nav class="levels" id="levels" aria-label="Välj bana"></nav>
+
+  <section class="stage">
+    <div class="board-wrap">
+      <canvas id="cv" tabindex="0" aria-label="Spelplan. Tryck på en ruta för att lägga en del där. Tryck på en del för att ta bort den."></canvas>
+      <div class="win" id="win" hidden>
+        <div class="win-card" role="dialog" aria-labelledby="wt">
+          <h2 id="wt">I mål!</h2>
+          <div class="stars" id="wstars"></div>
+          <p id="wtext"></p>
+          <div class="win-btns">
+            <button class="small-btn go" id="wnext" type="button">Nästa bana</button>
+            <button class="small-btn" id="wagain" type="button">Bygg om</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </section>
+
+  <section class="panel">
+    <div class="who-box">
+      <h2>Ska till målet</h2>
+      <div class="who" id="who"></div>
+    </div>
+    <div>
+      <h2>Dina delar</h2>
+      <div class="parts" id="parts"></div>
+      <p class="tip">Välj en del och tryck på banan. Tryck på en del på banan för att ta bort den.</p>
+    </div>
+    <div class="actions">
+      <button class="run" id="run" type="button">Starta</button>
+      <button class="sec" id="clear" type="button">Rensa</button>
+    </div>
+  </section>
+</div>
+
+<script src="spelhornan.js" onerror="this.remove()"></script>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+/*PURE-START*/
+const W=16,H=10,RAD=0.3,GRAV=20,DT=1/120,LAUNCH=13.5,MAXV=20,TMAX=20;
+const TYPES={
+  boll:{namn:'Boll',best:'Bollen',e:0.25,mu:0.02,drive:0,text:'Bollen rullar och tar fart i backar.'},
+  kloss:{namn:'Kloss',best:'Klossen',e:0.05,mu:0.4,drive:0,text:'Klossen glider bara i backar. På platt mark stannar den.'},
+  bil:{namn:'Bil',best:'Bilen',e:0.1,mu:0.6,drive:3.2,text:'Bilen kör själv och kan köra uppför. Den vänder när den kör in i en vägg.'},
+  studs:{namn:'Studsboll',best:'Studsbollen',e:0.82,mu:0.02,drive:0,text:'Studsbollen studsar högt.'}
+};
+const PIECES={
+  ner:{namn:'Backe ner',w:2,h:1,segs:[[0,0,2,1]]},
+  upp:{namn:'Backe upp',w:2,h:1,segs:[[0,1,2,0]]},
+  planka:{namn:'Planka',w:2,h:1,segs:[[0,0,2,0]]},
+  studs:{namn:'Studsmatta',w:1,h:1,segs:[],spring:true},
+  vagg:{namn:'Vägg',w:1,h:2,segs:[[0.5,0,0.5,2]]}
+};
+const PIECE_ORDER=['ner','upp','planka','studs','vagg'];
+function cellAt(L,x,y){return x>=0&&x<W&&y>=0&&y<H?L.rows[y][x]:'.';}
+function solid(L,x,y){return cellAt(L,x,y)==='#';}
+function parseLevel(L){
+  const P={starts:[],stars:[],goal:null,segs:[]};
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const c=L.rows[y][x];
+    if(c==='S')P.starts.push({x:x+.5,y:y+.5,cx:x,cy:y});
+    else if(c==='G')P.goal={x,y};
+    else if(c==='*')P.stars.push({x:x+.5,y:y+.5});
+    else if(c==='#'){
+      if(!solid(L,x,y-1))P.segs.push({x1:x,y1:y,x2:x+1,y2:y});
+      if(!solid(L,x,y+1))P.segs.push({x1:x,y1:y+1,x2:x+1,y2:y+1});
+      if(!solid(L,x-1,y))P.segs.push({x1:x,y1:y,x2:x,y2:y+1});
+      if(!solid(L,x+1,y))P.segs.push({x1:x+1,y1:y,x2:x+1,y2:y+1});
+    }
+  }
+  return P;
+}
+function footprint(k,x,y){const p=PIECES[k],c=[];for(let j=0;j<p.h;j++)for(let i=0;i<p.w;i++)c.push([x+i,y+j]);return c;}
+function canPlace(L,pieces,k,x,y){
+  for(const [cx,cy] of footprint(k,x,y)){
+    if(cx<0||cx>=W||cy<0||cy>=H)return false;
+    const c=L.rows[cy][cx];if(c==='#'||c==='S'||c==='G')return false;
+    for(const p of pieces)for(const [px,py] of footprint(p.k,p.x,p.y))if(px===cx&&py===cy)return false;
+  }
+  return true;
+}
+function pieceAt(pieces,x,y){
+  for(let i=pieces.length-1;i>=0;i--){const p=pieces[i];for(const [px,py] of footprint(p.k,p.x,p.y))if(px===x&&py===y)return i;}
+  return -1;
+}
+function makeSim(L,P,pieces){
+  const segs=P.segs.slice(),springs=[];
+  for(const p of pieces)if(PIECES[p.k].spring)springs.push({x:p.x,y:p.y,boing:-9});
+  for(const p of pieces)for(const s of PIECES[p.k].segs)segs.push({x1:p.x+s[0],y1:p.y+s[1],x2:p.x+s[2],y2:p.y+s[3],spring:!!PIECES[p.k].spring});
+  const objs=L.obj.map((o,i)=>({type:o.type,x:P.starts[i].x,y:P.starts[i].y,vx:0,vy:0,dir:o.dir||1,ang:0,done:false,still:0,ground:null,flip:0}));
+  return {L,P,segs,springs,objs,stars:P.stars.map(s=>({x:s.x,y:s.y,got:false})),t:0,status:'run',why:'',events:[]};
+}
+function collide(o,s,T,S){
+  const dx=s.x2-s.x1,dy=s.y2-s.y1,L2=dx*dx+dy*dy;
+  let u=((o.x-s.x1)*dx+(o.y-s.y1)*dy)/L2;u=u<0?0:u>1?1:u;
+  let nx=o.x-(s.x1+u*dx),ny=o.y-(s.y1+u*dy);const d=Math.hypot(nx,ny);
+  if(d>=RAD||d<1e-9)return;
+  nx/=d;ny/=d;o.x+=nx*(RAD-d);o.y+=ny*(RAD-d);
+  if(ny<-0.5&&(!o.ground||ny<o.ground.ny))o.ground={nx,ny};
+  const vn=o.vx*nx+o.vy*ny;
+  if(vn>=0)return;
+  if(-vn>3)S.events.push('bump');
+  const e=-vn>1.5?T.e:0,jn=-(1+e)*vn;
+  o.vx+=jn*nx;o.vy+=jn*ny;
+  const tx=-ny,ty=nx,vt=o.vx*tx+o.vy*ty;
+  const f=Math.min(Math.abs(vt),T.mu*jn)*Math.sign(vt);
+  o.vx-=f*tx;o.vy-=f*ty;
+  if(T.drive&&Math.abs(nx)>0.7&&nx*o.dir<0&&o.flip<=0){o.dir=-o.dir;o.flip=0.3;S.events.push('turn');}
+}
+function stepSim(S){
+  if(S.status!=='run')return;
+  S.t+=DT;
+  for(const o of S.objs){
+    if(o.done)continue;
+    const T=TYPES[o.type];
+    o.vy+=GRAV*DT;o.x+=o.vx*DT;o.y+=o.vy*DT;o.flip-=DT;
+    o.ground=null;
+    for(let it=0;it<2;it++)for(const s of S.segs)collide(o,s,T,S);
+    if(o.ground){
+      const tx=-o.ground.ny,ty=o.ground.nx,vt=o.vx*tx+o.vy*ty;
+      if(T.drive){const dv=o.dir*T.drive-vt,a=Math.max(-25*DT,Math.min(25*DT,dv));o.vx+=a*tx;o.vy+=a*ty;}
+      if(o.type==='kloss')o.ang=Math.atan2(ty,tx);
+      else if(o.type!=='bil')o.ang+=vt/RAD*DT;
+      else o.ang=Math.atan2(ty,tx);
+    }
+    for(const p of S.springs)if(o.vy>-2&&o.x>p.x&&o.x<p.x+1&&o.y>p.y+0.3&&o.y<p.y+1.2){o.vy=-LAUNCH;o.ground=null;p.boing=S.t;S.events.push('boing');}
+    const sp=Math.hypot(o.vx,o.vy);
+    if(sp>MAXV){o.vx*=MAXV/sp;o.vy*=MAXV/sp;}
+    o.still=sp<0.15?o.still+DT:0;
+    for(const st of S.stars)if(!st.got&&Math.hypot(st.x-o.x,st.y-o.y)<0.6){st.got=true;S.events.push('star');}
+    const g=S.P.goal;
+    if(o.x>=g.x&&o.x<g.x+1&&o.y>=g.y-0.5&&o.y<g.y+1){o.done=true;S.events.push('goal');}
+    else if(o.y>H+1||o.x<-1||o.x>W+1){S.status='fail';S.why='ut';S.who=o;return;}
+  }
+  if(S.objs.every(o=>o.done)){S.status='win';return;}
+  if(S.t>TMAX){S.status='fail';S.why='tid';return;}
+  if(S.objs.every(o=>o.done||o.still>1.2)){S.status='fail';S.why='stilla';S.who=S.objs.find(o=>!o.done);}
+}
+/* Banor: # mark, S start, G mål, * stjärna. sol = en känd lösning (används av testerna). */
+const LEVELS=[
+ {id:'backen',name:'Första backen',obj:[{type:'boll'}],inv:{ner:1},sol:['ner 1,8'],
+  hint:'Bollen ramlar rakt ner. Lägg en backe under den så att den rullar mot målet!',rows:[
+  "................",
+  ".S..............",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "......*...*...*G",
+  "################"]},
+ {id:'gropen',name:'Gropen',obj:[{type:'boll'}],inv:{ner:1,planka:1},sol:['ner 1,8','planka 6,9'],
+  hint:'Det är ett hål i marken. Bygg en bro med plankan!',rows:[
+  "................",
+  ".S..............",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "....*..*...*...G",
+  "######..########"]},
+ {id:'studsmattan',name:'Studsmattan',obj:[{type:'boll'}],inv:{ner:1,studs:1},sol:['ner 1,8','studs 5,8'],
+  hint:'Målet ligger högt upp. Studsmattan skjuter upp bollen i luften.',rows:[
+  "................",
+  ".S..............",
+  "................",
+  "................",
+  "...........*..G.",
+  "...........#####",
+  "......*....#####",
+  "...........#####",
+  "...*.......#####",
+  "################"]},
+ {id:'klossen',name:'Klossen glider',obj:[{type:'kloss'}],inv:{ner:4},sol:['ner 1,5','ner 3,6','ner 5,7','ner 7,8'],
+  hint:'Klossen rullar inte. Den glider bara när det lutar hela vägen.',rows:[
+  "................",
+  "................",
+  "................",
+  "................",
+  ".S..............",
+  "................",
+  "....*...........",
+  "......*.........",
+  "........*.G.....",
+  "################"]},
+ {id:'bilen',name:'Bilen kör',obj:[{type:'bil'}],inv:{upp:1,planka:1},sol:['planka 6,9','upp 9,8'],
+  hint:'Bilen kör själv framåt. Hjälp den över hålet och upp på berget.',rows:[
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "...........*..G.",
+  ".S.*...*...#####",
+  "######..########"]},
+ {id:'vand',name:'Vänd bilen',obj:[{type:'bil'}],inv:{vagg:1,planka:1},sol:['vagg 12,7','planka 3,9'],
+  hint:'Målet är åt andra hållet! En vägg får bilen att vända.',rows:[
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "........S.......",
+  "G..*...*...*....",
+  "###..##########."]},
+ {id:'studsbollen',name:'Studsbollen',obj:[{type:'studs'}],inv:{ner:1},sol:['ner 2,8'],
+  hint:'Studsbollen studsar högt. Kan den hoppa över muren?',rows:[
+  "................",
+  "..S.............",
+  "................",
+  "................",
+  "................",
+  "................",
+  ".....*..*.......",
+  "........#...*.#.",
+  "........#...G.#.",
+  "################"]},
+ {id:'hoppet',name:'Långa hoppet',obj:[{type:'boll'}],inv:{ner:2,upp:1},sol:['ner 1,6','ner 3,7','upp 7,8'],
+  hint:'Hålet är för stort för en planka. Ge bollen fart och låt den hoppa!',rows:[
+  ".S..............",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "................",
+  "........*.......",
+  ".....*......*.G.",
+  "#######...######"]},
+ {id:'stupet',name:'Klossen över stupet',obj:[{type:'kloss'}],inv:{ner:4},sol:['ner 1,2','ner 3,3','ner 5,4','ner 7,5'],
+  hint:'Backar kan sväva i luften. Bygg en lång glidbana åt klossen!',rows:[
+  "................",
+  ".S..............",
+  "................",
+  "###.*...........",
+  "###...*.........",
+  "###.....*.G.....",
+  "###......#######",
+  "###......#######",
+  "###......#######",
+  "###......#######"]},
+ {id:'bilhopp',name:'Bilen hoppar',obj:[{type:'bil',dir:-1}],inv:{vagg:1,studs:1},sol:['vagg 3,7','studs 7,8'],
+  hint:'Bilen kör åt fel håll, och målet ligger uppe på berget. Vänd den och få den att hoppa!',rows:[
+  "................",
+  "................",
+  "................",
+  "................",
+  "...........*..G.",
+  ".......*.#######",
+  ".........#######",
+  ".........#######",
+  "....*S...#######",
+  "..##############"]},
+ {id:'tva',name:'Två på väg',obj:[{type:'boll'},{type:'kloss'}],inv:{ner:1,upp:3},sol:['ner 1,8','upp 11,5','upp 9,6','upp 7,7'],
+  hint:'Nu ska både bollen och klossen in i målet. De kommer från olika håll!',rows:[
+  "................",
+  ".S..............",
+  "................",
+  "................",
+  "............S...",
+  "..........*.....",
+  "................",
+  "........*.......",
+  "...*..G.........",
+  "################"]},
+ {id:'mastare',name:'Mästarbanan',obj:[{type:'boll'},{type:'bil',dir:-1}],inv:{ner:1,studs:2},sol:['ner 1,8','studs 4,8','studs 13,8'],
+  hint:'Bollen och bilen ska båda upp på berget. Muren är i vägen för bilen!',rows:[
+  "................",
+  ".S..............",
+  "................",
+  "................",
+  ".....*.....*....",
+  "..........#.....",
+  "........G.#..*..",
+  ".....######.....",
+  ".....######...S.",
+  "################"]}
+];
+/*PURE-END*/
+
+
+
+const KEY='banbygget-v1';
+const ICON={
+  ner:'<svg viewBox="0 0 54 34" aria-hidden="true"><path d="M5 6 49 28" stroke="#6b4220" stroke-width="10" stroke-linecap="round"/><path d="M5 6 49 28" stroke="#d39a55" stroke-width="5" stroke-linecap="round"/></svg>',
+  upp:'<svg viewBox="0 0 54 34" aria-hidden="true"><path d="M5 28 49 6" stroke="#6b4220" stroke-width="10" stroke-linecap="round"/><path d="M5 28 49 6" stroke="#d39a55" stroke-width="5" stroke-linecap="round"/></svg>',
+  planka:'<svg viewBox="0 0 54 34" aria-hidden="true"><path d="M5 17H49" stroke="#6b4220" stroke-width="10" stroke-linecap="round"/><path d="M5 17H49" stroke="#d39a55" stroke-width="5" stroke-linecap="round"/></svg>',
+  studs:'<svg viewBox="0 0 54 34" aria-hidden="true"><rect x="12" y="26" width="30" height="6" rx="2" fill="#46647c"/><path d="M18 26l6-4-6-4 6-4M36 26l-6-4 6-4-6-4" stroke="#12324a" stroke-width="2.500" fill="none"/><rect x="9" y="6" width="36" height="7" rx="3.500" fill="#e8402a" stroke="#7d1f0e" stroke-width="2"/></svg>',
+  vagg:'<svg viewBox="0 0 54 34" aria-hidden="true"><rect x="21" y="2" width="12" height="30" rx="3" fill="#8fa3b3" stroke="#3d5568" stroke-width="2.500"/></svg>'
+};
+
+let cur=0,L=null,P=null,pieces=[],sel=null,sim=null,mode='build',hover=null,cursor={x:0,y:0},sound=true,acc=0,last=0,doneAt=0;
+let saved={stars:{},build:{}};
+try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d&&typeof d==='object'){saved.stars=d.stars||{};saved.build=d.build||{};}}catch(e){}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+let ac=null,lastTone=0;
+function tone(f,d,type,v,f2){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+(d||.12));
+    g.gain.value=v||.07;o.connect(g);g.connect(ac.destination);o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,t+(d||.12));o.stop(t+(d||.12));
+  }catch(e){}
+}
+function say(t,kind){const m=$('msg');m.textContent=t;m.className='msg'+(kind?' '+kind:'');}
+function left(k){return (L.inv[k]||0)-pieces.filter(p=>p.k===k).length;}
+function kinds(){return PIECE_ORDER.filter(k=>L.inv[k]>0);}
+
+/* ---------- Rita ---------- */
+const cv=$('cv');let cx=cv.getContext('2d');
+let S=40;
+function fit(){
+  const r=cv.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2.5);
+  if(!r.width)return;
+  cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.width*10/16*dpr);
+  S=cv.width/W;
+}
+function rr(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath();}
+function starPath(x,y,r){
+  cx.beginPath();
+  for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rad=i%2?r*.45:r;cx.lineTo(x+Math.cos(a)*rad,y+Math.sin(a)*rad);}
+  cx.closePath();
+}
+function drawBg(){
+  const g=cx.createLinearGradient(0,0,0,cv.height);g.addColorStop(0,'#bfe3ff');g.addColorStop(1,'#eef8ff');
+  cx.fillStyle=g;cx.fillRect(0,0,cv.width,cv.height);
+  // moln
+  cx.fillStyle='rgba(255,255,255,.75)';
+  for(const [x,y,s] of [[3.2,1.2,1],[10.5,0.8,1.3],[14.2,2.2,.8]]){
+    cx.beginPath();cx.arc(x*S,y*S,.45*s*S,0,7);cx.arc((x+.5*s)*S,(y-.2*s)*S,.55*s*S,0,7);cx.arc((x+1.1*s)*S,y*S,.42*s*S,0,7);cx.fill();
+  }
+  if(mode==='build'){
+    cx.strokeStyle='rgba(43,93,130,.13)';cx.lineWidth=Math.max(1,S*.025);
+    cx.beginPath();
+    for(let x=1;x<W;x++){cx.moveTo(x*S,0);cx.lineTo(x*S,cv.height);}
+    for(let y=1;y<H;y++){cx.moveTo(0,y*S);cx.lineTo(cv.width,y*S);}
+    cx.stroke();
+  }
+}
+function drawTerrain(){
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    if(!solid(L,x,y))continue;
+    cx.fillStyle=(x+y)%2?'#b98552':'#b17d4b';cx.fillRect(x*S,y*S,S+1,S+1);
+    if(!solid(L,x,y-1)){cx.fillStyle='#7cc96a';cx.fillRect(x*S,y*S,S+1,S*.24);cx.fillStyle='#5fb04f';cx.fillRect(x*S,y*S+S*.2,S+1,S*.06);}
+    cx.fillStyle='rgba(107,66,32,.35)';
+    cx.beginPath();cx.arc((x+.3)*S,(y+.62)*S,S*.06,0,7);cx.arc((x+.72)*S,(y+.8)*S,S*.05,0,7);cx.fill();
+  }
+  cx.strokeStyle='#6b4220';cx.lineWidth=S*.07;cx.lineCap='round';
+  cx.beginPath();
+  for(const s of P.segs){cx.moveTo(s.x1*S,s.y1*S);cx.lineTo(s.x2*S,s.y2*S);}
+  cx.stroke();
+}
+function drawStart(){
+  for(const s of P.starts){
+    const x=s.cx*S,y=s.cy*S;
+    cx.fillStyle='#8fa3b3';cx.strokeStyle='#3d5568';cx.lineWidth=S*.06;
+    rr(x+S*.12,y-S*.08,S*.76,S*.3,S*.08);cx.fill();cx.stroke();
+    cx.fillStyle='#3d5568';cx.fillRect(x+S*.22,y+S*.18,S*.56,S*.05);
+  }
+}
+function drawGoal(t){
+  const g=P.goal,x=g.x*S,y=g.y*S;
+  cx.fillStyle='rgba(146,214,125,.55)';rr(x+S*.04,y-S*.46,S*.92,S*1.42,S*.18);cx.fill();
+  cx.setLineDash([S*.12,S*.1]);cx.strokeStyle='#22a152';cx.lineWidth=S*.05;cx.stroke();cx.setLineDash([]);
+  cx.strokeStyle='#12324a';cx.lineWidth=S*.07;cx.beginPath();cx.moveTo(x+S*.25,y+S*.96);cx.lineTo(x+S*.25,y-S*.4);cx.stroke();
+  const wave=Math.sin(t*4)*S*.05;
+  cx.fillStyle='#ff7a3d';cx.strokeStyle='#12324a';cx.lineWidth=S*.04;
+  cx.beginPath();cx.moveTo(x+S*.27,y-S*.4);cx.quadraticCurveTo(x+S*.55,y-S*.3+wave,x+S*.85,y-S*.22);cx.lineTo(x+S*.27,y-S*.02);cx.closePath();cx.fill();cx.stroke();
+}
+function drawStars(t){
+  const list=sim?sim.stars:P.stars;
+  for(const st of list){
+    if(st.got)continue;
+    const b=Math.sin(t*3+st.x)*S*.04;
+    starPath(st.x*S,st.y*S+b,S*.3);cx.fillStyle='#ffc21a';cx.fill();cx.strokeStyle='#2b5d82';cx.lineWidth=S*.05;cx.lineJoin='round';cx.stroke();
+  }
+}
+function plankLine(x1,y1,x2,y2,dark,light){
+  cx.lineCap='round';
+  cx.strokeStyle=dark;cx.lineWidth=S*.22;cx.beginPath();cx.moveTo(x1*S,y1*S);cx.lineTo(x2*S,y2*S);cx.stroke();
+  cx.strokeStyle=light;cx.lineWidth=S*.12;cx.beginPath();cx.moveTo(x1*S,y1*S);cx.lineTo(x2*S,y2*S);cx.stroke();
+}
+function drawPiece(p,alpha,bad,t){
+  cx.save();cx.globalAlpha=alpha==null?1:alpha;
+  const D=PIECES[p.k];
+  if(bad){cx.fillStyle='rgba(217,68,43,.25)';cx.fillRect(p.x*S,p.y*S,D.w*S,D.h*S);}
+  if(p.k==='studs'){
+    let sq=0;
+    if(sim){const sp=sim.springs.find(s=>s.x===p.x&&s.y===p.y);if(sp){const a=sim.t-sp.boing;if(a>=0&&a<.25)sq=Math.sin(a/.25*Math.PI)*.25;}}
+    const x=p.x*S,y=p.y*S,top=y+S*(.55-sq*.5+(sq?0:0));
+    cx.fillStyle='#46647c';rr(x+S*.12,y+S*.86,S*.76,S*.14,S*.04);cx.fill();
+    cx.strokeStyle='#12324a';cx.lineWidth=S*.05;cx.beginPath();
+    for(const sx of [.3,.7]){const n=4,h=(y+S*.86-top-S*.1)/n;cx.moveTo(x+sx*S,y+S*.86);for(let i=1;i<=n;i++)cx.lineTo(x+(sx+(i%2?.09:-.09))*S,y+S*.86-h*i);}
+    cx.stroke();
+    cx.fillStyle='#e8402a';cx.strokeStyle='#7d1f0e';cx.lineWidth=S*.05;rr(x+S*.06,top-S*.1,S*.88,S*.16,S*.07);cx.fill();cx.stroke();
+  }else if(p.k==='vagg'){
+    cx.fillStyle='#8fa3b3';cx.strokeStyle='#3d5568';cx.lineWidth=S*.06;
+    rr((p.x+.36)*S,(p.y+.04)*S,S*.28,S*1.92,S*.07);cx.fill();cx.stroke();
+    cx.beginPath();for(const yy of [.5,1,1.5]){cx.moveTo((p.x+.36)*S,(p.y+yy)*S);cx.lineTo((p.x+.64)*S,(p.y+yy)*S);}cx.stroke();
+  }else{
+    const s=D.segs[0];
+    // stöd så att delen inte ser ut att flyga
+    cx.strokeStyle='rgba(107,66,32,.45)';cx.lineWidth=S*.06;cx.beginPath();
+    const lowY=Math.max(s[1],s[3]);
+    for(const f of [.25,.75]){const xx=s[0]+(s[2]-s[0])*f,yy=s[1]+(s[3]-s[1])*f;cx.moveTo((p.x+xx)*S,(p.y+yy)*S);cx.lineTo((p.x+xx)*S,(p.y+lowY+(p.k==='planka'?.2:0))*S);}
+    cx.stroke();
+    plankLine(p.x+s[0],p.y+s[1],p.x+s[2],p.y+s[3],'#6b4220','#d39a55');
+  }
+  cx.restore();
+}
+function drawObj(o,a){
+  const x=o.x*S,y=o.y*S,r=RAD*S;
+  cx.save();cx.translate(x,y);cx.globalAlpha=a==null?1:a;cx.lineWidth=S*.05;cx.strokeStyle='#12324a';
+  if(o.type==='boll'||o.type==='studs'){
+    cx.rotate(o.ang);
+    cx.fillStyle=o.type==='boll'?'#ff7a3d':'#8a5cf6';
+    cx.beginPath();cx.arc(0,0,r,0,7);cx.fill();
+    cx.fillStyle=o.type==='boll'?'#fff3c4':'#ffd23f';
+    if(o.type==='boll'){cx.beginPath();cx.arc(0,0,r,-.5,.5);cx.arc(0,0,r*.45,.5,-.5,true);cx.closePath();cx.fill();}
+    else{for(const [dx,dy] of [[.4,0],[-.25,.35],[-.25,-.35]]){cx.beginPath();cx.arc(dx*r,dy*r,r*.2,0,7);cx.fill();}}
+    cx.beginPath();cx.arc(0,0,r,0,7);cx.stroke();
+  }else if(o.type==='kloss'){
+    cx.rotate(o.ang);
+    cx.fillStyle='#3fa7e8';rr(-r,-r,2*r,2*r,r*.18);cx.fill();cx.stroke();
+    cx.strokeStyle='rgba(18,50,74,.45)';cx.lineWidth=S*.035;rr(-r*.55,-r*.55,r*1.1,r*1.1,r*.1);cx.stroke();
+  }else{
+    cx.rotate(o.ang);if(o.dir<0)cx.scale(-1,1);
+    cx.fillStyle='#ffd23f';rr(-r*1.25,-r*.75,r*2.5,r*1.05,r*.3);cx.fill();cx.stroke();
+    cx.fillStyle='#bfe3ff';rr(-r*.55,-r*1.25,r*1.15,r*.62,r*.2);cx.fill();cx.stroke();
+    cx.fillStyle='#12324a';
+    for(const wx of [-.75,.75]){cx.beginPath();cx.arc(wx*r,r*.45,r*.4,0,7);cx.fill();cx.fillStyle='#b3d4ec';cx.beginPath();cx.arc(wx*r,r*.45,r*.15,0,7);cx.fill();cx.fillStyle='#12324a';}
+    cx.fillStyle='#fff3c4';cx.beginPath();cx.arc(r*1.12,-r*.35,r*.14,0,7);cx.fill();
+  }
+  cx.restore();
+}
+function startObjs(){return L.obj.map((o,i)=>({type:o.type,x:P.starts[i].x,y:P.starts[i].y,ang:0,dir:o.dir||1}));}
+function draw(t){
+  drawBg();drawTerrain();drawGoal(t);drawStars(t);drawStart();
+  pieces.forEach(p=>drawPiece(p,1,false,t));
+  if(mode==='build'&&hover&&sel&&left(sel)>0&&pieceAt(pieces,hover.x,hover.y)<0){
+    const ok=canPlace(L,pieces,sel,hover.x,hover.y);
+    drawPiece({k:sel,x:hover.x,y:hover.y},ok?.5:.35,!ok,t);
+  }
+  if(mode==='build'&&hover&&pieceAt(pieces,hover.x,hover.y)>=0){
+    const p=pieces[pieceAt(pieces,hover.x,hover.y)],D=PIECES[p.k];
+    cx.strokeStyle='#d9442b';cx.lineWidth=S*.05;cx.setLineDash([S*.1,S*.08]);cx.strokeRect(p.x*S+2,p.y*S+2,D.w*S-4,D.h*S-4);cx.setLineDash([]);
+  }
+  const objs=sim?sim.objs:startObjs();
+  objs.forEach(o=>drawObj(o));
+  if(document.activeElement===cv&&mode==='build'&&kbd){
+    cx.strokeStyle='#ff7a3d';cx.lineWidth=S*.08;cx.strokeRect(cursor.x*S+3,cursor.y*S+3,S-6,S-6);
+  }
+}
+let kbd=false;
+
+/* ---------- Spelets gång ---------- */
+function frame(ts){
+  const t=ts/1000;
+  if(mode==='run'&&sim){
+    if(!last)last=t;
+    acc+=Math.min(.1,t-last);last=t;
+    while(acc>=DT&&sim.status==='run'){
+      stepSim(sim);acc-=DT;
+    }
+    handleEvents();
+    if(sim.status!=='run')finish();
+  }
+  draw(t);
+  requestAnimationFrame(frame);
+}
+function handleEvents(){
+  const now=performance.now();
+  for(const e of sim.events){
+    if(e==='star')tone(880,.18,'triangle',.08,1320);
+    else if(e==='boing')tone(220,.3,'sine',.09,660);
+    else if(e==='goal')tone(660,.2,'triangle',.08,990);
+    else if(e==='turn')tone(330,.1,'square',.03);
+    else if(e==='bump'&&now-lastTone>90){lastTone=now;tone(140,.08,'sine',.06);}
+  }
+  sim.events.length=0;
+}
+function startRun(){
+  $('win').hidden=true;
+  sim=makeSim(L,P,pieces);mode='run';acc=0;last=0;
+  setButtons();say('Nu kör vi!');tone(520,.12,'triangle',.07,780);
+}
+function stopRun(msg){
+  mode='build';sim=null;setButtons();
+  if(msg)say(msg);
+}
+function finish(){
+  mode='done';setButtons();
+  const got=sim.stars.filter(s=>s.got).length,tot=sim.stars.length;
+  if(sim.status==='win'){
+    const id=L.id,prev=saved.stars[id]||0;
+    if(got>prev||saved.stars[id]==null){saved.stars[id]=Math.max(prev,got);persist();}
+    buildLevelBar();
+    [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.25,'triangle',.08),i*130));
+    $('wstars').innerHTML=[0,1,2].map(i=>'<i class="'+(i<got?'':'off')+'">★</i>').join('');
+    const many=L.obj.length>1;
+    let txt=(many?'Alla kom fram! ':'')+'Du tog '+got+' av '+tot+' stjärnor.';
+    if(got<tot)txt+=' Kan du bygga så att du tar alla?';
+    else txt+=' Alla stjärnor. Snyggt byggt!';
+    const lastLvl=cur===LEVELS.length-1;
+    if(lastLvl&&got===tot)txt='Du klarade sista banan med alla stjärnor. Du är en riktig banbyggare!';
+    $('wtext').textContent=txt;$('wnext').hidden=lastLvl;$('win').hidden=false;
+    say('I mål!','good');
+    ($('wnext').hidden?$('wagain'):$('wnext')).focus();
+    try{if(window.Spelhornan&&typeof Spelhornan.rapportera==='function'&&got>0)Spelhornan.rapportera('banbygget','bana-'+L.id,{poang:got,max:tot,namn:'Bana '+(cur+1)+': '+L.name});}catch(e){}
+  }else{
+    tone(200,.35,'sawtooth',.04,110);
+    const o=sim.who,n=o?TYPES[o.type].best:'Den';
+    let m;
+    if(sim.why==='ut')m=n+' ramlade av banan. Ändra bygget och tryck på Starta igen!';
+    else if(sim.why==='tid')m='Det tog för lång tid. Kan du bygga en snabbare väg?';
+    else if(o&&o.type==='kloss')m='Klossen stannade. Den glider bara när det lutar nedåt, så bygg backar hela vägen.';
+    else m=n+' stannade innan målet. Ändra bygget och prova igen!';
+    say(m,'bad');
+  }
+}
+function setButtons(){
+  const run=$('run');
+  run.textContent=mode==='run'?'Stopp':(mode==='done'?'Starta igen':'Starta');
+  run.classList.toggle('stop',mode==='run');
+  $('clear').disabled=mode==='run'||!pieces.length;
+  renderParts();
+}
+function renderParts(){
+  const box=$('parts');box.innerHTML='';
+  for(const k of kinds()){
+    const b=document.createElement('button');b.type='button';b.className='part'+(left(k)?'':' empty');
+    const n=left(k);
+    b.innerHTML=ICON[k]+'<span>'+PIECES[k].namn+'</span><span class="n">'+n+'</span>';
+    b.setAttribute('aria-pressed',String(sel===k));
+    b.setAttribute('aria-label',PIECES[k].namn+', '+n+' kvar');
+    b.disabled=mode==='run';
+    b.onclick=()=>{sel=k;tone(600,.06);renderParts();
+      if(!left(k))say('Du har inga fler '+PIECES[k].namn.toLowerCase()+'. Tryck på en som ligger på banan för att flytta den.');
+      else say(PIECES[k].namn+' vald. Tryck på banan där den ska ligga.');
+    };
+    box.appendChild(b);
+  }
+}
+function renderWho(){
+  const box=$('who');box.innerHTML='';
+  const seen=new Set();
+  for(const o of L.obj){
+    if(seen.has(o.type))continue;seen.add(o.type);
+    const d=document.createElement('div');d.className='obj';
+    const c=document.createElement('canvas');c.width=88;c.height=88;
+    const T=TYPES[o.type];
+    const t=document.createElement('div');t.innerHTML='<b></b><span></span>';
+    t.querySelector('b').textContent=T.namn;t.querySelector('span').textContent=T.text;
+    d.appendChild(c);d.appendChild(t);box.appendChild(d);
+    drawIcon(c.getContext('2d'),o.type);
+  }
+}
+function drawIcon(c2,type){
+  const oS=S,oc=cx;cx=c2;S=88/(RAD*2+.5);
+  try{drawObj({type,x:RAD+.25,y:RAD+.25,ang:type==='boll'?-.6:0,dir:1});}finally{cx=oc;S=oS;}
+}
+function edit(){ // något ändrades i bygget
+  if(mode!=='build'){mode='build';sim=null;$('win').hidden=true;}
+  saved.build[L.id]=pieces.map(p=>[p.k,p.x,p.y]);persist();
+  setButtons();
+}
+function tapCell(x,y){
+  if(mode==='run'){say('Tryck på Stopp om du vill bygga om.');return;}
+  if(mode==='done'){mode='build';sim=null;$('win').hidden=true;}
+  const i=pieceAt(pieces,x,y);
+  if(i>=0){
+    const p=pieces.splice(i,1)[0];sel=p.k;tone(330,.1,'sine',.07,220);
+    say(PIECES[p.k].namn+' borttagen.');edit();return;
+  }
+  if(!sel||!left(sel)){
+    const k=kinds().find(k=>left(k)>0);
+    if(!k){say('Alla delar används redan. Tryck på en del på banan för att ta bort den.','bad');return;}
+    sel=k;
+  }
+  if(!canPlace(L,pieces,sel,x,y)){
+    tone(160,.12,'square',.03);
+    say(PIECES[sel].namn+' får inte plats där. Prova en annan ruta.','bad');return;
+  }
+  pieces.push({k:sel,x,y});tone(520,.08,'triangle',.08,700);
+  const placed=sel;
+  if(!left(sel)){const k=kinds().find(k=>left(k)>0);if(k)sel=k;}
+  edit();
+  say(kinds().some(k=>left(k)>0)?PIECES[placed].namn+' på plats. Fortsätt bygga eller tryck på Starta.':'Alla delar är utlagda. Tryck på Starta!');
+}
+function cellFromEvent(e){
+  const r=cv.getBoundingClientRect(),b=parseFloat(getComputedStyle(cv).borderLeftWidth)||0;
+  const x=Math.floor((e.clientX-r.left-b)/(r.width-2*b)*W),y=Math.floor((e.clientY-r.top-b)/(r.height-2*b)*H);
+  if(x<0||x>=W||y<0||y>=H)return null;
+  return {x,y};
+}
+
+function buildLevelBar(){
+  const bar=$('levels');bar.innerHTML='';
+  LEVELS.forEach((lv,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='lvl';
+    const s=saved.stars[lv.id]||0,done=saved.stars[lv.id]!=null;
+    b.innerHTML=(i+1)+'<span>'+(done?'★'.repeat(s)+'☆'.repeat(3-s):'')+'</span>';
+    b.setAttribute('aria-label','Bana '+(i+1)+', '+lv.name+(done?', '+s+' av 3 stjärnor':''));
+    if(i===cur)b.setAttribute('aria-current','true');
+    b.onclick=()=>loadLevel(i);
+    bar.appendChild(b);
+  });
+}
+function loadLevel(i){
+  cur=i;L=LEVELS[i];P=parseLevel(L);mode='build';sim=null;$('win').hidden=true;
+  pieces=[];
+  const b=saved.build[L.id];
+  if(Array.isArray(b))for(const [k,x,y] of b){if(PIECES[k]&&left(k)>0&&canPlace(L,pieces,k,x,y))pieces.push({k,x,y});}
+  sel=kinds().find(k=>left(k)>0)||kinds()[0];
+  $('lvlname').textContent='Bana '+(i+1)+' av '+LEVELS.length+': '+L.name;
+  buildLevelBar();renderWho();setButtons();say(L.hint);
+}
+
+$('run').onclick=()=>{if(mode==='run')stopRun('Stoppad. Bygg om och prova igen.');else startRun();};
+$('clear').onclick=()=>{if(mode==='run')return;pieces=[];edit();say('Banan är tom. '+L.hint);tone(300,.15,'sine',.06,200);};
+$('wnext').onclick=()=>loadLevel(Math.min(cur+1,LEVELS.length-1));
+$('wagain').onclick=()=>{$('win').hidden=true;mode='build';sim=null;setButtons();say('Bygg om och försök ta alla stjärnor!');};
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';};
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+sp.onclick=()=>{
+  try{
+    speechSynthesis.cancel();
+    const types=[...new Set(L.obj.map(o=>o.type))].map(t=>TYPES[t].text).join(' ');
+    const u=new SpeechSynthesisUtterance(L.name+'. '+L.hint+' '+types);u.lang='sv-SE';u.rate=.9;
+    speechSynthesis.speak(u);
+  }catch(e){}
+};
+let lastPtr=0;
+cv.addEventListener('pointerdown',e=>{kbd=false;lastPtr=performance.now();const c=cellFromEvent(e);if(c){hover=e.pointerType==='mouse'?c:null;tapCell(c.x,c.y);}});
+cv.addEventListener('pointermove',e=>{if(e.pointerType==='mouse')hover=cellFromEvent(e);});
+cv.addEventListener('pointerleave',()=>{hover=null;});
+cv.addEventListener('keydown',e=>{
+  const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+  if(d){kbd=true;cursor.x=Math.max(0,Math.min(W-1,cursor.x+d[0]));cursor.y=Math.max(0,Math.min(H-1,cursor.y+d[1]));hover={x:cursor.x,y:cursor.y};e.preventDefault();}
+  else if(e.key==='Enter'||e.key===' '){kbd=true;tapCell(cursor.x,cursor.y);hover={x:cursor.x,y:cursor.y};e.preventDefault();}
+});
+cv.addEventListener('focus',()=>{if(performance.now()-lastPtr<500)return;kbd=true;hover={x:cursor.x,y:cursor.y};});
+cv.addEventListener('blur',()=>{kbd=false;hover=null;});
+
+if(window.Spelhornan&&typeof Spelhornan.knapp==='function'){try{Spelhornan.knapp($('tools'));}catch(e){}}
+window.addEventListener('resize',fit);
+if(window.ResizeObserver)new ResizeObserver(fit).observe(cv);
+let first=0;
+for(let i=0;i<LEVELS.length;i++){first=i;if(saved.stars[LEVELS[i].id]==null)break;}
+loadLevel(first);fit();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
