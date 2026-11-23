@@ -35,14 +35,30 @@ h1{font-size:2.4rem; margin:0; font-weight:700}
 .icon{font-size:3.4rem; line-height:1}
 .name{font-size:1.5rem; font-weight:700}
 .desc{color:var(--muted); font-size:1rem; flex:1}
+.top{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+.hs{display:flex; align-items:center; gap:14px; margin:0 0 20px; padding:14px 18px; text-decoration:none; color:inherit;
+  background:#fff6e0; border:4px solid var(--edge); border-radius:22px; box-shadow:0 6px 0 var(--shadow)}
+.hs:hover{transform:translateY(-2px)}
+.hs:active{transform:translateY(3px); box-shadow:0 2px 0 var(--shadow)}
+.hs:focus-visible{outline:4px solid var(--accent); outline-offset:3px}
+.hs .icon{font-size:2.6rem}
+.hs .name{font-size:1.4rem}
+.hs .desc{flex:1}
 .age{align-self:flex-start; font-size:.9rem; font-weight:600; padding:2px 10px; border-radius:999px; background:#ffe3d3; border:2px solid var(--accent)}
-@media (prefers-reduced-motion:reduce){.game:hover{transform:none}}
+@media (prefers-reduced-motion:reduce){.game:hover,.hs:hover{transform:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Spelhörnan</h1>
+  <div class="top">
+    <h1>Spelhörnan</h1>
+    <div id="spelarplats"></div>
+  </div>
   <p class="sub">Välj ett spel och tryck för att börja.</p>
+  <a class="hs" href="topplista.html">
+    <span class="icon">🏆</span>
+    <span><span class="name">Topplista och spelare</span><br><span class="desc">Se allas rekord i varje spel.</span></span>
+  </a>
   <div class="grid" id="grid"></div>
 </div>
 <script>
@@ -50,9 +66,15 @@ h1{font-size:2.4rem; margin:0; font-weight:700}
    "fil" är filnamnet i samma mapp som den här sidan. */
 const SPEL=[
   {namn:"Pluggis", ikon:"✏️", fil:"pluggis.html", ålder:"Matte och läsning", text:"Träna plus, minus, gånger, rim, stavning och läsförståelse. Varje barn får en egen användare."},
-  {namn:"Robotresan", ikon:"🤖", fil:"robotresan.html", ålder:"6–8 år", text:"Programmera roboten med pilar så att den hittar till flaggan och plockar äpplen."},
+  {namn:"Robotresan", ikon:"🤖", fil:"robotresan.html", ålder:"6–10 år", text:"Programmera roboten att gå, hoppa och skjuta laser. Hitta kortaste vägen till flaggan och håll koll på batteriet."},
   {namn:"Världsresan", ikon:"🌍", fil:"varldsresan.html", ålder:"Geografi", text:"Hitta länder på kartan och lär dig huvudstäder och flaggor i alla världsdelar."},
+  {namn:"Ordmemory", ikon:"🍕", fil:"ordmemory.html", ålder:"Läsning", text:"Memory där ordet och bilden hör ihop. Hitta \"pizza\" och pizzan! 14 teman: mat, djur, flaggor, klockan, engelska, bokstäver och mer."},
+  {namn:"Krypkampen", ikon:"🐌", fil:"krypkampen.html", ålder:"7 år och uppåt", text:"Strategispel för två eller mot datorn. Lägg ut och flytta kryp och var först med att ta platserna runt blomman."},
+  {namn:"Klossregn", ikon:"🧱", fil:"klossregn.html", ålder:"Alla åldrar", text:"Vrid och flytta de fallande klossarna så att de fyller hela rader. Tre svårighetsgrader."},
   {namn:"Masken", ikon:"🐍", fil:"masken.html", ålder:"Alla åldrar", text:"Ät äpplena och väx utan att krocka. Tre svårighetsgrader och en topplista."},
+  {namn:"Kalaha", ikon:"🫘", fil:"kalaha.html", ålder:"Strategi, 6 år och uppåt", text:"Det klassiska brädspelet med gropar och stenar. Spela mot datorn eller mot en kompis."},
+  {namn:"Banbygget", ikon:"🎢", fil:"banbygget.html", ålder:"Fysik och klurighet", text:"Bygg en bana med backar, plankor och studsmattor så att bollen, klossen eller bilen tar sig i mål."},
+  {namn:"Bilbanan", ikon:"🏎️", fil:"bilbanan.html", ålder:"Alla åldrar", text:"Kör bilen runt banan med piltangenterna. Fem banor, varvtider och stjärnor."},
   {namn:"Hojhoppet", ikon:"🏍️", fil:"hojhoppet.html", ålder:"5–10 år", text:"Kör motorcykel över backar, stockar och vattengropar. Hoppa, balansera och nå målet på tid!"}
 ];
 const grid=document.getElementById('grid');
@@ -66,5 +88,7 @@ for(const s of SPEL){
   grid.appendChild(a);
 }
 </script>
+<script src="spelhornan.js"></script>
+<script>if(window.Spelhornan)Spelhornan.knapp(document.getElementById('spelarplats'));</script>
 </body>
 </html>

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Topplista · Spelhörnan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82;
+  --accent:#ff7a3d; --soft:#ffe3d3; --line:#cfe2f1; --gold:#ffc83d; --shadow:rgba(18,50,74,.22);
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:24px 40px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap{max-width:980px; margin:0 auto}
+a{color:inherit}
+.back{display:inline-block; margin-bottom:8px; font-weight:600; color:var(--edge); text-decoration:none; font-size:1.05rem}
+.back:hover{text-decoration:underline}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2.4rem; margin:0; font-weight:700}
+.sub{margin:4px 0 0; color:var(--muted); font-size:1.05rem}
+.sync{font-size:.95rem; color:var(--muted); margin:6px 0 0}
+.sync b{font-weight:600}
+h2{font-size:1.6rem; margin:28px 0 12px}
+.card{background:var(--card); border:4px solid var(--edge); border-radius:22px; box-shadow:0 6px 0 var(--shadow); padding:16px 18px; min-width:0}
+.players{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px}
+.player.me{border-color:var(--accent); background:#fffaf6}
+.phead{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+.psym{font-size:2.6rem; line-height:1}
+.pname{font-size:1.5rem; font-weight:700; min-width:0; overflow-wrap:anywhere; flex:1}
+.tag{font-size:.8rem; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--soft); border:2px solid var(--accent); white-space:nowrap}
+.prow{display:grid; grid-template-columns:2rem 1fr auto; gap:6px; align-items:baseline; padding:6px 0; border-top:2px solid var(--line)}
+.prow .gi{font-size:1.3rem}
+.prow .gn{font-weight:600}
+.prow .gv{text-align:right; font-variant-numeric:tabular-nums}
+.prow .gs{grid-column:2/-1; color:var(--muted); font-size:.9rem; margin-top:-4px}
+.none{color:var(--muted)}
+.empty{text-align:center; padding:28px 18px}
+.empty p{margin:0 0 12px; color:var(--muted)}
+.btn{font:inherit; font-weight:600; font-size:1.05rem; padding:10px 18px; border-radius:16px; border:3px solid #c4501d; background:var(--accent); color:#fff; cursor:pointer; box-shadow:0 4px 0 var(--shadow)}
+.btn:focus-visible, summary:focus-visible{outline:4px solid var(--accent); outline-offset:3px}
+.games{display:flex; flex-direction:column; gap:16px}
+details.game > summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; font-size:1.4rem; font-weight:700}
+details.game > summary::-webkit-details-marker{display:none}
+details.game > summary .chev{margin-left:auto; font-size:1rem; color:var(--muted); transition:transform .2s}
+details.game[open] > summary .chev{transform:rotate(90deg)}
+.gicon{font-size:2rem; line-height:1}
+.play{font-size:1rem; font-weight:600; color:var(--edge)}
+.branches{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px}
+.branch{border:3px solid var(--line); border-radius:16px; padding:10px 12px; min-width:0}
+.branch h3{margin:0 0 6px; font-size:1.05rem; overflow-wrap:anywhere}
+.branch ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px}
+.branch li{display:grid; grid-template-columns:1.8rem 1fr auto; gap:6px; align-items:baseline; font-variant-numeric:tabular-nums}
+.branch li.me{font-weight:600}
+.medal{text-align:center}
+.who{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.val{text-align:right}
+.val small{color:var(--muted); font-weight:400}
+.nogame{color:var(--muted); margin:10px 0 0}
+@media (prefers-reduced-motion:reduce){details.game > summary .chev{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Alla spel</a>
+  <header>
+    <div>
+      <h1>🏆 Topplista</h1>
+      <p class="sub">Varje spelares bästa resultat i varje spel.</p>
+      <p class="sync" id="sync" aria-live="polite"></p>
+    </div>
+    <div id="spelarplats"></div>
+  </header>
+
+  <h2>Spelare</h2>
+  <div class="players" id="players"></div>
+
+  <h2>Rekord i varje spel</h2>
+  <div class="games" id="games"></div>
+</div>
+
+<script src="spelhornan.js"></script>
+<script>
+/* Spelen som syns i topplistan. Lägg till en rad när ett nytt spel rapporterar resultat.
+   typ: "stjärnor" = poängen läggs ihop över alla banor (Robotresan)
+        "poäng"    = högsta poäng per nivå
+        "rätt"     = flest rätt av max per omgång
+   ordning: i vilken ordning grenarna visas (annars i bokstavsordning). */
+const SPEL=[
+  {id:"pluggis", namn:"Pluggis", ikon:"✏️", fil:"pluggis.html", typ:"rätt"},
+  {id:"robotresan", namn:"Robotresan", ikon:"🤖", fil:"robotresan.html", typ:"stjärnor"},
+  {id:"varldsresan", namn:"Världsresan", ikon:"🌍", fil:"varldsresan.html", typ:"rätt"},
+  {id:"masken", namn:"Masken", ikon:"🐍", fil:"masken.html", typ:"poäng", ordning:["easy","medium","hard"]},
+  {id:"klossregn", namn:"Klossregn", ikon:"🧱", fil:"klossregn.html", typ:"poäng", ordning:["easy","medium","hard"]},
+  {id:"kalaha", namn:"Kalaha", ikon:"🫘", fil:"kalaha.html", typ:"poäng", ordning:["latt-4","svar-4","latt-6","svar-6"]},
+  {id:"banbygget", namn:"Banbygget", ikon:"🎢", fil:"banbygget.html", typ:"stjärnor"},
+  {id:"ordmemory", namn:"Ordmemory", ikon:"🍕", fil:"ordmemory.html", typ:"rätt"},
+  {id:"bilbanan", namn:"Bilbanan", ikon:"🏎️", fil:"bilbanan.html", typ:"stjärnor", ordning:["bana-ovalen","bana-bonan","bana-slingan","bana-ormen","bana-bergsvagen"]},
+  {id:"hojhoppet", namn:"Hojhoppet", ikon:"🏍️", fil:"hojhoppet.html", typ:"stjärnor", ordning:["bana-forsta","bana-gungor","bana-hopp","bana-stockar","bana-branta","bana-storahopp","bana-trappan","bana-mastar"]},
+  {id:"krypkampen", namn:"Krypkampen", ikon:"🐌", fil:"krypkampen.html", typ:"poäng", ordning:["latt","medel","svar"]},
+];
+const MEDALJ=['🥇','🥈','🥉'];
+const SH=window.Spelhornan;
+const $=id=>document.getElementById(id);
+function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;}
+function klocka(ms){const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function varde(r,typ){
+  let t=typ==='stjärnor'?'★'.repeat(r.poang)+'☆'.repeat(Math.max(0,(r.max||3)-r.poang)):(r.max!=null?r.poang+' av '+r.max:r.poang+' p');
+  return t+(r.tid!=null?' · '+klocka(r.tid):'');
+}
+function battre(a,b){
+  if(a.poang!==b.poang)return b.poang-a.poang;
+  if(a.tid!=null&&b.tid!=null)return a.tid-b.tid;
+  return (a.tid==null)-(b.tid==null);
+}
+function grenar(spel,rek){
+  const g={};
+  for(const pid in rek){const s=rek[pid][spel.id];if(!s)continue;for(const k in s)if(!g[k]||s[k].t>g[k].t)g[k]=s[k].namn;}
+  return Object.keys(g).map(k=>({id:k,namn:g[k]})).sort((a,b)=>{
+    const o=spel.ordning||[];const ia=o.indexOf(a.id),ib=o.indexOf(b.id);
+    if(ia>=0||ib>=0)return (ia<0?99:ia)-(ib<0?99:ib);
+    return a.namn.localeCompare(b.namn,'sv',{numeric:true});
+  });
+}
+function sammanfatta(spel,best){
+  const v=Object.values(best||{});
+  if(!v.length)return null;
+  if(spel.typ==='stjärnor'){
+    const sum=v.reduce((a,r)=>a+r.poang,0);
+    return {text:sum+' ★',sub:v.length+(v.length===1?' bana klar':' banor klara'),sum};
+  }
+  let top=v[0];
+  for(const r of v){
+    const a=r.max?r.poang/r.max:r.poang, b=top.max?top.poang/top.max:top.poang;
+    if(a>b||(a===b&&battre(r,top)<0))top=r;
+  }
+  const n=v.length;
+  return {text:varde(top,spel.typ),sub:top.namn+(n>1?' · '+n+(spel.typ==='poäng'?' nivåer':' grenar')+' spelade':'')};
+}
+
+function rita(){
+  const spelare=SH?SH.spelare():[], rek=SH?SH.rekord():{}, akt=SH&&SH.aktiv();
+  // Synkstatus
+  const st=SH?SH.status():'lokal';
+  $('sync').innerHTML='';
+  const txt={lokal:'Rekorden sparas på den här enheten.',synkar:'Hämtar rekord från andra enheter…',ok:'Rekorden delas mellan alla enheter.',fel:'Kunde inte nå topplistan på nätet. Rekorden sparas här så länge och skickas sen.'}[st];
+  $('sync').textContent=txt;
+
+  // Spelarkort
+  const P=$('players');P.innerHTML='';
+  if(!spelare.length){
+    const c=el('div','card empty');
+    c.appendChild(el('p',null,'Inga spelare ännu. Skapa en spelare, spela ett spel, så hamnar ditt rekord här.'));
+    const b=el('button','btn','Skapa spelare');b.type='button';b.onclick=()=>SH&&SH.oppnaValjare();
+    c.appendChild(b);P.appendChild(c);
+  }
+  for(const p of spelare){
+    const c=el('div','card player'+(akt&&akt.id===p.id?' me':''));
+    const h=el('div','phead');
+    h.appendChild(el('span','psym',p.sym));h.appendChild(el('span','pname',p.name));
+    if(akt&&akt.id===p.id)h.appendChild(el('span','tag','Spelar nu'));
+    c.appendChild(h);
+    for(const s of SPEL){
+      const sum=sammanfatta(s,(rek[p.id]||{})[s.id]);
+      const r=el('div','prow');
+      r.appendChild(el('span','gi',s.ikon));r.appendChild(el('span','gn',s.namn));
+      r.appendChild(el('span','gv'+(sum?'':' none'),sum?sum.text:'–'));
+      if(sum)r.appendChild(el('span','gs',sum.sub));
+      c.appendChild(r);
+    }
+    P.appendChild(c);
+  }
+
+  // Topplistor per spel
+  const G=$('games');
+  const oppna={};G.querySelectorAll('details').forEach(d=>oppna[d.dataset.id]=d.open);
+  G.innerHTML='';
+  for(const s of SPEL){
+    const d=el('details','card game');d.dataset.id=s.id;d.open=oppna[s.id]!==undefined?oppna[s.id]:true;
+    const sm=el('summary');
+    sm.appendChild(el('span','gicon',s.ikon));sm.appendChild(el('span',null,s.namn));
+    const a=el('a','play','Spela');a.href=s.fil;a.onclick=e=>e.stopPropagation();sm.appendChild(a);
+    sm.appendChild(el('span','chev','▶'));
+    d.appendChild(sm);
+    const wrap=el('div','branches');
+    let listor=[];
+    if(s.typ==='stjärnor'){
+      const rader=spelare.map(p=>({p,sum:sammanfatta(s,(rek[p.id]||{})[s.id])})).filter(x=>x.sum).sort((a,b)=>b.sum.sum-a.sum.sum);
+      if(rader.length)listor.push({namn:'Flest stjärnor totalt',rader:rader.map(x=>({p:x.p,text:x.sum.sum+' ★',sub:x.sum.sub.replace(' klara','').replace(' klar','')}))});
+    }else{
+      for(const g of grenar(s,rek)){
+        const rader=spelare.map(p=>({p,r:(((rek[p.id]||{})[s.id])||{})[g.id]})).filter(x=>x.r).sort((a,b)=>battre(a.r,b.r));
+        listor.push({namn:g.namn,rader:rader.map(x=>({p:x.p,text:varde(x.r,s.typ),r:x.r}))});
+      }
+    }
+    if(!listor.length){d.appendChild(el('p','nogame','Inga rekord ännu.'));}
+    for(const l of listor){
+      const b=el('div','branch');b.appendChild(el('h3',null,l.namn));
+      const ol=el('ol');
+      l.rader.forEach((x,i)=>{
+        // Lika resultat får samma placering.
+        let plats=i;while(plats>0&&l.rader[plats-1].text===x.text)plats--;
+        const li=el('li',akt&&akt.id===x.p.id?'me':'');
+        li.appendChild(el('span','medal',plats<3?MEDALJ[plats]:(plats+1)+'.'));
+        li.appendChild(el('span','who',x.p.sym+' '+x.p.name));
+        const v=el('span','val',x.text);if(x.sub){v.appendChild(document.createTextNode(' '));v.appendChild(el('small',null,'('+x.sub+')'));}
+        li.appendChild(v);
+        ol.appendChild(li);
+      });
+      b.appendChild(ol);wrap.appendChild(b);
+    }
+    if(listor.length)d.appendChild(wrap);
+    G.appendChild(d);
+  }
+}
+if(SH){SH.knapp($('spelarplats'));SH.lyssna(rita);setInterval(()=>{if(document.visibilityState==='visible')SH.synka();},30000);}
+rita();
+</script>
+</body>
+</html>
