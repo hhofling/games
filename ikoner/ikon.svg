@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#dff1ff"/>
+  <circle cx="90" cy="96" r="22" fill="#ffd34d"/>
+  <circle cx="432" cy="420" r="16" fill="#ff7a3d" opacity=".7"/>
+  <circle cx="420" cy="92" r="12" fill="#2b5d82" opacity=".35"/>
+  <!-- handkontroll -->
+  <g transform="translate(256 270)">
+    <path d="M-150,-70 Q-150,-110 -110,-110 L110,-110 Q150,-110 150,-70 L176,70 Q186,130 132,130 Q100,130 80,90 L60,55 L-60,55 L-80,90 Q-100,130 -132,130 Q-186,130 -176,70 Z"
+          fill="#2b5d82" transform="translate(0 14)"/>
+    <path d="M-150,-70 Q-150,-110 -110,-110 L110,-110 Q150,-110 150,-70 L176,70 Q186,130 132,130 Q100,130 80,90 L60,55 L-60,55 L-80,90 Q-100,130 -132,130 Q-186,130 -176,70 Z"
+          fill="#ffffff" stroke="#2b5d82" stroke-width="16" stroke-linejoin="round"/>
+    <!-- styrkors -->
+    <rect x="-118" y="-30" width="76" height="26" rx="8" fill="#12324a"/>
+    <rect x="-93" y="-55" width="26" height="76" rx="8" fill="#12324a"/>
+    <!-- knappar -->
+    <circle cx="70" cy="-44" r="18" fill="#ff7a3d"/>
+    <circle cx="108" cy="-8" r="18" fill="#4cc38a"/>
+    <circle cx="32" cy="-8" r="18" fill="#ffd34d"/>
+    <circle cx="70" cy="28" r="18" fill="#5aa9ff"/>
+  </g>
+</svg>
