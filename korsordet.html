@@ -38,6 +38,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
 .small-btn:disabled{opacity:.45; cursor:default}
 
 .bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.bar[hidden]{display:none}
 .bar .lbl{font-weight:600; color:var(--muted); font-size:1rem; margin-right:2px; min-width:3.2em}
 .pick{min-height:48px; padding:4px 12px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-weight:600; font-size:1.05rem; line-height:1.1; box-shadow:0 3px 0 var(--shadow)}
 .pick .em{font-size:1.35rem; margin-right:4px; vertical-align:-2px}
@@ -220,241 +221,43 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
   </div>
 </div>
 
+<script src="korsordet-ord.js"></script>
 <script>
-/* Så lägger du till ord: skriv en rad i ett tema som ORD|bild|ledtråd.
-   - bild är en emoji. Lämna den tom (ORD||ledtråd) för ord som bara passar Svår.
-   - Lätt använder bara bilder, Medel blandar bild och text, Svår är mest text.
-   - Ord får vara 3–10 bokstäver, bara A–Ö. */
-const ORDBANK=[
- {id:"djur", namn:"Djur", ikon:"🐱", rader:`
-KATT|🐱|Säger mjau och spinner
-HUND|🐶|Säger voff och viftar på svansen
-GRIS|🐷|Rosa djur som säger nöff
-HÄST|🐴|Man kan rida på den
-FÅR|🐑|Har ull och säger bä
-MUS|🐭|Litet djur som gillar ost
-UGGLA|🦉|Fågel som är vaken på natten
-ORM|🐍|Lång och har inga ben
-GRODA|🐸|Grön och hoppar i dammen
-FISK|🐟|Simmar och andas med gälar
-APA|🐒|Klättrar i träd och äter bananer
-BJÖRN|🐻|Stort djur som sover hela vintern
-RÄV|🦊|Röd och listig med yvig svans
-LEJON|🦁|Kallas djurens kung
-ZEBRA|🦓|Randig häst från Afrika
-GIRAFF|🦒|Djuret med längst hals
-ELEFANT|🐘|Stort grått djur med snabel
-KANIN|🐰|Har långa öron och skuttar
-IGELKOTT|🦔|Har taggar på ryggen
-FJÄRIL|🦋|Flyger med färgglada vingar
-SNIGEL|🐌|Bär sitt hus på ryggen
-PINGVIN|🐧|Fågel som inte kan flyga men simmar fort
-VAL|🐳|Det största djuret i havet
-TIGER|🐯|Randigt kattdjur
-KROKODIL|🐊|Har stora käkar och bor i floder
-BLÄCKFISK|🐙|Har åtta armar och bor i havet
-ANKA|🦆|Säger kvack och simmar i dammen
-HÖNA|🐔|Värper ägg på bondgården
-KAMEL|🐫|Har puckel och bor i öknen
-HAJ|🦈|Fisk med vassa tänder
-MYRA|🐜|Liten och stark, bor i en stack
-SPINDEL|🕷️|Har åtta ben och spinner nät
-EKORRE|🐿️|Samlar nötter och klättrar i träd
-DELFIN|🐬|Smart och lekfull, hoppar i havet
-PAPEGOJA|🦜|Färgglad fågel som kan härma ord
-KÄNGURU|🦘|Hoppar och har en pung på magen
-SVAN|🦢|Vit fågel med lång hals
-KRABBA|🦀|Går i sidled och har klor
-NYCKELPIGA|🐞|Röd skalbagge med svarta prickar
-ÄLG||Skogens konung, har stora horn
-KALV||Kons unge
-LAMM||Fårets unge
-VALP||Hundens unge
-FJÄDER||Fåglar har många sådana
-INSEKT||Djur med sex ben
-ROVDJUR||Djur som äter andra djur
-BONDGÅRD||Där kor, grisar och höns bor
-`},
- {id:"mat", namn:"Mat", ikon:"🍎", rader:`
-ÄPPLE|🍎|Rund frukt, röd eller grön
-BANAN|🍌|Gul och böjd frukt som apor gillar
-OST|🧀|Görs av mjölk och läggs på mackan
-GLASS|🍦|Kall och söt, äts på sommaren
-MOROT|🥕|Orange grönsak som kaniner gillar
-BRÖD|🍞|Bakas av mjöl i ugnen
-ÄGG|🥚|Hönan värper det
-PIZZA|🍕|Rund, med ost och tomat från Italien
-KORV|🌭|Lång och äts i ett bröd
-TÅRTA|🎂|Äts på kalas, gärna med ljus
-KAKA|🍪|Liten och söt, bakas i ugnen
-MELON|🍉|Stor frukt, röd inuti med kärnor
-CITRON|🍋|Gul frukt som är väldigt sur
-PÄRON|🍐|Grön frukt som är smal upptill
-TOMAT|🍅|Röd och rund, finns i ketchup
-GURKA|🥒|Lång grön grönsak
-MAJS|🌽|Gula korn på en kolv
-MJÖLK|🥛|Vit dryck från kon
-DRUVOR|🍇|Små runda bär som växer i klasar
-JORDGUBBE|🍓|Rött sommarbär med små frön utanpå
-POTATIS|🥔|Växer i jorden och kan bli pommes frites
-POPCORN|🍿|Poppar i grytan och äts på bio
-CHOKLAD|🍫|Brun och söt, görs av kakao
-MUNK|🍩|Rund bakelse med hål i mitten
-RIS|🍚|Små vita korn som kokas
-SOPPA|🍲|Äts varm med sked ur en skål
-HONUNG|🍯|Bina gör den, söt och gul
-PANNKAKA|🥞|Tunn och äts med sylt
-APELSIN|🍊|Orange frukt full av saft
-KÖRSBÄR|🍒|Små röda bär som hänger två och två
-SALLAD|🥗|Grön och fräsch, blandas i en skål
-SVAMP|🍄|Plockas i skogen på hösten
-KOKOSNÖT|🥥|Hård nöt som växer på en palm
-ANANAS|🍍|Taggig frukt som är gul inuti
-FRUKOST||Dagens första måltid
-MIDDAG||Måltid man äter på kvällen
-RECEPT||Talar om hur man lagar maten
-SYLT||Kokas av bär och socker
-KANEL||Krydda som finns i bullar
-GRÖNSAK||Morot och gurka är sådana
-`},
- {id:"hemma", namn:"Hemma", ikon:"🏠", rader:`
-HUS|🏠|Där man bor
-SÄNG|🛏️|Här sover man på natten
-STOL|🪑|Man sitter på den vid bordet
-BOK|📖|Har sidor att läsa i
-LAMPA|💡|Ger ljus när det är mörkt
-NYCKEL|🔑|Låser upp dörren
-KLOCKA|⏰|Visar vad tiden är
-SAX|✂️|Klipper papper
-PENNA|✏️|Man skriver och ritar med den
-KOPP|☕|Man dricker varmt ur den
-SKED|🥄|Man äter soppa med den
-DÖRR|🚪|Man öppnar den för att gå in
-TVÅL|🧼|Man tvättar händerna med den
-PARAPLY|☂️|Skyddar mot regnet
-RYGGSÄCK|🎒|Bärs på ryggen till skolan
-PRESENT|🎁|Man får den på födelsedagen
-BALLONG|🎈|Fylls med luft på kalaset
-TELEFON|📱|Man ringer och skickar bilder med den
-GITARR|🎸|Instrument med sex strängar
-TRUMMA|🥁|Man slår på den med pinnar
-HAMMARE|🔨|Man slår i spikar med den
-LJUS|🕯️|Brinner med en liten låga
-SKO|👟|Sätts på foten
-VANTE|🧤|Värmer handen på vintern
-HALSDUK|🧣|Värmer halsen när det är kallt
-BYXOR|👖|Klädesplagg med två ben
-TRÖJA|👕|Man drar den över huvudet
-KRONA|👑|Kungen bär den på huvudet
-KEPS|🧢|Mössa med skärm
-NALLE|🧸|Mjuk leksak att krama
-TANDBORSTE|🪥|Man borstar tänderna med den
-BADKAR|🛁|Man badar i det
-KUDDE||Mjuk att lägga huvudet på
-TÄCKE||Håller dig varm i sängen
-KYLSKÅP||Håller maten kall
-SPIS||Där man kokar maten
-GARDIN||Hänger framför fönstret
-MATTA||Ligger på golvet
-`},
- {id:"natur", namn:"Natur", ikon:"🌳", rader:`
-SOL|☀️|Lyser på himlen på dagen
-MÅNE|🌙|Lyser på himlen på natten
-STJÄRNA|⭐|Blinkar på natthimlen
-MOLN|☁️|Vitt och fluffigt på himlen
-REGN|🌧️|Vatten som faller från molnen
-SNÖ|❄️|Vit och kall, faller på vintern
-BLIXT|⚡|Lyser till när det åskar
-TRÄD|🌳|Har stam, grenar och löv
-BLOMMA|🌸|Växer i trädgården och doftar gott
-ROS|🌹|Röd blomma med taggar
-LÖV|🍁|Faller från träden på hösten
-BERG|⛰️|Mycket högt, man kan klättra upp
-VULKAN|🌋|Berg som kan spruta lava
-VÅG|🌊|Rullar in mot stranden
-REGNBÅGE|🌈|Färgglad båge på himlen efter regnet
-ELD|🔥|Varm och brinner
-KAKTUS|🌵|Taggig växt i öknen
-PALM|🌴|Träd på stranden i varma länder
-JORDEN|🌍|Planeten vi bor på
-SNÖGUBBE|⛄|Byggs av snö med morot som näsa
-VIND||Luft som blåser
-ISBIT|🧊|Fryst vatten i glaset
-TULPAN|🌷|Vårblomma i många färger
-SOLROS|🌻|Hög gul blomma
-GRAN|🌲|Barrträd som är grönt hela året
-PLANET|🪐|Jorden och Saturnus är sådana
-KOMET|☄️|Isklump med lång svans i rymden
-ÖKEN|🏜️|Torrt och sandigt, nästan inget regn
-STRAND|🏖️|Där havet möter sanden
-DIMMA||Som ett moln nere vid marken
-ÅSKA||Mullrar på himlen vid oväder
-VÅR||Årstiden när snön smälter
-HÖST||Årstiden när löven faller
-VINTER||Den kallaste årstiden
-SOMMAR||Den varmaste årstiden
-SKOG||Många träd tillsammans
-GROTTA||Hål in i ett berg
-FRÖ||Blir en växt om man sår det
-`},
- {id:"fart", namn:"Fordon och sport", ikon:"🚗", rader:`
-BIL|🚗|Har fyra hjul och kör på vägen
-BUSS|🚌|Många åker med den till skolan
-TÅG|🚆|Åker på räls
-BÅT|⛵|Åker på vattnet
-CYKEL|🚲|Har två hjul och man trampar
-RAKET|🚀|Flyger ut i rymden
-TRAKTOR|🚜|Bonden kör den på åkern
-FLYGPLAN|✈️|Flyger högt med vingar
-LASTBIL|🚚|Kör stora och tunga saker
-TAXI|🚕|Man betalar för att åka med den
-HELIKOPTER|🚁|Flyger med en propeller på taket
-BRANDBIL|🚒|Kör till bränder
-POLISBIL|🚓|Polisen åker i den
-AMBULANS|🚑|Kör sjuka till sjukhuset
-SKRIDSKO|⛸️|Man åker på isen med den
-SKIDOR|🎿|Man åker på snön med dem
-FOTBOLL|⚽|Man sparkar den mot målet
-POKAL|🏆|Vinnaren får den
-MEDALJ|🥇|Hängs runt halsen på den som vinner
-DRAKE|🪁|Flyger i vinden på ett snöre
-SPARKCYKEL|🛴|Har ett styre och man sparkar fram
-MOPED|🛵|Liten motorcykel
-ANKARE|⚓|Släpps ner så att båten ligger still
-UBÅT||Båt som åker under vattnet
-MOTOR||Får bilen att gå
-RATT||Man svänger bilen med den
-PILOT||Flyger planet
-KAPTEN||Bestämmer på ett skepp
-HAMN||Där båtarna lägger till
-STAFETT||Lopp där laget lämnar över en pinne
-HJUL||Runt och snurrar under bilen
-BENSIN||Bilar kan tanka det
-`}
-];
+/* Orden och ledtrådarna finns i korsordet-ord.js. */
 const NIVAER=[
   {id:"latt", namn:"Lätt", ord:5, min:3, max:5, w:7, h:7, bild:1, tipsFria:1},
   {id:"medel", namn:"Medel", ord:7, min:3, max:7, w:9, h:9, bild:.5, tipsFria:0},
-  {id:"svar", namn:"Svår", ord:10, min:4, max:10, w:11, h:11, bild:.25, tipsFria:0}
+  {id:"svar", namn:"Svår", ord:10, min:4, max:10, w:11, h:11, bild:.25, tipsFria:0},
+  {id:"extra", namn:"Extra svår", ord:12, min:4, max:11, w:12, h:12, bild:0, tipsFria:0, vuxen:true}
 ];
 const BLANDAT={id:"blandat", namn:"Blandat", ikon:"🎲"};
 const KEY='korsordet-v1';
 
-/* Läs ordbanken: [{ord, bild, text, tema}] */
+/* Läs ordbanken: [{ord, bild, text, tema, grad}]. grad 1 = Lätt, 2 = Medel, 3 = Svår, 4 = Extra svår. */
 const ORD=[];
 for(const T of ORDBANK){
+  let grad=0;
   for(const r of T.rader.trim().split('\n')){
+    const h=r.trim().match(/^#([123])$/);if(h){grad=+h[1];continue;}
     const [o,b,t]=r.split('|');
     const ord=o.trim().toLocaleUpperCase('sv-SE');
-    if(!/^[A-ZÅÄÖ]{3,10}$/.test(ord)||!t||!t.trim())continue;
-    ORD.push({ord,bild:(b||'').trim(),text:t.trim(),tema:T.id});
+    if(!/^[A-ZÅÄÖ]{3,12}$/.test(ord)||!t||!t.trim())continue;
+    const bild=(b||'').trim();
+    ORD.push({ord,bild,text:t.trim(),tema:T.id,grad:grad||(bild?1:3)});
   }
+}
+for(const r of VUXENORD.trim().split('\n')){
+  const [o,t]=r.split('|');const ord=(o||'').trim().toLocaleUpperCase('sv-SE');
+  if(/^[A-ZÅÄÖ]{3,12}$/.test(ord)&&t&&t.trim())ORD.push({ord,bild:'',text:t.trim(),tema:'vuxen',grad:4});
 }
 const TEMAN=[BLANDAT,...ORDBANK.map(T=>({id:T.id,namn:T.namn,ikon:T.ikon}))];
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const GRAD={latt:1,medel:2,svar:3};
 function pool(N,tema){
-  return ORD.filter(e=>(tema==='blandat'||e.tema===tema)&&e.ord.length>=N.min&&e.ord.length<=N.max&&(N.id==='svar'||e.bild));
+  if(N.vuxen)return ORD.filter(e=>e.grad===4&&e.ord.length>=N.min&&e.ord.length<=N.max);
+  const g=GRAD[N.id];
+  return ORD.filter(e=>e.grad<=g&&e.grad<4&&(tema==='blandat'||e.tema===tema)&&e.ord.length>=N.min&&e.ord.length<=N.max&&(g>1||e.bild));
 }
 
 /* Lägg ut orden så att de korsar varandra. Försöker många gånger och tar det
@@ -523,8 +326,12 @@ function bygg(niva,tema){
   const N=NIVAER.find(n=>n.id===niva);
   const P=pool(N,tema);
   let best=null;
-  for(let a=0;a<160;a++){
-    const L=layout(shuffle(P.slice()),N);
+  for(let a=0,n=N.ord>=10?70:160;a<n;a++){
+    /* Blanda ord med och utan bild om vartannat så att Medel får många bildledtrådar.
+       Högst 220 kandidater per försök håller det snabbt även på mobilen. */
+    const mb=shuffle(P.filter(e=>e.bild)),ub=shuffle(P.filter(e=>!e.bild)),cand=[];
+    while((mb.length||ub.length)&&cand.length<220){if(mb.length&&(N.bild>=.5||!ub.length||Math.random()<.3))cand.push(mb.pop());if(ub.length&&cand.length<220)cand.push(ub.pop());}
+    const L=layout(cand,N);
     if(!L)continue;
     const s=L.cross*3-L.w*L.h*.15-Math.abs(L.w-L.h);
     if(!best||s>best.s)best={...L,s};
@@ -579,6 +386,7 @@ const N=()=>NIVAER.find(n=>n.id===P.niva);
 
 function buildBars(){
   const tb=$('themes');tb.querySelectorAll('button').forEach(b=>b.remove());
+  tb.hidden=niva==='extra';
   TEMAN.forEach(T=>{
     const b=document.createElement('button');b.type='button';b.className='pick';
     b.innerHTML='<span class="em" aria-hidden="true">'+T.ikon+'</span>'+esc(T.namn);
@@ -589,7 +397,7 @@ function buildBars(){
   });
   const lb=$('levels');lb.querySelectorAll('button').forEach(b=>b.remove());
   NIVAER.forEach(Nv=>{
-    const s=saved.stj[skey(Nv.id,tema)]||0;
+    const s=saved.stj[skey(Nv.id,Nv.vuxen?'vuxen':tema)]||0;
     const b=document.createElement('button');b.type='button';b.className='pick';
     b.innerHTML=Nv.namn+'<span class="st">'+starStr(s)+'</span>';
     b.setAttribute('aria-label',Nv.namn+', '+s+' av 3 stjärnor');
@@ -600,7 +408,7 @@ function buildBars(){
 }
 
 function nytt(){
-  const p=bygg(niva,tema);
+  const p=bygg(niva,niva==='extra'?'vuxen':tema);
   if(!p){say('Kunde inte bygga ett korsord. Försök igen!','bad');return;}
   P={...p,fill:p.ord.map(o=>' '.repeat(o.ord.length)),ok:p.ord.map(()=>false),tips:0,t0:Date.now(),tipCells:[]};
   /* fill sparas per ruta i stället, så att korsningar delar bokstav */
@@ -610,7 +418,7 @@ function nytt(){
 function spara(){saved.tema=tema;saved.niva=niva;saved.spel=P;persist();}
 
 function start(){
-  tema=P.tema;niva=P.niva;
+  niva=P.niva;if(P.tema!=='vuxen')tema=P.tema;
   buildBars();
   cells=Array.from({length:P.h},()=>Array(P.w).fill(null));
   P.ord.forEach((o,wi)=>{
@@ -637,7 +445,7 @@ function start(){
   if(forsta>=0)valj(forsta,forstaLediga(forsta));
   rita();
   if(P.ok.every(Boolean))say('Det här korsordet är redan löst. Tryck på Nytt korsord!','good');
-  else say(N().id==='latt'?'Titta på bilden och skriv ordet. Tryck på en ruta för att välja ord.':'Läs ledtråden och skriv ordet. Tryck på en ruta två gånger för att byta håll.');
+  else say(N().id==='latt'?'Titta på bilden och skriv ordet. Tryck på en ruta för att välja ord.':N().vuxen?'Extra svår: kluriga ord för vuxna. Tryck på en ruta två gånger för att byta håll.':'Läs ledtråden och skriv ordet. Tryck på en ruta två gånger för att byta håll.');
   spara();
 }
 
@@ -822,7 +630,7 @@ function vinst(){
   $('wstars').innerHTML=[0,1,2].map(i=>'<i'+(i<s?'':' class="off"')+'>★</i>').join('');
   const tid=Date.now()-P.t0,min=Math.floor(tid/60000),sek=Math.round(tid/1000)%60;
   $('wtext').textContent='Du löste alla '+P.ord.length+' ord'+(P.tips?' med '+P.tips+' tips':' utan tips')+' på '+(min?min+' min ':'')+sek+' s.';
-  $('wnext').hidden=niva==='svar';
+  $('wnext').hidden=niva==='extra';
   $('win').hidden=false;
   [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.18),i*130));
   speak('Bra jobbat! Korsordet är löst.');
