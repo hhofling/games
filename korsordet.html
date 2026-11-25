@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#dff1ff">
+<title>Korsordet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap">
+<style>
+/* Korsord med bild- och textledtrådar. Orden finns i ORDBANK längre ner,
+   och varje korsord byggs ihop slumpmässigt av bygg(). */
+:root{
+  --bg:#dff1ff; --ink:#12324a; --muted:#46647c; --card:#ffffff; --edge:#2b5d82; --line:#b3d4ec;
+  --go:#22a152; --accent:#ff7a3d; --gold:#ffc21a; --shadow:rgba(18,50,74,.22);
+  --word:#fff4d6; --wordedge:#e0a400; --ok:#d9f5df; --bad:#ffd9cf;
+  --font:'Fredoka','Nunito','Trebuchet MS',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:18px; line-height:1.35;
+  padding-block:14px 28px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  touch-action:manipulation;
+}
+button{font-family:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:4px solid var(--accent); outline-offset:2px}
+.wrap{max-width:1040px; margin:0 auto; display:flex; flex-direction:column; gap:12px}
+header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px}
+h1{font-size:2rem; font-weight:700; margin:0}
+h1 a{color:inherit; text-decoration:none}
+h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
+.tools{display:flex; flex-wrap:wrap; gap:8px}
+.small-btn{min-height:44px; padding:6px 14px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1rem; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+.small-btn[aria-pressed="false"]{opacity:.6}
+.small-btn:disabled{opacity:.45; cursor:default}
+
+.bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.bar .lbl{font-weight:600; color:var(--muted); font-size:1rem; margin-right:2px; min-width:3.2em}
+.pick{min-height:48px; padding:4px 12px; border-radius:14px; border:3px solid var(--edge); background:var(--card); font-weight:600; font-size:1.05rem; line-height:1.1; box-shadow:0 3px 0 var(--shadow)}
+.pick .em{font-size:1.35rem; margin-right:4px; vertical-align:-2px}
+.pick span.st{display:block; font-size:.78rem; color:var(--gold); letter-spacing:.08em; -webkit-text-stroke:.5px var(--edge)}
+.pick[aria-pressed="true"]{background:var(--accent); color:#2a1200}
+.pick[aria-pressed="true"] span.st{color:#fff}
+
+.status{display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; font-weight:600; color:var(--muted)}
+.status b{color:var(--ink)}
+.status .sp{flex:1}
+
+.game{display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:18px; align-items:start}
+.left{display:flex; flex-direction:column; gap:12px; min-width:0}
+.board-wrap{position:relative}
+
+/* Rutnätet. Tomma rutor syns inte, bara de som hör till ett ord. */
+.grid{
+  display:grid; grid-template-columns:repeat(var(--cols),minmax(0,1fr)); gap:3px;
+  width:min(100%, calc(var(--cols) * 54px)); margin:0 auto; user-select:none; -webkit-user-select:none;
+}
+.cell{
+  position:relative; aspect-ratio:1; padding:0; border:2.5px solid var(--edge); border-radius:7px; background:var(--card);
+  container-type:inline-size; box-shadow:0 2px 0 var(--shadow); display:block;
+}
+.cell.void{visibility:hidden; pointer-events:none}
+.cell .n{position:absolute; left:6%; top:2%; font-size:30cqw; font-weight:600; line-height:1; color:var(--muted)}
+.cell .l{position:absolute; inset:0; display:grid; place-items:center; font-size:62cqw; font-weight:700; line-height:1; padding-top:8cqw}
+.cell.word{background:var(--word); border-color:var(--wordedge)}
+.cell.cur{background:var(--accent); border-color:#a8330a; color:#2a1200}
+.cell.cur .n{color:#5a1e00}
+.cell.ok{background:var(--ok); border-color:var(--go)}
+.cell.ok.word{background:#c4eecd}
+.cell.ok.cur{background:#8fdca2; border-color:#0d5a2e}
+.cell.tip .l{color:#7b4bc4}
+.cell.bad{animation:shake .45s; background:var(--bad); border-color:#d9442b}
+.cell.joy{animation:joy .5s}
+@keyframes shake{0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)}}
+@keyframes joy{0%,100%{scale:1} 50%{scale:1.15}}
+
+/* Ledtråden som gäller just nu */
+.clue{display:flex; align-items:center; gap:10px; background:var(--card); border:3px solid var(--edge); border-radius:16px; padding:8px 10px; box-shadow:0 3px 0 var(--shadow); min-height:76px}
+.clue .nr{flex:none; min-width:52px; text-align:center; font-weight:700; font-size:1.15rem; background:var(--word); border:2.5px solid var(--wordedge); border-radius:10px; padding:2px 6px}
+.clue .body{flex:1; min-width:0; display:flex; align-items:center; gap:10px}
+.clue .pic{font-size:2.8rem; line-height:1}
+.clue .txt{font-weight:600; font-size:1.1rem; line-height:1.2}
+.clue .len{display:block; font-weight:500; font-size:.85rem; color:var(--muted)}
+.nav{flex:none; width:44px; height:44px; border-radius:12px; border:3px solid var(--edge); background:var(--card); font-size:1.2rem; font-weight:700; box-shadow:0 3px 0 var(--shadow); padding:0}
+.clue.done{border-color:var(--go); background:var(--ok)}
+
+/* Eget tangentbord, så att det fungerar likadant på iPhone, surfplatta och dator. */
+.kb{display:flex; flex-direction:column; gap:6px; user-select:none; -webkit-user-select:none}
+.kb .row{display:flex; gap:4px; justify-content:center}
+.key{flex:1 1 0; max-width:52px; min-width:0; height:50px; border-radius:10px; border:2.5px solid var(--edge); background:var(--card); font-size:1.25rem; font-weight:700; box-shadow:0 3px 0 var(--shadow); padding:0}
+.key:active{transform:translateY(2px); box-shadow:0 1px 0 var(--shadow)}
+.key.wide{flex:1.7 1 0; max-width:88px; font-size:1.1rem}
+.key.dir{background:var(--word); border-color:var(--wordedge)}
+
+.dock{display:flex; flex-direction:column; gap:10px}
+.lists{display:flex; flex-direction:column; gap:12px}
+.lists h2{margin:0 0 6px; font-size:1.2rem}
+.lists ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.lists li button{width:100%; display:flex; align-items:center; gap:10px; text-align:left; min-height:48px; padding:5px 10px; border-radius:12px; border:2.5px solid var(--line); background:var(--card); font-size:1rem; font-weight:500}
+.lists li button .nr{flex:none; font-weight:700; min-width:1.6em}
+.lists li button .pic{font-size:1.7rem; line-height:1}
+.lists li button .ans{margin-left:auto; font-weight:700; color:var(--go); letter-spacing:.05em}
+.lists li button.on{border-color:var(--accent); background:#fff0e6}
+.lists li button.done{border-color:var(--go); background:var(--ok)}
+.lists li button.done .t{color:var(--muted)}
+
+.msg{margin:0 2px; min-height:1.5em; font-weight:500; font-size:1.05rem; text-align:center}
+.msg.bad{color:#a8330a} .msg.good{color:#0f6b34}
+
+.win{position:fixed; inset:0; display:grid; place-items:center; padding:14px; background:rgba(18,50,74,.6); z-index:50}
+.win[hidden]{display:none}
+.win-card{background:var(--card); border:4px solid var(--edge); border-radius:22px; padding:18px 20px; text-align:center; max-width:360px; width:100%}
+.win-card h2{margin:0; font-size:1.8rem}
+.stars{font-size:2.6rem; letter-spacing:.1em; color:var(--gold); -webkit-text-stroke:1.5px var(--edge); margin:4px 0}
+.stars i{font-style:normal; display:inline-block; animation:pop .5s both}
+.stars i:nth-child(2){animation-delay:.15s} .stars i:nth-child(3){animation-delay:.3s}
+.stars i.off{color:#e3edf5; animation:none}
+@keyframes pop{0%{transform:scale(0) rotate(-30deg)} 70%{transform:scale(1.3) rotate(8deg)} 100%{transform:scale(1)}}
+.win-card p{margin:6px 0 12px; font-size:1.05rem}
+.win-btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+.win-btns .go{background:var(--go); color:#fff; border-color:#0d5a2e}
+
+@media (max-width:820px){
+  .game{grid-template-columns:minmax(0,1fr)}
+  /* Ledtråd och tangentbord ligger kvar längst ner när man scrollar. */
+  .dock{position:sticky; bottom:0; z-index:4; background:var(--bg); margin:0 -16px; padding:8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); box-shadow:0 -4px 10px rgba(18,50,74,.12)}
+}
+@media (max-width:600px){
+  body{padding-block:10px 24px; font-size:17px}
+  h1{font-size:1.5rem}
+  h1 small{display:none}
+  header{gap:8px}
+  .lang{display:none}
+  .status{gap:6px 8px}
+  .bar{gap:6px}
+  .wrap{gap:9px}
+  .clue{min-height:58px}
+  .clue .pic{font-size:2.1rem}
+  .key{height:43px}
+  .small-btn{min-height:40px; padding:4px 10px; font-size:.95rem}
+  .pick{min-height:42px; padding:3px 9px; font-size:.95rem}
+  .bar .lbl{display:none}
+  #themes{flex-wrap:nowrap; overflow-x:auto; padding:2px 2px 8px; scrollbar-width:thin}
+  #themes .pick{flex:none}
+  .grid{gap:2px}
+  .cell{border-width:2px; border-radius:5px}
+  .clue{min-height:66px; padding:6px 8px; gap:8px}
+  .clue .pic{font-size:2.3rem}
+  .clue .txt{font-size:1rem}
+  .clue .nr{min-width:44px; font-size:1rem}
+  .nav{width:38px; height:40px}
+  .kb{gap:5px}
+  .kb .row{gap:3px}
+  .key{font-size:1.1rem; border-width:2px; border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){
+  .cell.bad,.cell.joy,.stars i{animation:none}
+}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="ikoner/ikon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="ikoner/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Spelhörnan">
+<script src="pwa.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><a href="index.html" aria-label="Till Spelhörnan">Korsordet</a> <small>Lös korsord med bilder och ledtrådar</small></h1>
+    <div class="tools">
+      <span id="spelarplats"></span>
+      <button class="small-btn" id="speak" type="button" aria-label="Läs upp">🔊<span class="lang"> Läs upp</span></button>
+      <button class="small-btn" id="snd" type="button" aria-pressed="true">Ljud på</button>
+    </div>
+  </header>
+  <nav class="bar" id="themes" aria-label="Välj tema"><span class="lbl">Tema</span></nav>
+  <nav class="bar" id="levels" aria-label="Välj svårighet"><span class="lbl">Nivå</span></nav>
+  <div class="status" aria-live="polite">
+    <span>Ord: <b id="cnt">0</b></span><span class="lang">Tips: <b id="tips">0</b></span><span class="sp"></span>
+    <button class="small-btn" id="tip" type="button">💡 Tips</button>
+    <button class="small-btn" id="new" type="button">🔄 Nytt<span class="lang"> korsord</span></button>
+  </div>
+  <div class="game">
+    <div class="left">
+      <div class="board-wrap">
+        <div class="grid" id="grid" role="grid" aria-label="Korsord"></div>
+        <div class="win" id="win" hidden>
+          <div class="win-card" role="dialog" aria-labelledby="wt">
+            <h2 id="wt">Korsordet är löst!</h2>
+            <div class="stars" id="wstars"></div>
+            <p id="wtext"></p>
+            <div class="win-btns">
+              <button class="small-btn go" id="wagain" type="button">Nytt korsord</button>
+              <button class="small-btn" id="wnext" type="button">Svårare</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dock">
+      <div class="clue" id="clue" aria-live="polite">
+        <button class="nav" id="prev" type="button" aria-label="Förra ledtråden">◀</button>
+        <span class="nr" id="cnr"></span>
+        <div class="body" id="cbody"></div>
+        <button class="nav" id="next" type="button" aria-label="Nästa ledtråd">▶</button>
+      </div>
+      <div class="kb" id="kb" aria-label="Tangentbord"></div>
+      </div>
+      <p class="msg" id="msg" aria-live="polite"></p>
+    </div>
+    <div class="lists">
+      <section><h2>Vågrätt →</h2><ol id="listH"></ol></section>
+      <section><h2>Lodrätt ↓</h2><ol id="listV"></ol></section>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Så lägger du till ord: skriv en rad i ett tema som ORD|bild|ledtråd.
+   - bild är en emoji. Lämna den tom (ORD||ledtråd) för ord som bara passar Svår.
+   - Lätt använder bara bilder, Medel blandar bild och text, Svår är mest text.
+   - Ord får vara 3–10 bokstäver, bara A–Ö. */
+const ORDBANK=[
+ {id:"djur", namn:"Djur", ikon:"🐱", rader:`
+KATT|🐱|Säger mjau och spinner
+HUND|🐶|Säger voff och viftar på svansen
+GRIS|🐷|Rosa djur som säger nöff
+HÄST|🐴|Man kan rida på den
+FÅR|🐑|Har ull och säger bä
+MUS|🐭|Litet djur som gillar ost
+UGGLA|🦉|Fågel som är vaken på natten
+ORM|🐍|Lång och har inga ben
+GRODA|🐸|Grön och hoppar i dammen
+FISK|🐟|Simmar och andas med gälar
+APA|🐒|Klättrar i träd och äter bananer
+BJÖRN|🐻|Stort djur som sover hela vintern
+RÄV|🦊|Röd och listig med yvig svans
+LEJON|🦁|Kallas djurens kung
+ZEBRA|🦓|Randig häst från Afrika
+GIRAFF|🦒|Djuret med längst hals
+ELEFANT|🐘|Stort grått djur med snabel
+KANIN|🐰|Har långa öron och skuttar
+IGELKOTT|🦔|Har taggar på ryggen
+FJÄRIL|🦋|Flyger med färgglada vingar
+SNIGEL|🐌|Bär sitt hus på ryggen
+PINGVIN|🐧|Fågel som inte kan flyga men simmar fort
+VAL|🐳|Det största djuret i havet
+TIGER|🐯|Randigt kattdjur
+KROKODIL|🐊|Har stora käkar och bor i floder
+BLÄCKFISK|🐙|Har åtta armar och bor i havet
+ANKA|🦆|Säger kvack och simmar i dammen
+HÖNA|🐔|Värper ägg på bondgården
+KAMEL|🐫|Har puckel och bor i öknen
+HAJ|🦈|Fisk med vassa tänder
+MYRA|🐜|Liten och stark, bor i en stack
+SPINDEL|🕷️|Har åtta ben och spinner nät
+EKORRE|🐿️|Samlar nötter och klättrar i träd
+DELFIN|🐬|Smart och lekfull, hoppar i havet
+PAPEGOJA|🦜|Färgglad fågel som kan härma ord
+KÄNGURU|🦘|Hoppar och har en pung på magen
+SVAN|🦢|Vit fågel med lång hals
+KRABBA|🦀|Går i sidled och har klor
+NYCKELPIGA|🐞|Röd skalbagge med svarta prickar
+ÄLG||Skogens konung, har stora horn
+KALV||Kons unge
+LAMM||Fårets unge
+VALP||Hundens unge
+FJÄDER||Fåglar har många sådana
+INSEKT||Djur med sex ben
+ROVDJUR||Djur som äter andra djur
+BONDGÅRD||Där kor, grisar och höns bor
+`},
+ {id:"mat", namn:"Mat", ikon:"🍎", rader:`
+ÄPPLE|🍎|Rund frukt, röd eller grön
+BANAN|🍌|Gul och böjd frukt som apor gillar
+OST|🧀|Görs av mjölk och läggs på mackan
+GLASS|🍦|Kall och söt, äts på sommaren
+MOROT|🥕|Orange grönsak som kaniner gillar
+BRÖD|🍞|Bakas av mjöl i ugnen
+ÄGG|🥚|Hönan värper det
+PIZZA|🍕|Rund, med ost och tomat från Italien
+KORV|🌭|Lång och äts i ett bröd
+TÅRTA|🎂|Äts på kalas, gärna med ljus
+KAKA|🍪|Liten och söt, bakas i ugnen
+MELON|🍉|Stor frukt, röd inuti med kärnor
+CITRON|🍋|Gul frukt som är väldigt sur
+PÄRON|🍐|Grön frukt som är smal upptill
+TOMAT|🍅|Röd och rund, finns i ketchup
+GURKA|🥒|Lång grön grönsak
+MAJS|🌽|Gula korn på en kolv
+MJÖLK|🥛|Vit dryck från kon
+DRUVOR|🍇|Små runda bär som växer i klasar
+JORDGUBBE|🍓|Rött sommarbär med små frön utanpå
+POTATIS|🥔|Växer i jorden och kan bli pommes frites
+POPCORN|🍿|Poppar i grytan och äts på bio
+CHOKLAD|🍫|Brun och söt, görs av kakao
+MUNK|🍩|Rund bakelse med hål i mitten
+RIS|🍚|Små vita korn som kokas
+SOPPA|🍲|Äts varm med sked ur en skål
+HONUNG|🍯|Bina gör den, söt och gul
+PANNKAKA|🥞|Tunn och äts med sylt
+APELSIN|🍊|Orange frukt full av saft
+KÖRSBÄR|🍒|Små röda bär som hänger två och två
+SALLAD|🥗|Grön och fräsch, blandas i en skål
+SVAMP|🍄|Plockas i skogen på hösten
+KOKOSNÖT|🥥|Hård nöt som växer på en palm
+ANANAS|🍍|Taggig frukt som är gul inuti
+FRUKOST||Dagens första måltid
+MIDDAG||Måltid man äter på kvällen
+RECEPT||Talar om hur man lagar maten
+SYLT||Kokas av bär och socker
+KANEL||Krydda som finns i bullar
+GRÖNSAK||Morot och gurka är sådana
+`},
+ {id:"hemma", namn:"Hemma", ikon:"🏠", rader:`
+HUS|🏠|Där man bor
+SÄNG|🛏️|Här sover man på natten
+STOL|🪑|Man sitter på den vid bordet
+BOK|📖|Har sidor att läsa i
+LAMPA|💡|Ger ljus när det är mörkt
+NYCKEL|🔑|Låser upp dörren
+KLOCKA|⏰|Visar vad tiden är
+SAX|✂️|Klipper papper
+PENNA|✏️|Man skriver och ritar med den
+KOPP|☕|Man dricker varmt ur den
+SKED|🥄|Man äter soppa med den
+DÖRR|🚪|Man öppnar den för att gå in
+TVÅL|🧼|Man tvättar händerna med den
+PARAPLY|☂️|Skyddar mot regnet
+RYGGSÄCK|🎒|Bärs på ryggen till skolan
+PRESENT|🎁|Man får den på födelsedagen
+BALLONG|🎈|Fylls med luft på kalaset
+TELEFON|📱|Man ringer och skickar bilder med den
+GITARR|🎸|Instrument med sex strängar
+TRUMMA|🥁|Man slår på den med pinnar
+HAMMARE|🔨|Man slår i spikar med den
+LJUS|🕯️|Brinner med en liten låga
+SKO|👟|Sätts på foten
+VANTE|🧤|Värmer handen på vintern
+HALSDUK|🧣|Värmer halsen när det är kallt
+BYXOR|👖|Klädesplagg med två ben
+TRÖJA|👕|Man drar den över huvudet
+KRONA|👑|Kungen bär den på huvudet
+KEPS|🧢|Mössa med skärm
+NALLE|🧸|Mjuk leksak att krama
+TANDBORSTE|🪥|Man borstar tänderna med den
+BADKAR|🛁|Man badar i det
+KUDDE||Mjuk att lägga huvudet på
+TÄCKE||Håller dig varm i sängen
+KYLSKÅP||Håller maten kall
+SPIS||Där man kokar maten
+GARDIN||Hänger framför fönstret
+MATTA||Ligger på golvet
+`},
+ {id:"natur", namn:"Natur", ikon:"🌳", rader:`
+SOL|☀️|Lyser på himlen på dagen
+MÅNE|🌙|Lyser på himlen på natten
+STJÄRNA|⭐|Blinkar på natthimlen
+MOLN|☁️|Vitt och fluffigt på himlen
+REGN|🌧️|Vatten som faller från molnen
+SNÖ|❄️|Vit och kall, faller på vintern
+BLIXT|⚡|Lyser till när det åskar
+TRÄD|🌳|Har stam, grenar och löv
+BLOMMA|🌸|Växer i trädgården och doftar gott
+ROS|🌹|Röd blomma med taggar
+LÖV|🍁|Faller från träden på hösten
+BERG|⛰️|Mycket högt, man kan klättra upp
+VULKAN|🌋|Berg som kan spruta lava
+VÅG|🌊|Rullar in mot stranden
+REGNBÅGE|🌈|Färgglad båge på himlen efter regnet
+ELD|🔥|Varm och brinner
+KAKTUS|🌵|Taggig växt i öknen
+PALM|🌴|Träd på stranden i varma länder
+JORDEN|🌍|Planeten vi bor på
+SNÖGUBBE|⛄|Byggs av snö med morot som näsa
+VIND||Luft som blåser
+ISBIT|🧊|Fryst vatten i glaset
+TULPAN|🌷|Vårblomma i många färger
+SOLROS|🌻|Hög gul blomma
+GRAN|🌲|Barrträd som är grönt hela året
+PLANET|🪐|Jorden och Saturnus är sådana
+KOMET|☄️|Isklump med lång svans i rymden
+ÖKEN|🏜️|Torrt och sandigt, nästan inget regn
+STRAND|🏖️|Där havet möter sanden
+DIMMA||Som ett moln nere vid marken
+ÅSKA||Mullrar på himlen vid oväder
+VÅR||Årstiden när snön smälter
+HÖST||Årstiden när löven faller
+VINTER||Den kallaste årstiden
+SOMMAR||Den varmaste årstiden
+SKOG||Många träd tillsammans
+GROTTA||Hål in i ett berg
+FRÖ||Blir en växt om man sår det
+`},
+ {id:"fart", namn:"Fordon och sport", ikon:"🚗", rader:`
+BIL|🚗|Har fyra hjul och kör på vägen
+BUSS|🚌|Många åker med den till skolan
+TÅG|🚆|Åker på räls
+BÅT|⛵|Åker på vattnet
+CYKEL|🚲|Har två hjul och man trampar
+RAKET|🚀|Flyger ut i rymden
+TRAKTOR|🚜|Bonden kör den på åkern
+FLYGPLAN|✈️|Flyger högt med vingar
+LASTBIL|🚚|Kör stora och tunga saker
+TAXI|🚕|Man betalar för att åka med den
+HELIKOPTER|🚁|Flyger med en propeller på taket
+BRANDBIL|🚒|Kör till bränder
+POLISBIL|🚓|Polisen åker i den
+AMBULANS|🚑|Kör sjuka till sjukhuset
+SKRIDSKO|⛸️|Man åker på isen med den
+SKIDOR|🎿|Man åker på snön med dem
+FOTBOLL|⚽|Man sparkar den mot målet
+POKAL|🏆|Vinnaren får den
+MEDALJ|🥇|Hängs runt halsen på den som vinner
+DRAKE|🪁|Flyger i vinden på ett snöre
+SPARKCYKEL|🛴|Har ett styre och man sparkar fram
+MOPED|🛵|Liten motorcykel
+ANKARE|⚓|Släpps ner så att båten ligger still
+UBÅT||Båt som åker under vattnet
+MOTOR||Får bilen att gå
+RATT||Man svänger bilen med den
+PILOT||Flyger planet
+KAPTEN||Bestämmer på ett skepp
+HAMN||Där båtarna lägger till
+STAFETT||Lopp där laget lämnar över en pinne
+HJUL||Runt och snurrar under bilen
+BENSIN||Bilar kan tanka det
+`}
+];
+const NIVAER=[
+  {id:"latt", namn:"Lätt", ord:5, min:3, max:5, w:7, h:7, bild:1, tipsFria:1},
+  {id:"medel", namn:"Medel", ord:7, min:3, max:7, w:9, h:9, bild:.5, tipsFria:0},
+  {id:"svar", namn:"Svår", ord:10, min:4, max:10, w:11, h:11, bild:.25, tipsFria:0}
+];
+const BLANDAT={id:"blandat", namn:"Blandat", ikon:"🎲"};
+const KEY='korsordet-v1';
+
+/* Läs ordbanken: [{ord, bild, text, tema}] */
+const ORD=[];
+for(const T of ORDBANK){
+  for(const r of T.rader.trim().split('\n')){
+    const [o,b,t]=r.split('|');
+    const ord=o.trim().toLocaleUpperCase('sv-SE');
+    if(!/^[A-ZÅÄÖ]{3,10}$/.test(ord)||!t||!t.trim())continue;
+    ORD.push({ord,bild:(b||'').trim(),text:t.trim(),tema:T.id});
+  }
+}
+const TEMAN=[BLANDAT,...ORDBANK.map(T=>({id:T.id,namn:T.namn,ikon:T.ikon}))];
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function pool(N,tema){
+  return ORD.filter(e=>(tema==='blandat'||e.tema===tema)&&e.ord.length>=N.min&&e.ord.length<=N.max&&(N.id==='svar'||e.bild));
+}
+
+/* Lägg ut orden så att de korsar varandra. Försöker många gånger och tar det
+   tätaste rutnätet som får plats. Returnerar {w,h,ord:[{ord,x,y,d,...}]} */
+function layout(cand,N){
+  const g=new Map(),k=(x,y)=>x+','+y;
+  const placed=[];let minX=0,maxX=0,minY=0,maxY=0;
+  const usedPic=new Set();
+  function put(e,x,y,d){
+    const dx=d?0:1,dy=d?1:0;
+    for(let i=0;i<e.ord.length;i++){
+      const kk=k(x+dx*i,y+dy*i);const c=g.get(kk)||{ch:e.ord[i],h:false,v:false};
+      if(d)c.v=true;else c.h=true;g.set(kk,c);
+    }
+    placed.push({...e,x,y,d});if(e.bild)usedPic.add(e.bild);
+    minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x+dx*(e.ord.length-1));maxY=Math.max(maxY,y+dy*(e.ord.length-1));
+  }
+  function fits(w,x,y,d){
+    const dx=d?0:1,dy=d?1:0,L=w.length;
+    if(g.has(k(x-dx,y-dy))||g.has(k(x+dx*L,y+dy*L)))return -1;
+    let cross=0;
+    for(let i=0;i<L;i++){
+      const cx=x+dx*i,cy=y+dy*i,c=g.get(k(cx,cy));
+      if(c){
+        if(c.ch!==w[i]||(d?c.v:c.h))return -1;
+        cross++;
+      }else if(g.has(k(cx+dy,cy+dx))||g.has(k(cx-dy,cy-dx)))return -1;
+    }
+    return cross;
+  }
+  const first=cand.find(e=>e.ord.length<=N.w);if(!first)return null;
+  put(first,0,0,0);
+  const rest=cand.filter(e=>e!==first);
+  for(let pass=0;pass<2&&placed.length<N.ord;pass++){
+    for(const e of rest){
+      if(placed.length>=N.ord)break;
+      if(placed.some(p=>p.ord===e.ord)||(e.bild&&usedPic.has(e.bild)))continue;
+      let best=null;
+      for(const [kk,c] of g){
+        const [gx,gy]=kk.split(',').map(Number);
+        for(let i=0;i<e.ord.length;i++){
+          if(e.ord[i]!==c.ch)continue;
+          for(const d of [0,1]){
+            if(d?c.v:c.h)continue;
+            const x=d?gx:gx-i,y=d?gy-i:gy;
+            const cr=fits(e.ord,x,y,d);if(cr<1)continue;
+            const x2=x+(d?0:e.ord.length-1),y2=y+(d?e.ord.length-1:0);
+            const W=Math.max(maxX,x2)-Math.min(minX,x)+1,H=Math.max(maxY,y2)-Math.min(minY,y)+1;
+            if(W>N.w||H>N.h)continue;
+            /* Fler korsningar och ett litet, fyrkantigt rutnät är bättre. Lite slump. */
+            const s=cr*8-W*H*.25-Math.abs(W-H)*.6+Math.random()*3;
+            if(!best||s>best.s)best={s,x,y,d};
+          }
+        }
+      }
+      if(best)put(e,best.x,best.y,best.d);
+    }
+  }
+  if(placed.length<N.ord)return null;
+  const hor=placed.filter(p=>!p.d).length;
+  if(hor===0||hor===placed.length)return null;
+  placed.forEach(p=>{p.x-=minX;p.y-=minY;});
+  return {w:maxX-minX+1,h:maxY-minY+1,ord:placed,cross:[...g.values()].filter(c=>c.h&&c.v).length};
+}
+function bygg(niva,tema){
+  const N=NIVAER.find(n=>n.id===niva);
+  const P=pool(N,tema);
+  let best=null;
+  for(let a=0;a<160;a++){
+    const L=layout(shuffle(P.slice()),N);
+    if(!L)continue;
+    const s=L.cross*3-L.w*L.h*.15-Math.abs(L.w-L.h);
+    if(!best||s>best.s)best={...L,s};
+  }
+  if(!best)return null;
+  /* Numrera som i ett vanligt korsord: uppifrån och ner, vänster till höger. */
+  const starts=[...new Set(best.ord.map(o=>o.y*100+o.x))].sort((a,b)=>a-b);
+  best.ord.forEach(o=>{o.nr=starts.indexOf(o.y*100+o.x)+1;});
+  best.ord.sort((a,b)=>a.d-b.d||a.nr-b.nr);
+  /* Vilka ord får bild som ledtråd: Lätt alla, Medel hälften, Svår någon enstaka. */
+  const medBild=shuffle(best.ord.filter(o=>o.bild));
+  const antal=Math.round(best.ord.length*N.bild);
+  best.ord.forEach(o=>{o.visa='text';});
+  medBild.slice(0,antal).forEach(o=>{o.visa='bild';});
+  return {niva,tema,w:best.w,h:best.h,ord:best.ord.map(o=>({ord:o.ord,bild:o.bild,text:o.text,x:o.x,y:o.y,d:o.d,nr:o.nr,visa:o.visa}))};
+}
+
+(function(){
+const $=id=>document.getElementById(id);
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+if(!saved.stj||typeof saved.stj!=='object')saved.stj={};
+let tema=TEMAN.some(T=>T.id===saved.tema)?saved.tema:'blandat';
+let niva=NIVAER.some(N=>N.id===saved.niva)?saved.niva:'latt';
+let sound=true;
+let P=null;          // pusslet: {niva,tema,w,h,ord,fill,ok,tips,tipCells,t0}
+let cells=[];        // cells[y][x] = {el, ch, ord:[index...]} eller null
+let curW=0,curI=0;   // valt ord och bokstav i ordet
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}}
+
+let ac=null;
+function tone(f,d,type,v){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=type||'sine';o.frequency.value=f;g.gain.value=v||.07;
+    o.connect(g);g.connect(ac.destination);o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+(d||.12));o.stop(ac.currentTime+(d||.12));
+  }catch(e){}
+}
+function speak(t,force){
+  if(!(sound||force)||!('speechSynthesis' in window)||!t)return;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';u.rate=.9;speechSynthesis.speak(u);}catch(e){}
+}
+function say(t,kind){const m=$('msg');m.textContent=t;m.className='msg'+(kind?' '+kind:'');}
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const starStr=s=>'★'.repeat(s)+'☆'.repeat(3-s);
+const skey=(n,t)=>n+'|'+t;
+const lc=w=>w.toLocaleLowerCase('sv-SE');
+const N=()=>NIVAER.find(n=>n.id===P.niva);
+
+function buildBars(){
+  const tb=$('themes');tb.querySelectorAll('button').forEach(b=>b.remove());
+  TEMAN.forEach(T=>{
+    const b=document.createElement('button');b.type='button';b.className='pick';
+    b.innerHTML='<span class="em" aria-hidden="true">'+T.ikon+'</span>'+esc(T.namn);
+    b.setAttribute('aria-pressed',String(T.id===tema));
+    b.onclick=()=>{tema=T.id;nytt();};
+    tb.appendChild(b);
+    if(T.id===tema)requestAnimationFrame(()=>{tb.scrollLeft=Math.max(0,b.offsetLeft-tb.offsetLeft-40);});
+  });
+  const lb=$('levels');lb.querySelectorAll('button').forEach(b=>b.remove());
+  NIVAER.forEach(Nv=>{
+    const s=saved.stj[skey(Nv.id,tema)]||0;
+    const b=document.createElement('button');b.type='button';b.className='pick';
+    b.innerHTML=Nv.namn+'<span class="st">'+starStr(s)+'</span>';
+    b.setAttribute('aria-label',Nv.namn+', '+s+' av 3 stjärnor');
+    b.setAttribute('aria-pressed',String(Nv.id===niva));
+    b.onclick=()=>{niva=Nv.id;nytt();};
+    lb.appendChild(b);
+  });
+}
+
+function nytt(){
+  const p=bygg(niva,tema);
+  if(!p){say('Kunde inte bygga ett korsord. Försök igen!','bad');return;}
+  P={...p,fill:p.ord.map(o=>' '.repeat(o.ord.length)),ok:p.ord.map(()=>false),tips:0,t0:Date.now(),tipCells:[]};
+  /* fill sparas per ruta i stället, så att korsningar delar bokstav */
+  P.fill=Array.from({length:P.h},()=>Array(P.w).fill(''));
+  start();
+}
+function spara(){saved.tema=tema;saved.niva=niva;saved.spel=P;persist();}
+
+function start(){
+  tema=P.tema;niva=P.niva;
+  buildBars();
+  cells=Array.from({length:P.h},()=>Array(P.w).fill(null));
+  P.ord.forEach((o,wi)=>{
+    for(let i=0;i<o.ord.length;i++){
+      const x=o.x+(o.d?0:i),y=o.y+(o.d?i:0);
+      const c=cells[y][x]||(cells[y][x]={ch:o.ord[i],ord:[],nr:0});
+      c.ord.push(wi);if(i===0)c.nr=o.nr;
+    }
+  });
+  const grid=$('grid');grid.innerHTML='';
+  grid.style.setProperty('--cols',P.w);
+  for(let y=0;y<P.h;y++)for(let x=0;x<P.w;x++){
+    const c=cells[y][x];
+    const b=document.createElement('button');b.type='button';
+    if(!c){b.className='cell void';b.tabIndex=-1;b.setAttribute('aria-hidden','true');grid.appendChild(b);continue;}
+    b.className='cell';
+    b.innerHTML=(c.nr?'<span class="n">'+c.nr+'</span>':'')+'<span class="l"></span>';
+    b.onclick=()=>klickRuta(x,y);
+    c.el=b;grid.appendChild(b);
+  }
+  buildLists();
+  $('win').hidden=true;
+  const forsta=P.ord.findIndex((o,i)=>!P.ok[i]);
+  if(forsta>=0)valj(forsta,forstaLediga(forsta));
+  rita();
+  if(P.ok.every(Boolean))say('Det här korsordet är redan löst. Tryck på Nytt korsord!','good');
+  else say(N().id==='latt'?'Titta på bilden och skriv ordet. Tryck på en ruta för att välja ord.':'Läs ledtråden och skriv ordet. Tryck på en ruta två gånger för att byta håll.');
+  spara();
+}
+
+function buildLists(){
+  for(const [id,d] of [['listH',0],['listV',1]]){
+    const ol=$(id);ol.innerHTML='';
+    P.ord.forEach((o,wi)=>{
+      if(o.d!==d)return;
+      const li=document.createElement('li');const b=document.createElement('button');b.type='button';
+      b.innerHTML='<span class="nr">'+o.nr+'</span>'+(o.visa==='bild'?'<span class="pic" aria-hidden="true">'+o.bild+'</span>':'<span class="t">'+esc(o.text)+'</span>')+'<span class="ans"></span>';
+      b.setAttribute('aria-label',o.nr+(d?' lodrätt':' vågrätt')+', '+o.ord.length+' bokstäver'+(o.visa==='text'?', '+o.text:''));
+      b.onclick=()=>{valj(wi,forstaLediga(wi));rita();synlig();};
+      o.li=b;li.appendChild(b);ol.appendChild(li);
+    });
+  }
+}
+
+function pos(wi,i){const o=P.ord[wi];return [o.x+(o.d?0:i),o.y+(o.d?i:0)];}
+function lockt(x,y){return cells[y][x].ord.some(w=>P.ok[w]);}
+function forstaLediga(wi){
+  const o=P.ord[wi];
+  for(let i=0;i<o.ord.length;i++){const [x,y]=pos(wi,i);if(!P.fill[y][x])return i;}
+  for(let i=0;i<o.ord.length;i++){const [x,y]=pos(wi,i);if(!lockt(x,y))return i;}
+  return 0;
+}
+function valj(wi,i){curW=wi;curI=Math.max(0,Math.min(i,P.ord[wi].ord.length-1));}
+function klickRuta(x,y){
+  if(!P)return;
+  const c=cells[y][x];
+  const [cx,cy]=pos(curW,curI);
+  let wi=c.ord.includes(curW)?curW:c.ord[0];
+  if(cx===x&&cy===y&&c.ord.length>1)wi=c.ord.find(w=>w!==curW);
+  else if(!c.ord.includes(curW)){
+    /* Behåll riktningen om det går */
+    const same=c.ord.find(w=>P.ord[w].d===P.ord[curW].d);if(same!==undefined)wi=same;
+  }
+  const o=P.ord[wi];
+  valj(wi,o.d?y-o.y:x-o.x);
+  tone(500,.04,'triangle',.04);
+  rita();
+}
+
+/* På mobilen ligger tangentbordet över nedre delen av sidan: se till att vald ruta syns. */
+function synlig(){
+  const dock=document.querySelector('.dock');
+  if(!P||getComputedStyle(dock).position!=='sticky')return;
+  const [x,y]=pos(curW,curI);const r=cells[y][x].el.getBoundingClientRect(),top=dock.getBoundingClientRect().top;
+  if(r.bottom>top-6)window.scrollBy({top:r.bottom-top+40,behavior:'smooth'});
+  else if(r.top<6)window.scrollBy({top:r.top-40,behavior:'smooth'});
+}
+function rita(){
+  if(!P)return;
+  const o=P.ord[curW];
+  const [cx,cy]=pos(curW,curI);
+  for(let y=0;y<P.h;y++)for(let x=0;x<P.w;x++){
+    const c=cells[y][x];if(!c)continue;
+    const inW=c.ord.includes(curW),ok=lockt(x,y);
+    c.el.classList.toggle('word',inW);
+    c.el.classList.toggle('cur',x===cx&&y===cy);
+    c.el.classList.toggle('ok',ok);
+    c.el.classList.toggle('tip',P.tipCells.includes(x+','+y));
+    c.el.querySelector('.l').textContent=P.fill[y][x];
+    c.el.setAttribute('aria-label',(c.nr?'Ruta '+c.nr+', ':'Ruta, ')+(P.fill[y][x]||'tom'));
+  }
+  /* Ledtrådsrutan */
+  $('cnr').textContent=o.nr+(o.d?' ↓':' →');
+  const len='<span class="len">'+o.ord.length+' bokstäver</span>';
+  $('cbody').innerHTML=P.ok[curW]
+    ?'<span class="pic" aria-hidden="true">'+(o.bild||'✅')+'</span><span class="txt">'+esc(o.ord)+len+'</span>'
+    :o.visa==='bild'
+      ?'<span class="pic" role="img" aria-label="Bildledtråd">'+o.bild+'</span><span class="txt">'+len+'</span>'
+      :'<span class="txt">'+esc(o.text)+len+'</span>';
+  $('clue').classList.toggle('done',P.ok[curW]);
+  P.ord.forEach((w,wi)=>{
+    if(!w.li)return;
+    w.li.classList.toggle('on',wi===curW);
+    w.li.classList.toggle('done',P.ok[wi]);
+    w.li.querySelector('.ans').textContent=P.ok[wi]?w.ord:'';
+  });
+  $('cnt').textContent=P.ok.filter(Boolean).length+' av '+P.ord.length;
+  $('tips').textContent=P.tips;
+  $('tip').disabled=P.ok.every(Boolean);
+}
+
+/* Nästa olösta ord efter wi (åt hållet step) */
+function nastaOrd(wi,step){
+  const n=P.ord.length;
+  for(let k=1;k<=n;k++){const j=((wi+step*k)%n+n)%n;if(!P.ok[j])return j;}
+  return -1;
+}
+/* Gå till nästa ruta i ordet. hoppa=true hoppar över gröna (låsta) rutor. */
+function flytta(hoppa){
+  const o=P.ord[curW];
+  for(let i=curI+1;i<o.ord.length;i++){const [x,y]=pos(curW,i);if(!hoppa||!lockt(x,y)){curI=i;return;}}
+}
+function skriv(ch){
+  if(!P||P.ok.every(Boolean))return;
+  if(P.ok[curW]){const j=nastaOrd(curW,1);if(j<0)return;valj(j,forstaLediga(j));}
+  let [x,y]=pos(curW,curI);
+  if(lockt(x,y)){
+    /* En grön ruta: skriver man samma bokstav går man bara vidare. */
+    if(P.fill[y][x]===ch){flytta();rita();return;}
+    flytta(true);[x,y]=pos(curW,curI);if(lockt(x,y))return;
+  }
+  P.fill[y][x]=ch;
+  P.tipCells=P.tipCells.filter(t=>t!==x+','+y);
+  tone(620,.05,'triangle',.05);
+  const wi=curW;
+  flytta();
+  kolla(x,y,wi);
+}
+function sudda(){
+  if(!P)return;
+  let [x,y]=pos(curW,curI);
+  if(!P.fill[y][x]||lockt(x,y)){
+    /* backa till förra rutan som går att ändra */
+    for(let i=curI-1;i>=0;i--){const [a,b]=pos(curW,i);if(!lockt(a,b)){curI=i;break;}}
+    [x,y]=pos(curW,curI);
+  }
+  if(!lockt(x,y))P.fill[y][x]='';
+  rita();spara();
+}
+/* När ett ord är ifyllt: rätt blir grönt och låses, fel skakar. */
+function kolla(x,y,skrivOrd){
+  let nyRatt=[],fel=[];
+  for(const wi of cells[y][x].ord){
+    if(P.ok[wi])continue;
+    const o=P.ord[wi];let full=true,ratt=true;
+    for(let i=0;i<o.ord.length;i++){const [a,b]=pos(wi,i);const f=P.fill[b][a];if(!f)full=false;else if(f!==o.ord[i])ratt=false;}
+    if(full&&ratt){P.ok[wi]=true;nyRatt.push(wi);}
+    else if(full&&wi===skrivOrd)fel.push(wi);
+  }
+  if(nyRatt.length){
+    for(const wi of nyRatt){const o=P.ord[wi];for(let i=0;i<o.ord.length;i++){const [a,b]=pos(wi,i);const el=cells[b][a].el;el.classList.remove('joy');void el.offsetWidth;el.classList.add('joy');}}
+    const o=P.ord[nyRatt[0]];
+    tone(660,.1);setTimeout(()=>tone(880,.16),110);
+    speak(lc(o.ord));
+    say((o.bild?o.bild+' ':'')+o.ord+'. Rätt!','good');
+    if(P.ok.every(Boolean)){rita();spara();setTimeout(vinst,600);return;}
+    if(nyRatt.includes(curW)||P.ok[curW]){const j=nastaOrd(curW,1);if(j>=0)valj(j,forstaLediga(j));}
+  }else if(fel.length){
+    const o=P.ord[fel[0]];
+    for(let i=0;i<o.ord.length;i++){const [a,b]=pos(fel[0],i);if(lockt(a,b))continue;const el=cells[b][a].el;el.classList.remove('bad');void el.offsetWidth;el.classList.add('bad');}
+    setTimeout(()=>{P&&P.ord[fel[0]]&&document.querySelectorAll('.cell.bad').forEach(e=>e.classList.remove('bad'));},600);
+    tone(220,.18,'sawtooth',.04);
+    say('Något stämmer inte riktigt. Försök igen eller ta ett tips!','bad');
+  }
+  rita();spara();
+  if(nyRatt.length)synlig();
+}
+
+function tips(){
+  if(!P||P.ok.every(Boolean))return;
+  if(P.ok[curW]){const j=nastaOrd(curW,1);if(j<0)return;valj(j,forstaLediga(j));}
+  const o=P.ord[curW];
+  /* Visa rätt bokstav i vald ruta, eller första rutan i ordet som är tom eller fel. */
+  let i=curI;
+  let [x,y]=pos(curW,i);
+  if(lockt(x,y)||P.fill[y][x]===o.ord[i]){
+    for(let j=0;j<o.ord.length;j++){const [a,b]=pos(curW,j);if(!lockt(a,b)&&P.fill[b][a]!==o.ord[j]){i=j;[x,y]=[a,b];break;}}
+  }
+  if(P.fill[y][x]===o.ord[i]&&!lockt(x,y)){kolla(x,y,curW);return;}
+  if(lockt(x,y))return;
+  P.fill[y][x]=o.ord[i];P.tips++;
+  P.tipCells.push(x+','+y);
+  curI=i;
+  tone(780,.12,'sine',.06);
+  say('Tips: bokstaven '+o.ord[i]+'.');
+  flytta();
+  kolla(x,y,curW);
+}
+
+function stjarnor(){
+  const n=P.ord.length,t=Math.max(0,P.tips-N().tipsFria);
+  return t===0?3:t<=Math.ceil(n/3)?2:1;
+}
+function vinst(){
+  const s=stjarnor();
+  const k=skey(P.niva,P.tema);
+  if(s>(saved.stj[k]||0)){saved.stj[k]=s;persist();}
+  buildBars();
+  $('wstars').innerHTML=[0,1,2].map(i=>'<i'+(i<s?'':' class="off"')+'>★</i>').join('');
+  const tid=Date.now()-P.t0,min=Math.floor(tid/60000),sek=Math.round(tid/1000)%60;
+  $('wtext').textContent='Du löste alla '+P.ord.length+' ord'+(P.tips?' med '+P.tips+' tips':' utan tips')+' på '+(min?min+' min ':'')+sek+' s.';
+  $('wnext').hidden=niva==='svar';
+  $('win').hidden=false;
+  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.18),i*130));
+  speak('Bra jobbat! Korsordet är löst.');
+  say('Hela korsordet är löst!','good');
+  $('wagain').focus();
+  if(!P.rapporterad){
+    P.rapporterad=true;spara();
+    try{
+      if(window.Spelhornan)Spelhornan.rapportera('korsordet',P.niva,{poang:s,max:3,tid,namn:N().namn});
+    }catch(e){}
+  }
+}
+
+/* Tangentbord på skärmen */
+function buildKb(){
+  const kb=$('kb');
+  const rader=['QWERTYUIOPÅ','ASDFGHJKLÖÄ','ZXCVBNM'];
+  rader.forEach((r,ri)=>{
+    const row=document.createElement('div');row.className='row';
+    if(ri===2){
+      const d=document.createElement('button');d.type='button';d.className='key wide dir';d.textContent='⇄';d.setAttribute('aria-label','Byt håll');
+      d.onclick=()=>{const [x,y]=pos(curW,curI);const c=cells[y][x];if(c.ord.length>1){const w=c.ord.find(v=>v!==curW);const o=P.ord[w];valj(w,o.d?y-o.y:x-o.x);rita();}else say('Här finns bara ett ord.');};
+      row.appendChild(d);
+    }
+    for(const ch of r){
+      const b=document.createElement('button');b.type='button';b.className='key';b.textContent=ch;
+      b.addEventListener('click',()=>{skriv(ch);});
+      row.appendChild(b);
+    }
+    if(ri===2){
+      const d=document.createElement('button');d.type='button';d.className='key wide';d.textContent='⌫';d.setAttribute('aria-label','Sudda');
+      d.onclick=sudda;row.appendChild(d);
+    }
+    kb.appendChild(row);
+  });
+}
+document.addEventListener('keydown',e=>{
+  if(!P||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.target&&e.target.closest&&e.target.closest('input,textarea,[contenteditable],dialog'))return;
+  const k=e.key;
+  if(/^[a-zåäöA-ZÅÄÖ]$/.test(k)){e.preventDefault();skriv(k.toLocaleUpperCase('sv-SE'));return;}
+  if(k==='Backspace'||k==='Delete'){e.preventDefault();sudda();return;}
+  if(k==='Tab'){e.preventDefault();const j=nastaOrd(curW,e.shiftKey?-1:1);if(j>=0){valj(j,forstaLediga(j));rita();}return;}
+  if(k.startsWith('Arrow')){
+    e.preventDefault();
+    const [x,y]=pos(curW,curI);const dx=k==='ArrowRight'?1:k==='ArrowLeft'?-1:0,dy=k==='ArrowDown'?1:k==='ArrowUp'?-1:0;
+    let nx=x+dx,ny=y+dy;
+    while(nx>=0&&ny>=0&&nx<P.w&&ny<P.h&&!cells[ny][nx]){nx+=dx;ny+=dy;}
+    if(nx>=0&&ny>=0&&nx<P.w&&ny<P.h){
+      const c=cells[ny][nx];const want=dx?0:1;
+      const w=c.ord.find(v=>P.ord[v].d===want);const wi=w!==undefined?w:c.ord[0];const o=P.ord[wi];
+      valj(wi,o.d?ny-o.y:nx-o.x);rita();
+    }
+  }
+});
+
+$('prev').onclick=()=>{const j=nastaOrd(curW,-1);if(j>=0){valj(j,forstaLediga(j));rita();synlig();}};
+$('next').onclick=()=>{const j=nastaOrd(curW,1);if(j>=0){valj(j,forstaLediga(j));rita();synlig();}};
+$('tip').onclick=tips;
+$('new').onclick=nytt;
+$('wagain').onclick=nytt;
+$('wnext').onclick=()=>{niva=NIVAER[Math.min(NIVAER.findIndex(n=>n.id===niva)+1,NIVAER.length-1)].id;nytt();};
+$('snd').onclick=function(){sound=!sound;this.setAttribute('aria-pressed',String(sound));this.textContent=sound?'Ljud på':'Ljud av';if(!sound&&'speechSynthesis' in window)speechSynthesis.cancel();};
+const sp=$('speak');
+if(!('speechSynthesis' in window))sp.hidden=true;
+/* Läs upp ledtråden. Vid bildledtråd läses beskrivningen, inte svaret. */
+sp.onclick=()=>{
+  const o=P.ord[curW];
+  speak(o.nr+(o.d?' lodrätt':' vågrätt')+'. '+o.ord.length+' bokstäver. '+(P.ok[curW]?'Löst: '+lc(o.ord):o.text),true);
+};
+
+buildKb();
+/* Fortsätt på det sparade korsordet om det finns ett. */
+const s=saved.spel;
+if(s&&Array.isArray(s.ord)&&s.ord.length&&Array.isArray(s.fill)&&s.fill.length===s.h&&!(Array.isArray(s.ok)&&s.ok.every(Boolean))){
+  P=s;P.tipCells=P.tipCells||[];start();
+}else nytt();
+
+/* För tester */
+window.__kors={get P(){return P;},skriv,sudda,tips,nytt,bygg,ORD,NIVAER,
+  valj:(w,i)=>{valj(w,i||0);rita();},
+  los:()=>{P.ord.forEach((o,wi)=>{if(P.ok[wi])return;valj(wi,0);for(let i=0;i<o.ord.length;i++){curW=wi;curI=i;const [x,y]=pos(wi,i);if(!lockt(x,y))skriv(o.ord[i]);}});}};
+})();
+</script>
+<script src="spelhornan.js"></script>
+<script>if(window.Spelhornan)Spelhornan.knapp(document.getElementById('spelarplats'));</script>
+</body>
+</html>
