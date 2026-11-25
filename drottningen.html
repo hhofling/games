@@ -104,7 +104,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
 <body>
 <div class="wrap">
   <header>
-    <h1>Drottningen 👑 <small>Vem tar blomman först?</small></h1>
+    <h1>Drottningen 👑 <small>Ring in den andras drottning!</small></h1>
     <div class="tools">
       <div id="spelarplats"></div>
       <a class="small-btn" href="index.html">← Alla spel</a>
@@ -124,8 +124,8 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
     <div class="card">
       <div class="turn"><span class="dot" id="tdot"></span><span id="tname"></span></div>
       <div class="score">
-        <div class="pill p0">Orange vid blomman: <b id="s0">0</b></div>
-        <div class="pill p1">Lila vid blomman: <b id="s1">0</b></div>
+        <div class="pill p0">Orange runt Lilas 👑: <b id="s0">0</b></div>
+        <div class="pill p1">Lila runt Oranges 👑: <b id="s1">0</b></div>
       </div>
       <div class="left" id="left"></div>
     </div>
@@ -148,12 +148,14 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
   <section class="card rules" id="rules">
     <h2>Så spelar man</h2>
     <ul>
-      <li><b>Mål:</b> Ha <b>4 av de 6 platserna runt blomman</b> 🌼 med dina egna kryp.</li>
+      <li><b>Mål:</b> Ställ <b>3 av dina egna kryp runt motståndarens drottning</b> 👑.</li>
+      <li>Planen är <b>tom</b> från början. Ni bygger den själva när ni lägger ut era kryp.</li>
+      <li>Din drottning måste läggas ut <b>senast ditt fjärde drag</b>. Innan hon ligger ute får du bara lägga ut kryp, inte flytta.</li>
       <li>Varje tur gör du <b>en</b> sak: lägger ut ett nytt kryp, eller flyttar ett kryp som redan ligger ute.</li>
-      <li>Ett nytt kryp måste <b>nudda ett av dina egna</b> kryp men <b>inte nudda motståndarens</b>. Det allra första krypet läggs bredvid blomman.</li>
-      <li>Alla kryp och blomman måste alltid <b>hänga ihop</b> i en enda grupp. Ett kryp som skulle dela gruppen får inte flytta.</li>
+      <li>Ett nytt kryp måste <b>nudda ett av dina egna</b> kryp men <b>inte nudda motståndarens</b>. Det allra första krypet läggs mitt på planen och motståndarens första kryp bredvid det.</li>
+      <li>Alla kryp måste alltid <b>hänga ihop</b> i en enda grupp. Ett kryp som skulle dela gruppen får inte flytta.</li>
       <li>Ett 🔒 betyder att krypet sitter fast hos en igelkott.</li>
-      <li>Efter <b>30 drag var</b> vinner den som har flest kryp vid blomman.</li>
+      <li>Efter <b>30 drag var</b> vinner den som har flest kryp runt den andras drottning.</li>
     </ul>
     <div class="critters" id="critters"></div>
   </section>
@@ -164,7 +166,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
     <h2 id="st">Drottningen 👑</h2>
     <p>Ett strategispel för två. Välj variant och hur ni vill spela.</p>
     <div class="tier variant" style="grid-template-columns:1fr 1fr">
-      <button class="choice" id="varG" type="button" aria-pressed="true">Grundspelet<small>5 sorters kryp</small></button>
+      <button class="choice" id="varG" type="button" aria-pressed="true">Grundspelet<small>Drottning + 5 sorters kryp</small></button>
       <button class="choice" id="varF" type="button" aria-pressed="false">Fler kryp<small>+ 🦎 🪱 🐢</small></button>
     </div>
     <div class="choices">
@@ -182,7 +184,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
 
 <div class="overlay" id="win" hidden>
   <div class="ocard" role="dialog" aria-labelledby="wt">
-    <div class="big" id="wicon">🌼</div>
+    <div class="big" id="wicon">👑</div>
     <h2 id="wt"></h2>
     <p id="wtext"></p>
     <div class="btns">
@@ -201,11 +203,12 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
 const DIRS=[[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
 const K=(q,r)=>q+','+r;
 const P=k=>k.split(',').map(Number);
-const FLOWER=K(0,0);
-const RING=DIRS.map(([dq,dr])=>K(dq,dr));
-const NEED=4;          // antal platser runt blomman som krävs för att vinna
+const MITT=K(0,0);
+const NEED=3;          // så många egna kryp runt motståndarens drottning vinner
+const QTURN=4;         // drottningen måste ut senast ditt fjärde drag
 const MAXN=60;         // totalt antal drag innan matchen avgörs på poäng
 const TYPES={
+  drottning:{namn:'Drottning',ikon:'👑', antal:1, text:'Går ett steg. Måste läggas ut senast ditt fjärde drag. Innan hon är ute får du bara lägga ut kryp, inte flytta.'},
   snigel:  {namn:'Snigel',  ikon:'🐌', antal:3, text:'Glider ett steg längs kanten av gruppen.'},
   larv:    {namn:'Larv',    ikon:'🐛', antal:2, text:'Kryper exakt två steg längs kanten.'},
   groda:   {namn:'Groda',   ikon:'🐸', antal:2, text:'Hoppar två rutor rakt fram, över vad som helst.'},
@@ -225,11 +228,17 @@ function dist(a,b){const [q1,r1]=P(a),[q2,r2]=P(b);const dq=q1-q2,dr=r1-r2;retur
 function newState(fler){
   const pieces=[];let id=0;
   for(let o=0;o<2;o++)for(const t of TYPE_ORDER)if(fler||!TYPES[t].fler)for(let i=0;i<TYPES[t].antal;i++)pieces.push({id:id++,o,t,k:null});
-  return {pieces,cur:0,n:0,winner:null,last:null,passed:false};
+  return {pieces,cur:0,n:0,t:[0,0],winner:null,last:null,passed:false};
 }
-function clone(s){return {pieces:s.pieces.map(p=>({...p})),cur:s.cur,n:s.n,winner:s.winner,last:s.last,passed:s.passed};}
-function occ(s){const m=new Map();m.set(FLOWER,'F');for(const p of s.pieces)if(p.k)m.set(p.k,p.id);return m;}
-function ringCount(s,m,o){let c=0;for(const k of RING){const v=m.get(k);if(v!==undefined&&v!=='F'&&s.pieces[v].o===o)c++;}return c;}
+function clone(s){return {pieces:s.pieces.map(p=>({...p})),cur:s.cur,n:s.n,t:s.t.slice(),winner:s.winner,last:s.last,passed:s.passed};}
+function occ(s){const m=new Map();for(const p of s.pieces)if(p.k)m.set(p.k,p.id);return m;}
+function queen(s,o){return s.pieces.find(p=>p.o===o&&p.t==='drottning');}
+/* Hur många av o:s kryp som står runt motståndarens drottning. */
+function ringCount(s,m,o){
+  const q=queen(s,1-o);if(!q||!q.k)return 0;
+  let c=0;for(const k of nb(q.k)){const v=m.get(k);if(v!==undefined&&s.pieces[v].o===o)c++;}return c;
+}
+function mustPlaceQueen(s,o){return s.t[o]>=QTURN-1&&!queen(s,o).k;}
 function touches(m,k){return nb(k).some(x=>m.has(x));}
 function frozenBy(s,m,p){
   if(p.t==='skoldpadda')return false;
@@ -239,7 +248,8 @@ function frozenBy(s,m,p){
 }
 function connectedWithout(m,skip){
   const keys=[...m.keys()].filter(k=>k!==skip);
-  const set=new Set(keys),seen=new Set([FLOWER]),st=[FLOWER];
+  if(!keys.length)return true;
+  const set=new Set(keys),seen=new Set([keys[0]]),st=[keys[0]];
   while(st.length){const k=st.pop();for(const x of nb(k))if(set.has(x)&&!seen.has(x)){seen.add(x);st.push(x);}}
   return seen.size===set.size;
 }
@@ -255,6 +265,7 @@ function slides(mm,k){
 }
 /* Varför ett kryp inte kan flytta (eller null om det kan). */
 function whyStuck(s,m,p){
+  if(!queen(s,p.o).k)return 'drottning';
   if(frozenBy(s,m,p))return 'fast';
   if(!connectedWithout(m,p.k)&&!(p.t==='daggmask'&&swapTargets(s,m,p).length))return 'grupp';
   return null;
@@ -285,7 +296,7 @@ function pieceTargets(s,m,p){
     if(!connectedWithout(m,p.k))return [...res];
   }
   const mm=new Map(m);mm.delete(p.k);
-  if(p.t==='snigel'||p.t==='igelkott'||p.t==='skoldpadda'||p.t==='daggmask'){for(const b of slides(mm,p.k))res.add(b);}
+  if(p.t==='drottning'||p.t==='snigel'||p.t==='igelkott'||p.t==='skoldpadda'||p.t==='daggmask'){for(const b of slides(mm,p.k))res.add(b);}
   else if(p.t==='larv'){for(const b of slides(mm,p.k))for(const c of slides(mm,b))if(c!==p.k)res.add(c);}
   else if(p.t==='groda'){const [q,r]=P(p.k);for(const [dq,dr] of DIRS){const t=K(q+2*dq,r+2*dr);if(!mm.has(t)&&touches(mm,t))res.add(t);}}
   else if(p.t==='fjaril'){const [q,r]=P(p.k);
@@ -296,7 +307,8 @@ function pieceTargets(s,m,p){
 }
 function placeTargets(s,m,o){
   const mine=s.pieces.filter(p=>p.o===o&&p.k);
-  if(!mine.length)return RING.filter(k=>!m.has(k));
+  if(!m.size)return [MITT];
+  if(!mine.length){const out=new Set();for(const k of m.keys())for(const x of nb(k))if(!m.has(x))out.add(x);return [...out];}
   const out=new Set();
   for(const p of mine)for(const x of nb(p.k)){
     if(m.has(x)||out.has(x))continue;
@@ -308,9 +320,10 @@ function placeTargets(s,m,o){
 function handTypes(s,o){const t=new Set();for(const p of s.pieces)if(p.o===o&&!p.k)t.add(p.t);return TYPE_ORDER.filter(x=>t.has(x));}
 function legalMoves(s,m){
   m=m||occ(s);const o=s.cur,mv=[];
-  const ht=handTypes(s,o);
+  let ht=handTypes(s,o);
+  if(mustPlaceQueen(s,o))ht=['drottning'];
   if(ht.length){const tg=placeTargets(s,m,o);for(const t of ht)for(const k of tg)mv.push({a:'p',t,k});}
-  for(const p of s.pieces)if(p.o===o&&p.k)for(const k of pieceTargets(s,m,p))mv.push({a:'m',id:p.id,k});
+  if(!mustPlaceQueen(s,o))for(const p of s.pieces)if(p.o===o&&p.k)for(const k of pieceTargets(s,m,p))mv.push({a:'m',id:p.id,k});
   return mv;
 }
 function settleByScore(s,m){
@@ -324,9 +337,12 @@ function apply(s,mv){
   else{const p=n.pieces[mv.id];from=p.k;
     const other=n.pieces.find(q=>q.k===mv.k);if(other)other.k=from; // daggmaskens platsbyte
     p.k=mv.k;n.last={id:p.id,from:other?null:from,to:mv.k};}
-  n.n++;n.passed=false;
+  n.n++;n.t[o]++;n.passed=false;
   const m=occ(n);
-  if(ringCount(n,m,o)>=NEED){n.winner=o;return n;}
+  const a=ringCount(n,m,o)>=NEED,b=ringCount(n,m,1-o)>=NEED;
+  if(a&&b){n.winner='oavgjort';n.bada=true;return n;}
+  if(a){n.winner=o;return n;}
+  if(b){n.winner=1-o;return n;}
   if(n.n>=MAXN){settleByScore(n,m);return n;}
   n.cur=1-o;
   if(!legalMoves(n,m).length){
@@ -342,12 +358,15 @@ function evaluate(s,me){
   if(s.winner===1-me)return -1e5+s.n;
   if(s.winner==='oavgjort')return 0;
   const m=occ(s);const a=ringCount(s,m,me),b=ringCount(s,m,1-me);
-  let v=(a-b)*100+(a>=3?60:0)-(b>=3?60:0);
+  let v=(a-b)*120+(a>=3?90:0)-(b>=3?90:0);
+  const qm=queen(s,me).k,qo=queen(s,1-me).k;
+  const free=k=>k?nb(k).filter(x=>!m.has(x)).length:6;
+  v+=(free(qm)-free(qo))*12;
   for(const p of s.pieces){
     if(!p.k)continue;
-    const d=dist(p.k,FLOWER),sg=p.o===me?1:-1;
-    v-=sg*Math.min(d,5)*6;
-    if(frozenBy(s,m,p))v-=sg*10;
+    const sg=p.o===me?1:-1,goal=p.o===me?(qo||MITT):(qm||MITT);
+    if(p.t!=='drottning')v-=sg*Math.max(0,Math.min(dist(p.k,goal),6)-1)*10;
+    if(frozenBy(s,m,p))v-=sg*(p.t==='drottning'?25:12);
   }
   return v;
 }
@@ -418,8 +437,8 @@ function currentTargets(m){
 function render(){
   const m=occ(state),svg=$('board');svg.innerHTML='';
   const targets=currentTargets(m);
-  const keys=new Set([FLOWER,...m.keys(),...targets]);
-  for(const k of RING)keys.add(k);
+  const keys=new Set([...m.keys(),...targets]);
+  if(!m.size){keys.add(MITT);for(const x of nb(MITT))keys.add(x);}
   for(const k of [...m.keys()])for(const x of nb(k))keys.add(x);
   let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
   for(const k of keys){const [x,y]=px(k);x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
@@ -427,20 +446,17 @@ function render(){
   const cx=(x0+x1)/2,cy=(y0+y1)/2;
   svg.setAttribute('viewBox',(cx-side/2).toFixed(1)+' '+(cy-side/2).toFixed(1)+' '+side.toFixed(1)+' '+side.toFixed(1));
 
-  // platserna runt blomman
-  for(const k of RING){if(m.has(k))continue;const [x,y]=px(k);
-    el('polygon',{points:hexPts(x,y,S*.92),fill:'#fff6c7',stroke:'#e3b400','stroke-width':2,'stroke-dasharray':'5 4'},svg);}
-  // blomman
-  {const [x,y]=px(FLOWER);
-    el('polygon',{points:hexPts(x,y,S*.95),fill:'#ffe36b',stroke:'#b88a00','stroke-width':4},svg);
-    const t=el('text',{x,y:y+1,'font-size':S*1.05,'text-anchor':'middle','dominant-baseline':'central'},svg);t.textContent='🌼';}
+  // tomma platser runt varje drottning, i anfallarens färg
+  for(const o of [0,1]){const q=queen(state,o);if(!q.k)continue;
+    for(const k of nb(q.k)){if(m.has(k))continue;const [x,y]=px(k);
+      el('polygon',{points:hexPts(x,y,S*.9),fill:o?'rgba(255,122,61,.10)':'rgba(122,85,214,.10)',stroke:o?'#ff7a3d':'#7a55d6','stroke-width':2,'stroke-dasharray':'4 5'},svg);}}
   // krypen
   for(const p of state.pieces){
     if(!p.k)continue;const [x,y]=px(p.k);
     const isSel=sel&&sel.a==='b'&&sel.id===p.id;
     const isLast=state.last&&state.last.id===p.id;
     const g=el('g',{class:'hit',role:'button',tabindex:'0','aria-label':PNAME[p.o]+' '+TYPES[p.t].namn},svg);
-    el('polygon',{points:hexPts(x,y,S*.95),fill:p.o?'#e6dcff':'#ffe0cf',stroke:isSel?'#ffc21a':(p.o?'#7a55d6':'#ff7a3d'),'stroke-width':isSel?7:4},g);
+    el('polygon',{points:hexPts(x,y,S*.95),fill:p.t==='drottning'?(p.o?'#c9b5ff':'#ffbf9c'):(p.o?'#e6dcff':'#ffe0cf'),stroke:isSel?'#ffc21a':(p.o?'#7a55d6':'#ff7a3d'),'stroke-width':isSel?7:(p.t==='drottning'?6:4)},g);
     if(isLast)el('polygon',{points:hexPts(x,y,S*.72),fill:'none',stroke:p.o?'#7a55d6':'#ff7a3d','stroke-width':1.5,'stroke-dasharray':'3 3'},g);
     if(frozenBy(state,m,p)){el('circle',{cx:x+S*.55,cy:y-S*.5,r:S*.26,fill:'#fff',stroke:'#12324a','stroke-width':2},g);
       const l=el('text',{x:x+S*.55,y:y-S*.49,'font-size':S*.3,'text-anchor':'middle','dominant-baseline':'central'},g);l.textContent='🔒';}
@@ -467,7 +483,7 @@ function render(){
   $('tdot').style.background=o?'var(--p1)':'var(--p0)';
   $('tname').textContent=state.winner!==null?'Matchen är slut':(isAI(o)?'Datorn (Lila) tänker…':PNAME[o]+'s tur'+(mode==='ai'?' (du)':''));
   const left=Math.max(0,Math.ceil((MAXN-state.n)/2));
-  $('left').textContent=NEED+' av 6 platser vinner. Ungefär '+left+' drag kvar var.';
+  $('left').textContent=NEED+' egna kryp runt motståndarens drottning vinner. Ungefär '+left+' drag kvar var.';
   $('h1t').textContent=mode==='ai'?'Datorns kryp kvar att lägga ut':'Lila kryp kvar att lägga ut';
   for(const pl of [0,1]){
     const box=$('hand'+pl);box.innerHTML='';
@@ -478,7 +494,7 @@ function render(){
       b.innerHTML=TYPES[t].ikon+'<span class="n">'+c+'</span>';
       b.setAttribute('aria-label',TYPES[t].namn+', '+c+' kvar');
       if(sel&&sel.a==='h'&&sel.t===t&&pl===o)b.classList.add('sel');
-      b.disabled=pl!==o||isAI(pl)||thinking||state.winner!==null;
+      b.disabled=pl!==o||isAI(pl)||thinking||state.winner!==null||(t!=='drottning'&&mustPlaceQueen(state,pl));
       b.onclick=()=>tapHand(t);
       box.appendChild(b);
     }
@@ -499,9 +515,12 @@ function hint(){
   if(state.winner!==null)return;
   const o=state.cur;
   if(isAI(o)){say('Datorn tänker…');return;}
-  const first=!state.pieces.some(p=>p.o===o&&p.k);
+  const first=!state.pieces.some(p=>p.k);
+  const qOut=!!queen(state,o).k;
   if(state.passed)say(PNAME[1-o]+' kunde inte göra något och fick stå över. '+PNAME[o]+' igen!');
-  else if(first)say(PNAME[o]+': välj ett kryp i din hand och lägg det bredvid blomman.');
+  else if(first)say(PNAME[o]+' börjar: välj ett kryp i din hand och lägg det mitt på planen.');
+  else if(mustPlaceQueen(state,o))say(PNAME[o]+': nu måste du lägga ut din drottning 👑!');
+  else if(!qOut)say(PNAME[o]+': lägg ut ett kryp. Drottningen 👑 måste ut senast ditt '+QTURN+':e drag ('+(QTURN-state.t[o])+' drag kvar).');
   else say(PNAME[o]+': lägg ut ett nytt kryp eller flytta ett som ligger ute.');
 }
 
@@ -525,7 +544,8 @@ function tapPiece(id){
   sel={a:'b',id};
   const m=occ(state),why=whyStuck(state,m,p),tg=pieceTargets(state,m,p);
   render();
-  if(why==='fast'){tone(200,.15,'square',.04);say('Den sitter fast! En igelkott från '+PNAME[1-p.o]+' står bredvid.','bad');}
+  if(why==='drottning'){tone(200,.15,'square',.04);say('Du får inte flytta förrän din drottning 👑 ligger ute.','bad');}
+  else if(why==='fast'){tone(200,.15,'square',.04);say('Den sitter fast! En igelkott från '+PNAME[1-p.o]+' står bredvid.','bad');}
   else if(why==='grupp'){tone(200,.15,'square',.04);say('Den kan inte flytta, då skulle gruppen gå sönder i två delar.','bad');}
   else if(!tg.length){tone(200,.15,'square',.04);say('Den har ingenstans att gå just nu.','bad');}
   else{tone(520,.08);say('Tryck på en grön ruta för att flytta '+TYPES[p.t].namn.toLowerCase()+'n.');}
@@ -554,10 +574,10 @@ function aiTurn(){
 function finish(){
   const w=state.winner,m=occ(state);
   const a=ringCount(state,m,0),b=ringCount(state,m,1);
-  let title,text,icon='🌼';
-  if(w==='oavgjort'){title='Oavgjort!';text='Båda hade '+a+' kryp vid blomman.';icon='🤝';tone(440,.3);}
+  let title,text,icon='👑';
+  if(w==='oavgjort'){title='Oavgjort!';text=state.bada?'Båda drottningarna blev inringade samtidigt.':'Båda hade '+a+' kryp runt den andras drottning.';icon='🤝';tone(440,.3);}
   else{
-    const how=state.byScore?'Tiden tog slut och '+PNAME[w]+' hade flest kryp vid blomman ('+Math.max(a,b)+' mot '+Math.min(a,b)+').':PNAME[w]+' fick '+NEED+' kryp runt blomman.';
+    const how=state.byScore?'Tiden tog slut och '+PNAME[w]+' hade flest kryp runt den andras drottning ('+Math.max(a,b)+' mot '+Math.min(a,b)+').':PNAME[w]+' ringade in '+PNAME[1-w]+'s drottning med '+NEED+' kryp.';
     if(mode==='ai'){
       if(w===0){title='Du vann! 🎉';icon='🏆';
         let pid='';try{const a=window.Spelhornan&&Spelhornan.aktiv();if(a)pid=a.id;}catch(e){}
@@ -623,7 +643,7 @@ sp.onclick=()=>{
   try{
     speechSynthesis.cancel();
     let t=$('msg').textContent+' '+$('info').textContent;
-    if(!sel)t+=' Målet är att ha fyra av de sex platserna runt blomman.';
+    if(!sel)t+=' Målet är att ställa tre av dina kryp runt motståndarens drottning.';
     const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';u.rate=.9;speechSynthesis.speak(u);
   }catch(e){}
 };
