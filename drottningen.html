@@ -154,7 +154,7 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
       <li>Varje tur gör du <b>en</b> sak: lägger ut ett nytt kryp, eller flyttar ett kryp som redan ligger ute.</li>
       <li>Ett nytt kryp måste <b>nudda ett av dina egna</b> kryp men <b>inte nudda motståndarens</b>. Det allra första krypet läggs mitt på planen och motståndarens första kryp bredvid det.</li>
       <li>Alla kryp måste alltid <b>hänga ihop</b> i en enda grupp. Ett kryp som skulle dela gruppen får inte flytta.</li>
-      <li>Ett 🔒 betyder att krypet sitter fast hos en igelkott.</li>
+      <li>Ett 🔒 betyder att krypet sitter fast hos en igelkott. Igelkotten kan också klättra upp på ett annat kryp, och då kan krypet under inte röra sig.</li>
       <li>Efter <b>30 drag var</b> vinner den som har flest kryp runt den andras drottning.</li>
     </ul>
     <div class="critters" id="critters"></div>
@@ -209,11 +209,11 @@ const QTURN=4;         // drottningen måste ut senast ditt fjärde drag
 const MAXN=60;         // totalt antal drag innan matchen avgörs på poäng
 const TYPES={
   drottning:{namn:'Drottning',ikon:'👑', antal:1, text:'Går ett steg. Måste läggas ut senast ditt fjärde drag. Innan hon är ute får du bara lägga ut kryp, inte flytta.'},
-  snigel:  {namn:'Snigel',  ikon:'🐌', antal:3, text:'Glider ett steg längs kanten av gruppen.'},
-  larv:    {namn:'Larv',    ikon:'🐛', antal:2, text:'Kryper exakt två steg längs kanten.'},
-  groda:   {namn:'Groda',   ikon:'🐸', antal:2, text:'Hoppar två rutor rakt fram, över vad som helst.'},
-  fjaril:  {namn:'Fjäril',  ikon:'🦋', antal:1, text:'Flyger till en tom plats högst tre steg bort.'},
-  igelkott:{namn:'Igelkott',ikon:'🦔', antal:1, text:'Går ett steg. Fiendekryp som står bredvid den sitter fast i taggarna.'},
+  snigel:  {namn:'Snigel',  ikon:'🐌', antal:3, text:'Glider alltid exakt två steg längs kanten av gruppen.'},
+  larv:    {namn:'Larv',    ikon:'🐛', antal:2, text:'Kryper ett eller två steg längs kanten.'},
+  groda:   {namn:'Groda',   ikon:'🐸', antal:2, text:'Hoppar rakt fram över en hel rad kryp och landar på första tomma platsen.'},
+  fjaril:  {namn:'Fjäril',  ikon:'🦋', antal:1, text:'Fladdrar runt kanten av gruppen till vilken tom plats som helst.'},
+  igelkott:{namn:'Igelkott',ikon:'🦔', antal:1, text:'Går ett steg, och kan klättra upp på andra kryp. Krypet under kan inte röra sig. Fiendekryp bredvid igelkotten sitter fast i taggarna.'},
   // Bara i varianten "Fler kryp":
   odla:      {namn:'Ödla',      ikon:'🦎', antal:1, fler:true, text:'Springer rakt fram längs gruppen och stannar var den vill.'},
   daggmask:  {namn:'Daggmask',  ikon:'🪱', antal:1, fler:true, text:'Kryper ett steg, eller byter plats med ett av dina egna kryp bredvid sig.'},
@@ -227,11 +227,14 @@ function dist(a,b){const [q1,r1]=P(a),[q2,r2]=P(b);const dq=q1-q2,dr=r1-r2;retur
 
 function newState(fler){
   const pieces=[];let id=0;
-  for(let o=0;o<2;o++)for(const t of TYPE_ORDER)if(fler||!TYPES[t].fler)for(let i=0;i<TYPES[t].antal;i++)pieces.push({id:id++,o,t,k:null});
+  for(let o=0;o<2;o++)for(const t of TYPE_ORDER)if(fler||!TYPES[t].fler)for(let i=0;i<TYPES[t].antal;i++)pieces.push({id:id++,o,t,k:null,h:0});
   return {pieces,cur:0,n:0,t:[0,0],winner:null,last:null,passed:false};
 }
 function clone(s){return {pieces:s.pieces.map(p=>({...p})),cur:s.cur,n:s.n,t:s.t.slice(),winner:s.winner,last:s.last,passed:s.passed};}
-function occ(s){const m=new Map();for(const p of s.pieces)if(p.k)m.set(p.k,p.id);return m;}
+/* Karta från ruta till det översta krypet där (igelkotten kan stå ovanpå andra). */
+function occ(s){const m=new Map();for(const p of s.pieces)if(p.k){const v=m.get(p.k);if(v===undefined||s.pieces[v].h<p.h)m.set(p.k,p.id);}return m;}
+function stackAt(s,k){return s.pieces.filter(p=>p.k===k).sort((a,b)=>a.h-b.h);}
+function covered(s,p){return s.pieces.some(q=>q.k===p.k&&q.h>p.h);}
 function queen(s,o){return s.pieces.find(p=>p.o===o&&p.t==='drottning');}
 /* Hur många av o:s kryp som står runt motståndarens drottning. */
 function ringCount(s,m,o){
@@ -266,13 +269,14 @@ function slides(mm,k){
 /* Varför ett kryp inte kan flytta (eller null om det kan). */
 function whyStuck(s,m,p){
   if(!queen(s,p.o).k)return 'drottning';
+  if(covered(s,p))return 'under';
   if(frozenBy(s,m,p))return 'fast';
-  if(!connectedWithout(m,p.k)&&!(p.t==='daggmask'&&swapTargets(s,m,p).length))return 'grupp';
+  if(p.h===0&&!connectedWithout(m,p.k)&&!(p.t==='daggmask'&&swapTargets(s,m,p).length))return 'grupp';
   return null;
 }
 /* Daggmasken kan byta plats med ett eget kryp bredvid sig. Gruppen hänger då alltid ihop. */
 function swapTargets(s,m,p){
-  return nb(p.k).filter(x=>{const v=m.get(x);return v!==undefined&&v!=='F'&&s.pieces[v].o===p.o;});
+  return nb(p.k).filter(x=>{const v=m.get(x);return v!==undefined&&s.pieces[v].o===p.o&&s.pieces[v].h===0;});
 }
 /* Ödlan: glider steg för steg i en och samma riktning så länge den nuddar något. */
 function runLine(mm,k){
@@ -295,13 +299,18 @@ function pieceTargets(s,m,p){
     for(const x of swapTargets(s,m,p))res.add(x);
     if(!connectedWithout(m,p.k))return [...res];
   }
-  const mm=new Map(m);mm.delete(p.k);
-  if(p.t==='drottning'||p.t==='snigel'||p.t==='igelkott'||p.t==='skoldpadda'||p.t==='daggmask'){for(const b of slides(mm,p.k))res.add(b);}
-  else if(p.t==='larv'){for(const b of slides(mm,p.k))for(const c of slides(mm,b))if(c!==p.k)res.add(c);}
-  else if(p.t==='groda'){const [q,r]=P(p.k);for(const [dq,dr] of DIRS){const t=K(q+2*dq,r+2*dr);if(!mm.has(t)&&touches(mm,t))res.add(t);}}
-  else if(p.t==='fjaril'){const [q,r]=P(p.k);
-    for(let dq=-3;dq<=3;dq++)for(let dr=Math.max(-3,-dq-3);dr<=Math.min(3,-dq+3);dr++){
-      const t=K(q+dq,r+dr);if(t!==p.k&&!mm.has(t)&&touches(mm,t))res.add(t);}}
+  const mm=new Map(m);
+  if(p.h===0)mm.delete(p.k);else mm.set(p.k,stackAt(s,p.k)[p.h-1].id);
+  if(p.t==='igelkott'){for(const x of nb(p.k))if(m.has(x)||touches(mm,x))res.add(x);}
+  else if(p.t==='drottning'||p.t==='skoldpadda'||p.t==='daggmask'){for(const b of slides(mm,p.k))res.add(b);}
+  else if(p.t==='snigel'||p.t==='larv'){
+    for(const b of slides(mm,p.k)){if(p.t==='larv')res.add(b);for(const c of slides(mm,b))if(c!==p.k)res.add(c);}
+  }
+  else if(p.t==='groda'){const [q,r]=P(p.k);
+    for(const [dq,dr] of DIRS){let x=q+dq,y=r+dr;if(!mm.has(K(x,y)))continue;
+      while(mm.has(K(x,y))){x+=dq;y+=dr;}res.add(K(x,y));}}
+  else if(p.t==='fjaril'){const seen=new Set([p.k]),st=[p.k];
+    while(st.length){const a=st.pop();for(const b of slides(mm,a))if(!seen.has(b)){seen.add(b);st.push(b);res.add(b);}}}
   else if(p.t==='odla'){for(const b of runLine(mm,p.k))res.add(b);}
   return [...res];
 }
@@ -335,8 +344,11 @@ function apply(s,mv){
   let from=null;
   if(mv.a==='p'){const p=n.pieces.find(p=>p.o===o&&!p.k&&p.t===mv.t);p.k=mv.k;n.last={id:p.id,from:null,to:mv.k};}
   else{const p=n.pieces[mv.id];from=p.k;
-    const other=n.pieces.find(q=>q.k===mv.k);if(other)other.k=from; // daggmaskens platsbyte
-    p.k=mv.k;n.last={id:p.id,from:other?null:from,to:mv.k};}
+    const under=n.pieces.filter(q=>q.k===mv.k);
+    const swap=p.t==='daggmask'&&under.length===1;
+    if(swap)under[0].k=from; // daggmaskens platsbyte
+    p.k=mv.k;p.h=swap?0:under.length; // igelkotten klättrar upp
+    n.last={id:p.id,from:swap?null:from,to:mv.k};}
   n.n++;n.t[o]++;n.passed=false;
   const m=occ(n);
   const a=ringCount(n,m,o)>=NEED,b=ringCount(n,m,1-o)>=NEED;
@@ -365,8 +377,9 @@ function evaluate(s,me){
   for(const p of s.pieces){
     if(!p.k)continue;
     const sg=p.o===me?1:-1,goal=p.o===me?(qo||MITT):(qm||MITT);
-    if(p.t!=='drottning')v-=sg*Math.max(0,Math.min(dist(p.k,goal),6)-1)*10;
+    if(p.t!=='drottning'){const d=dist(p.k,goal);v-=sg*Math.max(0,Math.min(d,6)-1)*10;if(d===2&&!covered(s,p))v+=sg*25;}
     if(frozenBy(s,m,p))v-=sg*(p.t==='drottning'?25:12);
+    if(covered(s,p))v-=sg*(p.t==='drottning'?45:15);
   }
   return v;
 }
@@ -386,7 +399,7 @@ function aiMove(s,tier){
         const s2=apply(s1,r);
         let e;
         if(tier==='medel')e=s2.winner===1-me?-1e5:evaluate(s1,me);
-        else e=evaluate(s2,me);
+        else e=s2.winner===1-me?-1e5:(evaluate(s1,me)+evaluate(s2,me))/2;
         if(e<worst)worst=e;
         if(worst<=-9e4)break;
       }
@@ -451,8 +464,8 @@ function render(){
     for(const k of nb(q.k)){if(m.has(k))continue;const [x,y]=px(k);
       el('polygon',{points:hexPts(x,y,S*.9),fill:o?'rgba(255,122,61,.10)':'rgba(122,85,214,.10)',stroke:o?'#ff7a3d':'#7a55d6','stroke-width':2,'stroke-dasharray':'4 5'},svg);}}
   // krypen
-  for(const p of state.pieces){
-    if(!p.k)continue;const [x,y]=px(p.k);
+  for(const p of [...state.pieces].sort((a,b)=>a.h-b.h)){
+    if(!p.k)continue;const [x,y0]=px(p.k),y=y0-p.h*S*.22;
     const isSel=sel&&sel.a==='b'&&sel.id===p.id;
     const isLast=state.last&&state.last.id===p.id;
     const g=el('g',{class:'hit',role:'button',tabindex:'0','aria-label':PNAME[p.o]+' '+TYPES[p.t].namn},svg);
@@ -461,6 +474,9 @@ function render(){
     if(frozenBy(state,m,p)){el('circle',{cx:x+S*.55,cy:y-S*.5,r:S*.26,fill:'#fff',stroke:'#12324a','stroke-width':2},g);
       const l=el('text',{x:x+S*.55,y:y-S*.49,'font-size':S*.3,'text-anchor':'middle','dominant-baseline':'central'},g);l.textContent='🔒';}
     const t=el('text',{x,y:y+1,'font-size':S*.95,'text-anchor':'middle','dominant-baseline':'central'},g);t.textContent=TYPES[p.t].ikon;
+    if(p.h>0){const below=stackAt(state,p.k)[p.h-1];
+      el('circle',{cx:x-S*.55,cy:y+S*.5,r:S*.3,fill:below.o?'#e6dcff':'#ffe0cf',stroke:below.o?'#7a55d6':'#ff7a3d','stroke-width':2},g);
+      const u=el('text',{x:x-S*.55,y:y+S*.51,'font-size':S*.34,'text-anchor':'middle','dominant-baseline':'central'},g);u.textContent=TYPES[below.t].ikon;}
     g.addEventListener('click',()=>tapPiece(p.id));
     g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tapPiece(p.id);}});
   }
@@ -539,12 +555,13 @@ function tapPiece(id){
   if(sel&&sel.a==='b'&&sel.id===id){sel=null;render();hint();return;}
   if(p.o!==state.cur){
     sel=null;render();
-    say('Det där är '+PNAME[p.o]+'s '+TYPES[p.t].namn.toLowerCase()+'. '+TYPES[p.t].text);return;
+    say('Det där är '+PNAME[p.o]+'s '+TYPES[p.t].namn.toLowerCase()+(p.h>0?' (den står ovanpå ett annat kryp)':'')+'. '+TYPES[p.t].text);return;
   }
   sel={a:'b',id};
   const m=occ(state),why=whyStuck(state,m,p),tg=pieceTargets(state,m,p);
   render();
-  if(why==='drottning'){tone(200,.15,'square',.04);say('Du får inte flytta förrän din drottning 👑 ligger ute.','bad');}
+  if(why==='under'){tone(200,.15,'square',.04);say('Den kan inte röra sig, en igelkott står ovanpå den.','bad');}
+  else if(why==='drottning'){tone(200,.15,'square',.04);say('Du får inte flytta förrän din drottning 👑 ligger ute.','bad');}
   else if(why==='fast'){tone(200,.15,'square',.04);say('Den sitter fast! En igelkott från '+PNAME[1-p.o]+' står bredvid.','bad');}
   else if(why==='grupp'){tone(200,.15,'square',.04);say('Den kan inte flytta, då skulle gruppen gå sönder i två delar.','bad');}
   else if(!tg.length){tone(200,.15,'square',.04);say('Den har ingenstans att gå just nu.','bad');}
