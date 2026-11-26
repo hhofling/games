@@ -64,6 +64,8 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted); tex
 #hud[hidden]{display:none}
 .topp{position:absolute; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); right:max(10px,env(safe-area-inset-right)); display:flex; gap:10px; align-items:flex-start; justify-content:space-between}
 .chip{background:rgba(255,255,255,.88); border:3px solid var(--edge); border-radius:14px; padding:4px 12px; font-weight:600; box-shadow:0 3px 0 var(--shadow)}
+/* plats för hemknappen 🏠 uppe till vänster (pwa.js) */
+.har-hemknapp .topp{left:calc(max(10px,env(safe-area-inset-left)) + 54px)}
 #malTxt{max-width:60vw}
 #malTxt small{display:block; font-weight:500; color:var(--muted); font-size:.85rem}
 .hoger{display:flex; gap:8px; align-items:flex-start}
