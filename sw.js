@@ -1,7 +1,7 @@
 /* Service worker för Spelhörnan. Gör att spelen fungerar utan nätverk.
    Listan FILER och VERSION skrivs om av: node verktyg/pwa-lista.mjs
    Kör det skriptet när ett spel eller en fil läggs till eller ändras. */
-var VERSION = '600be8e49d';
+var VERSION = '0cc19bc348';
 var FILER = [
   "./",
   "banbygget.html",
@@ -18,8 +18,6 @@ var FILER = [
   "ledtradson.html",
   "manifest.webmanifest",
   "masken.html",
-  "mob-svar2.png",
-  "mob-svar3.png",
   "ordmemory.html",
   "pluggis.html",
   "pwa.js",
