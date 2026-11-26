@@ -87,12 +87,14 @@ const SPEL=[
   {namn:"Turborallyt", ikon:"🏁", fil:"turborallyt.html", ålder:"Alla åldrar", text:"Kör 3D-racing mot fem datorbilar. Plocka presenter med raketer, såpa och snöbollar."},
   {namn:"Himlapatrullen", ikon:"🛩️", fil:"himlapatrullen.html", ålder:"8 år och uppåt", text:"Flyg ett propellerplan i 3D. Starta, landa, släpp bomber och stoppa luftpiraterna i tio uppdrag."},
   {namn:"Ledtrådsön", ikon:"🔎", fil:"ledtradson.html", ålder:"Gåtor, 7 år och uppåt", text:"Gå runt på en ö i 3D, hitta ledtrådar, knäck koder och lös gåtor. Kan du laga fyren och hitta kaktjuven?"},
+  {namn:"Character chats", ikon:"🗣️", fil:"https://claude.ai/artifact/JM2ErDJzqHXQbbyBn7KFrw", extern:true, ålder:"Engelska, 6–10 år", text:"Prata engelska med Miss Emma och andra figurer. De lyssnar, svarar med röst, leker ordlekar och kommer ihåg saker om dig. Öppnas i Claude."},
   {namn:"Korsordet", ikon:"🧩", fil:"korsordet.html", ålder:"Läsning, 5 år och uppåt", text:"Lös korsord med bilder och ledtrådar. Lätt har bara bilder, Extra svår är kluriga ord för vuxna. Nästan 2 000 ord, nytt korsord varje gång."}
 ];
 const grid=document.getElementById('grid');
 for(const s of SPEL){
   const a=document.createElement('a');
   a.className='game'; a.href=s.fil;
+  if(s.extern){a.target='_blank'; a.rel='noopener';}
   const parts=[['icon',s.ikon],['name',s.namn],['desc',s.text],['age',s.ålder]];
   for(const [cls,txt] of parts){
     const d=document.createElement('div'); d.className=cls; d.textContent=txt; a.appendChild(d);
