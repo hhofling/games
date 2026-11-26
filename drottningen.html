@@ -124,8 +124,8 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
     <div class="card">
       <div class="turn"><span class="dot" id="tdot"></span><span id="tname"></span></div>
       <div class="score">
-        <div class="pill p0">Orange runt Lilas 👑: <b id="s0">0</b></div>
-        <div class="pill p1">Lila runt Oranges 👑: <b id="s1">0</b></div>
+        <div class="pill p0">Lilas 👑 inringad: <b id="s0">0</b> av 6</div>
+        <div class="pill p1">Oranges 👑 inringad: <b id="s1">0</b> av 6</div>
       </div>
       <div class="left" id="left"></div>
     </div>
@@ -148,14 +148,14 @@ h1 small{display:block; font-size:1rem; font-weight:500; color:var(--muted)}
   <section class="card rules" id="rules">
     <h2>Så spelar man</h2>
     <ul>
-      <li><b>Mål:</b> Ställ <b>3 av dina egna kryp runt motståndarens drottning</b> 👑.</li>
+      <li><b>Mål:</b> <b>Ring in motståndarens drottning</b> 👑 helt, så att alla sex platser runt henne är fyllda. Alla kryp räknas, både dina och motståndarens.</li>
       <li>Planen är <b>tom</b> från början. Ni bygger den själva när ni lägger ut era kryp.</li>
       <li>Din drottning måste läggas ut <b>senast ditt fjärde drag</b>. Innan hon ligger ute får du bara lägga ut kryp, inte flytta.</li>
       <li>Varje tur gör du <b>en</b> sak: lägger ut ett nytt kryp, eller flyttar ett kryp som redan ligger ute.</li>
       <li>Ett nytt kryp måste <b>nudda ett av dina egna</b> kryp men <b>inte nudda motståndarens</b>. Det allra första krypet läggs mitt på planen och motståndarens första kryp bredvid det.</li>
       <li>Alla kryp måste alltid <b>hänga ihop</b> i en enda grupp. Ett kryp som skulle dela gruppen får inte flytta.</li>
       <li>Ett 🔒 betyder att krypet sitter fast hos en igelkott. Igelkotten kan också klättra upp på ett annat kryp, och då kan krypet under inte röra sig.</li>
-      <li>Efter <b>30 drag var</b> vinner den som har flest kryp runt den andras drottning.</li>
+      <li>Efter <b>50 drag var</b> vinner den som har fyllt flest platser runt den andras drottning.</li>
     </ul>
     <div class="critters" id="critters"></div>
   </section>
@@ -204,9 +204,9 @@ const DIRS=[[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
 const K=(q,r)=>q+','+r;
 const P=k=>k.split(',').map(Number);
 const MITT=K(0,0);
-const NEED=3;          // så många egna kryp runt motståndarens drottning vinner
+const NEED=6;          // motståndarens drottning måste vara helt omringad
 const QTURN=4;         // drottningen måste ut senast ditt fjärde drag
-const MAXN=60;         // totalt antal drag innan matchen avgörs på poäng
+const MAXN=100;        // totalt antal drag innan matchen avgörs på poäng
 const TYPES={
   drottning:{namn:'Drottning',ikon:'👑', antal:1, text:'Går ett steg. Måste läggas ut senast ditt fjärde drag. Innan hon är ute får du bara lägga ut kryp, inte flytta.'},
   snigel:  {namn:'Snigel',  ikon:'🐌', antal:3, text:'Glider alltid exakt två steg längs kanten av gruppen.'},
@@ -236,10 +236,10 @@ function occ(s){const m=new Map();for(const p of s.pieces)if(p.k){const v=m.get(
 function stackAt(s,k){return s.pieces.filter(p=>p.k===k).sort((a,b)=>a.h-b.h);}
 function covered(s,p){return s.pieces.some(q=>q.k===p.k&&q.h>p.h);}
 function queen(s,o){return s.pieces.find(p=>p.o===o&&p.t==='drottning');}
-/* Hur många av o:s kryp som står runt motståndarens drottning. */
+/* Hur många av de sex platserna runt motståndarens drottning som är fyllda (alla kryp räknas). */
 function ringCount(s,m,o){
   const q=queen(s,1-o);if(!q||!q.k)return 0;
-  let c=0;for(const k of nb(q.k)){const v=m.get(k);if(v!==undefined&&s.pieces[v].o===o)c++;}return c;
+  let c=0;for(const k of nb(q.k))if(m.has(k))c++;return c;
 }
 function mustPlaceQueen(s,o){return s.t[o]>=QTURN-1&&!queen(s,o).k;}
 function touches(m,k){return nb(k).some(x=>m.has(x));}
@@ -370,10 +370,8 @@ function evaluate(s,me){
   if(s.winner===1-me)return -1e5+s.n;
   if(s.winner==='oavgjort')return 0;
   const m=occ(s);const a=ringCount(s,m,me),b=ringCount(s,m,1-me);
-  let v=(a-b)*120+(a>=3?90:0)-(b>=3?90:0);
+  let v=(a-b)*110+(a>=5?120:0)-(b>=5?160:0)+(a>=4?40:0)-(b>=4?50:0);
   const qm=queen(s,me).k,qo=queen(s,1-me).k;
-  const free=k=>k?nb(k).filter(x=>!m.has(x)).length:6;
-  v+=(free(qm)-free(qo))*12;
   for(const p of s.pieces){
     if(!p.k)continue;
     const sg=p.o===me?1:-1,goal=p.o===me?(qo||MITT):(qm||MITT);
@@ -499,7 +497,7 @@ function render(){
   $('tdot').style.background=o?'var(--p1)':'var(--p0)';
   $('tname').textContent=state.winner!==null?'Matchen är slut':(isAI(o)?'Datorn (Lila) tänker…':PNAME[o]+'s tur'+(mode==='ai'?' (du)':''));
   const left=Math.max(0,Math.ceil((MAXN-state.n)/2));
-  $('left').textContent=NEED+' egna kryp runt motståndarens drottning vinner. Ungefär '+left+' drag kvar var.';
+  $('left').textContent='Fyll alla 6 platser runt motståndarens drottning. Ungefär '+left+' drag kvar var.';
   $('h1t').textContent=mode==='ai'?'Datorns kryp kvar att lägga ut':'Lila kryp kvar att lägga ut';
   for(const pl of [0,1]){
     const box=$('hand'+pl);box.innerHTML='';
@@ -592,9 +590,9 @@ function finish(){
   const w=state.winner,m=occ(state);
   const a=ringCount(state,m,0),b=ringCount(state,m,1);
   let title,text,icon='👑';
-  if(w==='oavgjort'){title='Oavgjort!';text=state.bada?'Båda drottningarna blev inringade samtidigt.':'Båda hade '+a+' kryp runt den andras drottning.';icon='🤝';tone(440,.3);}
+  if(w==='oavgjort'){title='Oavgjort!';text=state.bada?'Båda drottningarna blev inringade samtidigt.':'Båda drottningarna hade '+a+' fyllda platser runt sig.';icon='🤝';tone(440,.3);}
   else{
-    const how=state.byScore?'Tiden tog slut och '+PNAME[w]+' hade flest kryp runt den andras drottning ('+Math.max(a,b)+' mot '+Math.min(a,b)+').':PNAME[w]+' ringade in '+PNAME[1-w]+'s drottning med '+NEED+' kryp.';
+    const how=state.byScore?'Tiden tog slut och '+PNAME[w]+' hade fyllt flest platser runt den andras drottning ('+Math.max(a,b)+' mot '+Math.min(a,b)+').':PNAME[w]+' ringade in '+PNAME[1-w]+'s drottning helt.';
     if(mode==='ai'){
       if(w===0){title='Du vann! 🎉';icon='🏆';
         let pid='';try{const a=window.Spelhornan&&Spelhornan.aktiv();if(a)pid=a.id;}catch(e){}
@@ -660,7 +658,7 @@ sp.onclick=()=>{
   try{
     speechSynthesis.cancel();
     let t=$('msg').textContent+' '+$('info').textContent;
-    if(!sel)t+=' Målet är att ställa tre av dina kryp runt motståndarens drottning.';
+    if(!sel)t+=' Målet är att ringa in motståndarens drottning helt, på alla sex sidor.';
     const u=new SpeechSynthesisUtterance(t);u.lang='sv-SE';u.rate=.9;speechSynthesis.speak(u);
   }catch(e){}
 };
